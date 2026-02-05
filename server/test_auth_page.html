@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>认证测试</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; }
+    .section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 8px; }
+    .section h3 { margin-top: 0; }
+    button { padding: 10px 20px; margin: 5px; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 4px; }
+    button:hover { background: #0056b3; }
+    button:disabled { background: #ccc; cursor: not-allowed; }
+    .result { margin-top: 10px; padding: 10px; background: #f5f5f5; border-radius: 4px; font-family: monospace; font-size: 12px; white-space: pre-wrap; }
+    .error { background: #fee; color: #c00; }
+    .success { background: #efe; color: #0c0; }
+  </style>
+</head>
+<body>
+  <h1>认证与上传测试</h1>
+
+  <div class="section">
+    <h3>1. 检查本地存储</h3>
+    <button onclick="checkLocalStorage()">检查存储</button>
+    <div id="storageResult" class="result"></div>
+  </div>
+
+  <div class="section">
+    <h3>2. 登录</h3>
+    <input type="email" id="email" value="admin@phowson.com" placeholder="邮箱">
+    <input type="password" id="password" placeholder="密码">
+    <button onclick="login()">登录</button>
+    <div id="loginResult" class="result"></div>
+  </div>
+
+  <div class="section">
+    <h3>3. 测试认证状态</h3>
+    <button onclick="testAuth()">测试 /auth/me</button>
+    <div id="authResult" class="result"></div>
+  </div>
+
+  <div class="section">
+    <h3>4. 测试上传权限（不发送文件）</h3>
+    <button onclick="testUpload()">测试 POST /photos</button>
+    <div id="uploadResult" class="result"></div>
+  </div>
+
+  <script>
+    const API_BASE = 'http://localhost:3001';
+
+    function checkLocalStorage() {
+      const token = localStorage.getItem('photologs:auth:token');
+      const user = localStorage.getItem('photologs:auth:user');
+      const result = {
+        token: token ? `${token.substring(0, 20)}...` : 'null',
+        user: user ? JSON.parse(user) : 'null'
+      };
+      document.getElementById('storageResult').textContent = JSON.stringify(result, null, 2);
+      document.getElementById('storageResult').className = 'result success';
+    }
+
+    async function login() {
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+
+      try {
+        const res = await fetch(`${API_BASE}/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+          localStorage.setItem('photologs:auth:token', data.token);
+          localStorage.setItem('photologs:auth:user', JSON.stringify(data.user));
+          document.getElementById('loginResult').textContent = JSON.stringify(data, null, 2);
+          document.getElementById('loginResult').className = 'result success';
+          checkLocalStorage();
+        } else {
+          document.getElementById('loginResult').textContent = JSON.stringify(data, null, 2);
+          document.getElementById('loginResult').className = 'result error';
+        }
+      } catch (err) {
+        document.getElementById('loginResult').textContent = err.message;
+        document.getElementById('loginResult').className = 'result error';
+      }
+    }
+
+    async function testAuth() {
+      const token = localStorage.getItem('photologs:auth:token');
+
+      try {
+        const res = await fetch(`${API_BASE}/auth/me`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+          document.getElementById('authResult').textContent = JSON.stringify(data, null, 2);
+          document.getElementById('authResult').className = 'result success';
+        } else {
+          document.getElementById('authResult').textContent = JSON.stringify(data, null, 2);
+          document.getElementById('authResult').className = 'result error';
+        }
+      } catch (err)  {
+        document.getElementById('authResult').textContent = err.message;
+        document.getElementById('authResult').className = 'result error';
+      }
+    }
+
+    async function testUpload() {
+      const token = localStorage.getItem('photologs:auth:token');
+
+      try {
+        const res = await fetch(`${API_BASE}/photos`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          },
+          body: null
+        });
+
+        const data = await res.text();
+
+        if (res.status === 400) {
+          document.getElementById('uploadResult').textContent = `状态码: ${res.status}\n响应: ${data}\n\n这是预期的结果（因为没有发送正确的 multipart 数据）`;
+          document.getElementById('uploadResult').className = 'result success';
+        } else {
+          document.getElementById('uploadResult').textContent = `状态码: ${res.status}\n响应: ${data}`;
+          document.getElementById('uploadResult').className = 'result error';
+        }
+      } catch (err) {
+        document.getElementById('uploadResult').textContent = err.message;
+        document.getElementById('uploadResult').className = 'result error';
+      }
+    }
+
+    checkLocalStorage();
+  </script>
+</body>
+</html>
