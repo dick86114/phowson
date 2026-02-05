@@ -6,7 +6,7 @@ import {
     Monitor, Save, Bell, Shield, Search, MoreHorizontal, Camera, Lock,
     Tag, X, AlertTriangle, Maximize2, Check, RefreshCw, Key, Download,
     PieChart, ThumbsUp, MessageSquare, User as UserIcon, Mail, Upload,
-    Ban, Loader2, Sparkles
+    Ban, Loader2, Sparkles, Menu
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api, { API_BASE_URL } from '../api';
@@ -125,7 +125,7 @@ const SiteSettingsPanel: React.FC = () => {
                         type="text"
                         value={siteName}
                         onChange={(e) => setSiteName(e.target.value)}
-                        className="w-full mt-1 bg-gray-50 dark:bg-[#111a22] border border-gray-200 dark:border-surface-border rounded-lg p-2.5 text-gray-900 dark:text-white text-sm"
+                        className="w-full mt-1 bg-gray-50 dark:bg-[#111a22] border border-gray-200 dark:border-surface-border rounded-lg p-3 text-gray-900 dark:text-white text-sm"
                     />
                 </div>
                 <div>
@@ -134,7 +134,7 @@ const SiteSettingsPanel: React.FC = () => {
                         type="text"
                         value={logoUrl}
                         onChange={(e) => setLogoUrl(e.target.value)}
-                        className="w-full mt-1 bg-gray-50 dark:bg-[#111a22] border border-gray-200 dark:border-surface-border rounded-lg p-2.5 text-gray-900 dark:text-white text-sm"
+                        className="w-full mt-1 bg-gray-50 dark:bg-[#111a22] border border-gray-200 dark:border-surface-border rounded-lg p-3 text-gray-900 dark:text-white text-sm"
                     />
                 </div>
                 <div>
@@ -143,7 +143,7 @@ const SiteSettingsPanel: React.FC = () => {
                         type="text"
                         value={seoTitle}
                         onChange={(e) => setSeoTitle(e.target.value)}
-                        className="w-full mt-1 bg-gray-50 dark:bg-[#111a22] border border-gray-200 dark:border-surface-border rounded-lg p-2.5 text-gray-900 dark:text-white text-sm"
+                        className="w-full mt-1 bg-gray-50 dark:bg-[#111a22] border border-gray-200 dark:border-surface-border rounded-lg p-3 text-gray-900 dark:text-white text-sm"
                     />
                 </div>
                 <div>
@@ -152,7 +152,7 @@ const SiteSettingsPanel: React.FC = () => {
                         type="text"
                         value={seoDesc}
                         onChange={(e) => setSeoDesc(e.target.value)}
-                        className="w-full mt-1 bg-gray-50 dark:bg-[#111a22] border border-gray-200 dark:border-surface-border rounded-lg p-2.5 text-gray-900 dark:text-white text-sm"
+                        className="w-full mt-1 bg-gray-50 dark:bg-[#111a22] border border-gray-200 dark:border-surface-border rounded-lg p-3 text-gray-900 dark:text-white text-sm"
                     />
                 </div>
                 <div>
@@ -161,7 +161,7 @@ const SiteSettingsPanel: React.FC = () => {
                         type="text"
                         value={seoKeywords}
                         onChange={(e) => setSeoKeywords(e.target.value)}
-                        className="w-full mt-1 bg-gray-50 dark:bg-[#111a22] border border-gray-200 dark:border-surface-border rounded-lg p-2.5 text-gray-900 dark:text-white text-sm"
+                        className="w-full mt-1 bg-gray-50 dark:bg-[#111a22] border border-gray-200 dark:border-surface-border rounded-lg p-3 text-gray-900 dark:text-white text-sm"
                     />
                 </div>
                 <div>
@@ -169,7 +169,7 @@ const SiteSettingsPanel: React.FC = () => {
                     <select
                         value={themeMode}
                         onChange={(e) => setThemeMode(e.target.value)}
-                        className="w-full mt-1 bg-gray-50 dark:bg-[#111a22] border border-gray-200 dark:border-surface-border rounded-lg p-2.5 text-gray-900 dark:text-white text-sm"
+                        className="w-full mt-1 bg-gray-50 dark:bg-[#111a22] border border-gray-200 dark:border-surface-border rounded-lg p-3 text-gray-900 dark:text-white text-sm"
                     >
                         <option value="system">跟随系统</option>
                         <option value="light">浅色</option>
@@ -245,6 +245,39 @@ export const Admin: React.FC = () => {
     const { alert, confirm } = useModal();
     const queryClient = useQueryClient();
     const [activeTab, setActiveTab] = useState<Tab>('photos');
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+    // Gesture support
+    const [touchStart, setTouchStart] = useState<number | null>(null);
+    const [touchEnd, setTouchEnd] = useState<number | null>(null);
+
+    const onTouchStart = (e: React.TouchEvent) => {
+        setTouchEnd(null);
+        setTouchStart(e.targetTouches[0].clientX);
+    };
+
+    const onTouchMove = (e: React.TouchEvent) => {
+        setTouchEnd(e.targetTouches[0].clientX);
+    };
+
+    const onTouchEnd = () => {
+        if (!touchStart || !touchEnd) return;
+        const distance = touchStart - touchEnd;
+        const isLeftSwipe = distance > 50;
+        const isRightSwipe = distance < -50;
+
+        if (isLeftSwipe && isMobileMenuOpen) {
+            setIsMobileMenuOpen(false);
+        }
+        if (isRightSwipe && !isMobileMenuOpen && touchStart < 50) {
+             setIsMobileMenuOpen(true);
+        }
+    };
+
+    // Close mobile menu when route changes or tab changes
+    useEffect(() => {
+        setIsMobileMenuOpen(false);
+    }, [activeTab]);
 
     useEffect(() => {
         if (!currentUser) navigate('/login');
@@ -576,16 +609,37 @@ export const Admin: React.FC = () => {
     ];
 
     return (
-        <div className="min-h-screen bg-background-light dark:bg-background-dark flex transition-colors duration-300">
+        <div 
+            className="min-h-screen bg-background-light dark:bg-background-dark flex transition-colors duration-300 touch-pan-y"
+            onTouchStart={onTouchStart}
+            onTouchMove={onTouchMove}
+            onTouchEnd={onTouchEnd}
+        >
+            {/* Mobile Menu Overlay */}
+            {isMobileMenuOpen && (
+                <div 
+                    className="fixed inset-0 bg-black/50 z-40 lg:hidden backdrop-blur-sm animate-in fade-in duration-200"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                />
+            )}
+
             {/* Sidebar */}
-            <aside className="w-64 bg-white dark:bg-[#0b1219] border-r border-gray-200 dark:border-surface-border flex flex-col fixed inset-y-0 z-50 transition-colors duration-300">
-                <div className="p-6">
+            <aside className={`w-64 bg-white dark:bg-[#0b1219] border-r border-gray-200 dark:border-surface-border flex flex-col fixed inset-y-0 left-0 z-50 transition-transform duration-300 lg:translate-x-0 ${
+                isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+            }`}>
+                <div className="p-6 flex items-center justify-between">
                     <Link to="/" className="flex items-center gap-2 text-gray-900 dark:text-white hover:text-primary transition-colors">
                         <div className="size-8 flex items-center justify-center text-primary bg-primary/10 rounded-lg">
                             <Camera className="w-5 h-5" />
                         </div>
                         <h1 className="text-lg font-bold tracking-tight">管理中心</h1>
                     </Link>
+                    <button 
+                        onClick={() => setIsMobileMenuOpen(false)}
+                        className="lg:hidden p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-surface-border rounded-lg"
+                    >
+                        <X className="w-5 h-5" />
+                    </button>
                 </div>
 
                 <nav className="flex-1 px-4 space-y-1">
@@ -621,7 +675,21 @@ export const Admin: React.FC = () => {
             </aside>
 
             {/* Main Content */}
-            <main className="flex-1 ml-64 p-8 max-w-[1600px] mx-auto w-full">
+            <main className="flex-1 lg:ml-64 p-4 lg:p-8 max-w-[1600px] mx-auto w-full overflow-hidden">
+                {/* Mobile Header */}
+                <div className="lg:hidden flex items-center justify-between mb-6">
+                    <button 
+                        onClick={() => setIsMobileMenuOpen(true)}
+                        className="p-2 -ml-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-surface-dark rounded-lg"
+                    >
+                        <Menu className="w-6 h-6" />
+                    </button>
+                    <Link to="/" className="flex items-center gap-2 text-gray-900 dark:text-white">
+                        <Camera className="w-5 h-5 text-primary" />
+                        <span className="font-bold">管理中心</span>
+                    </Link>
+                    <div className="w-8" /> {/* Spacer for centering */}
+                </div>
                 
                 {/* --- PHOTOS TAB --- */}
                 {activeTab === 'photos' && (
@@ -641,7 +709,7 @@ export const Admin: React.FC = () => {
 
                         {/* Photo List */}
                         <div className="bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-xl overflow-hidden shadow-sm transition-colors">
-                            <div className="grid grid-cols-12 gap-4 p-4 border-b border-gray-200 dark:border-surface-border text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider bg-gray-50 dark:bg-[#111a22]">
+                            <div className="hidden md:grid grid-cols-12 gap-4 p-4 border-b border-gray-200 dark:border-surface-border text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider bg-gray-50 dark:bg-[#111a22]">
                                 <div className="col-span-5">照片信息</div>
                                 <div className="col-span-2">参数</div>
                                 <div className="col-span-3">数据表现</div>
@@ -653,10 +721,10 @@ export const Admin: React.FC = () => {
                                 ) : photos.map((photo: any) => {
                                     const exif = JSON.parse(photo.exif || '{}');
                                     return (
-                                        <div key={photo.id} className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-gray-50 dark:hover:bg-surface-border/30 transition-colors group">
-                                            <div className="col-span-5 flex items-center gap-4">
+                                        <div key={photo.id} className="flex flex-col md:grid md:grid-cols-12 gap-4 p-4 items-start md:items-center hover:bg-gray-50 dark:hover:bg-surface-border/30 transition-colors group relative">
+                                            <div className="w-full md:col-span-5 flex items-center gap-4">
                                                 <div 
-                                                    className="w-16 h-12 rounded-lg bg-gray-100 dark:bg-gray-800 overflow-hidden cursor-pointer relative"
+                                                    className="w-16 h-12 shrink-0 rounded-lg bg-gray-100 dark:bg-gray-800 overflow-hidden cursor-pointer relative"
                                                     onClick={() => setPreviewPhotoUrl(toMediaUrl(photo.mediumUrl || photo.url))}
                                                 >
                                                     <img src={toMediaUrl(photo.thumbUrl || photo.url)} alt={photo.title} className="w-full h-full object-cover" />
@@ -664,9 +732,9 @@ export const Admin: React.FC = () => {
                                                         <Maximize2 className="w-4 h-4 text-white" />
                                                     </div>
                                                 </div>
-                                                <div>
+                                                <div className="min-w-0 flex-1">
                                                     <h3 className="font-medium text-gray-900 dark:text-white line-clamp-1">{photo.title}</h3>
-                                                    <div className="flex items-center gap-2 mt-1">
+                                                    <div className="flex flex-wrap items-center gap-2 mt-1">
                                                         <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-surface-border text-gray-600 dark:text-gray-300">{categoryLabelByValue.get(String(photo.category || '')) || photo.category}</span>
                                                         <span className="text-xs text-gray-500">{new Date(photo.createdAt).toLocaleDateString()}</span>
                                                         {photo.aiCritique ? (
@@ -678,18 +746,18 @@ export const Admin: React.FC = () => {
                                                     </div>
                                                 </div>
                                             </div>
-                                            <div className="col-span-2 text-xs text-gray-500 dark:text-gray-400 space-y-1">
+                                            <div className="w-full md:col-span-2 text-xs text-gray-500 dark:text-gray-400 grid grid-cols-2 md:block gap-1 md:space-y-1">
                                                 <div className="flex items-center gap-1"><Camera className="w-3 h-3" /> {exif.Model || '未知相机'}</div>
                                                 <div className="flex items-center gap-1"><ImageIcon className="w-3 h-3" /> {photo.imageWidth && photo.imageHeight ? `${photo.imageWidth}×${photo.imageHeight}` : '未知分辨率'}</div>
                                                 <div className="flex items-center gap-1"><Upload className="w-3 h-3" /> {photo.imageSizeBytes ? formatBytes(photo.imageSizeBytes) : '未知大小'}</div>
                                                 <div className="flex items-center gap-1"><Tag className="w-3 h-3" /> {photo.tags?.split(',').length || 0} 个标签</div>
                                             </div>
-                                            <div className="col-span-3 flex items-center gap-4 text-sm text-gray-600 dark:text-gray-300">
+                                            <div className="w-full md:col-span-3 flex items-center gap-4 text-sm text-gray-600 dark:text-gray-300 border-t md:border-t-0 border-gray-100 dark:border-surface-border pt-2 md:pt-0">
                                                 <span className="flex items-center gap-1" title="浏览"><Activity className="w-4 h-4 text-blue-500" /> {photo.viewsCount}</span>
                                                 <span className="flex items-center gap-1" title="点赞"><ThumbsUp className="w-4 h-4 text-red-500" /> {photo.likesCount}</span>
                                                 <span className="flex items-center gap-1" title="评论"><MessageSquare className="w-4 h-4 text-green-500" /> {photo.comments?.length || 0}</span>
                                             </div>
-                                            <div className="col-span-2 flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <div className="absolute top-4 right-4 md:static w-auto md:col-span-2 flex justify-end gap-2 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                                                 {isAdmin ? (
                                                     <button
                                                         onClick={() => {
@@ -780,7 +848,7 @@ export const Admin: React.FC = () => {
                                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                                     <div className="lg:col-span-2 bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border p-6 rounded-xl shadow-sm">
                                         <h3 className="font-bold text-gray-900 dark:text-white mb-6">上传趋势 (近7天)</h3>
-                                        <div className="h-64 flex items-end justify-between gap-4 px-2">
+                                        <div className="h-64 flex items-end justify-between gap-2 md:gap-4 px-2 overflow-x-auto">
                                             {(statsData?.uploadTrend || []).slice(-7).map((t: any, i: number, arr: any[]) => {
                                                 const max = Math.max(1, ...arr.map((x: any) => x.count || 0));
                                                 const val = t.count || 0;
@@ -854,39 +922,38 @@ export const Admin: React.FC = () => {
                         </div>
 
                         <div className="bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-xl overflow-hidden shadow-sm transition-colors">
-                            <table className="w-full text-left border-collapse">
-                                <thead>
-                                    <tr className="bg-gray-50 dark:bg-[#111a22] text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider border-b border-gray-200 dark:border-surface-border">
-                                        <th className="px-6 py-4">用户</th>
-                                        <th className="px-6 py-4">角色</th>
-                                        <th className="px-6 py-4">状态</th>
-                                        <th className="px-6 py-4 text-right">操作</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-200 dark:divide-surface-border">
-                                    {usersLoading ? (
-                                        <tr>
-                                            <td colSpan={4} className="px-6 py-10 text-center text-gray-500 dark:text-gray-400">
-                                                <Loader2 className="inline-block w-5 h-5 animate-spin" />
-                                            </td>
-                                        </tr>
-                                    ) : users.map(user => {
-                                        const isSelf = user.id === effectiveUser.id;
-                                        return (
-                                            <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-surface-border/30 transition-colors">
-                                                <td className="px-6 py-4">
-                                                    <div className="flex items-center gap-3">
-                                                        <img src={toMediaUrl(user.avatar)} alt={user.name} className="w-10 h-10 rounded-full border border-gray-200 dark:border-surface-border object-cover" />
-                                                        <div>
-                                                            <div className="font-medium text-gray-900 dark:text-white flex items-center gap-2">
-                                                                {user.name}
-                                                                {isSelf && <span className="text-xs bg-primary/20 text-primary px-1.5 py-0.5 rounded">我</span>}
-                                                            </div>
-                                                            <div className="text-xs text-gray-500">{user.email || `ID: ${user.id}`}</div>
-                                                        </div>
+                            {/* Table Header - Hidden on mobile */}
+                            <div className="hidden md:grid grid-cols-12 gap-4 p-4 bg-gray-50 dark:bg-[#111a22] text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider border-b border-gray-200 dark:border-surface-border">
+                                <div className="col-span-5">用户</div>
+                                <div className="col-span-2">角色</div>
+                                <div className="col-span-3">状态</div>
+                                <div className="col-span-2 text-right">操作</div>
+                            </div>
+                            
+                            <div className="divide-y divide-gray-200 dark:divide-surface-border">
+                                {usersLoading ? (
+                                    <div className="p-10 text-center text-gray-500 dark:text-gray-400">
+                                        <Loader2 className="inline-block w-5 h-5 animate-spin" />
+                                    </div>
+                                ) : users.map(user => {
+                                    const isSelf = user.id === effectiveUser.id;
+                                    return (
+                                        <div key={user.id} className="flex flex-col md:grid md:grid-cols-12 gap-4 p-4 items-start md:items-center hover:bg-gray-50 dark:hover:bg-surface-border/30 transition-colors">
+                                            {/* User Info */}
+                                            <div className="w-full md:col-span-5 flex items-center gap-3">
+                                                <img src={toMediaUrl(user.avatar)} alt={user.name} className="w-10 h-10 rounded-full border border-gray-200 dark:border-surface-border object-cover" />
+                                                <div>
+                                                    <div className="font-medium text-gray-900 dark:text-white flex items-center gap-2">
+                                                        {user.name}
+                                                        {isSelf && <span className="text-xs bg-primary/20 text-primary px-1.5 py-0.5 rounded">我</span>}
                                                     </div>
-                                                </td>
-                                                <td className="px-6 py-4">
+                                                    <div className="text-xs text-gray-500">{user.email || `ID: ${user.id}`}</div>
+                                                </div>
+                                            </div>
+
+                                            {/* Role & Status Row on Mobile */}
+                                            <div className="w-full flex items-center justify-between md:contents">
+                                                <div className="md:col-span-2">
                                                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${
                                                         user.role === 'admin' 
                                                         ? 'bg-purple-100 text-purple-700 dark:bg-purple-500/10 dark:text-purple-500' 
@@ -894,47 +961,47 @@ export const Admin: React.FC = () => {
                                                     }`}>
                                                         {user.role}
                                                     </span>
-                                                </td>
-                                                <td className="px-6 py-4">
+                                                </div>
+                                                <div className="md:col-span-3">
                                                     <span className="flex items-center gap-1.5 text-sm text-green-600 dark:text-green-500">
                                                         <span className="w-2 h-2 rounded-full bg-green-500"></span>
                                                         正常
                                                     </span>
-                                                </td>
-                                                <td className="px-6 py-4">
-                                                    <div className="flex items-center justify-end gap-2">
-                                                        <button 
-                                                            onClick={() => handleOpenPasswordModal(user)}
-                                                            className="p-2 text-gray-400 hover:text-yellow-600 dark:hover:text-yellow-500 hover:bg-yellow-50 dark:hover:bg-yellow-500/10 rounded-lg transition-colors"
-                                                            title="重置密码"
-                                                        >
-                                                            <Key className="w-4 h-4" />
-                                                        </button>
-                                                        <button 
-                                                            onClick={() => handleOpenUserModal(user)}
-                                                            className="p-2 text-gray-400 hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"
-                                                            title="编辑"
-                                                        >
-                                                            <Edit2 className="w-4 h-4" />
-                                                        </button>
-                                                        <button 
-                                                            onClick={() => setUserToDelete(user.id)}
-                                                            disabled={isSelf}
-                                                            className={`p-2 rounded-lg transition-colors ${
-                                                                isSelf 
-                                                                ? 'text-gray-300 dark:text-gray-600 cursor-not-allowed' 
-                                                                : 'text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10'
-                                                            }`}
-                                                        >
-                                                            <Trash2 className="w-4 h-4" />
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
+                                                </div>
+                                            </div>
+
+                                            {/* Actions */}
+                                            <div className="w-full md:col-span-2 flex items-center justify-end gap-2 mt-2 md:mt-0 pt-3 md:pt-0 border-t md:border-t-0 border-gray-100 dark:border-surface-border">
+                                                <button 
+                                                    onClick={() => handleOpenPasswordModal(user)}
+                                                    className="p-2 text-gray-400 hover:text-yellow-600 dark:hover:text-yellow-500 hover:bg-yellow-50 dark:hover:bg-yellow-500/10 rounded-lg transition-colors"
+                                                    title="重置密码"
+                                                >
+                                                    <Key className="w-4 h-4" />
+                                                </button>
+                                                <button 
+                                                    onClick={() => handleOpenUserModal(user)}
+                                                    className="p-2 text-gray-400 hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"
+                                                    title="编辑"
+                                                >
+                                                    <Edit2 className="w-4 h-4" />
+                                                </button>
+                                                <button 
+                                                    onClick={() => setUserToDelete(user.id)}
+                                                    disabled={isSelf}
+                                                    className={`p-2 rounded-lg transition-colors ${
+                                                        isSelf 
+                                                        ? 'text-gray-300 dark:text-gray-600 cursor-not-allowed' 
+                                                        : 'text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10'
+                                                    }`}
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
                         </div>
                     </div>
                 )}
@@ -1056,12 +1123,12 @@ export const Admin: React.FC = () => {
                                             type="text" 
                                             value={profileName} 
                                             onChange={(e) => setProfileName(e.target.value)} 
-                                            className="w-full mt-1 bg-gray-50 dark:bg-[#111a22] border border-gray-200 dark:border-surface-border rounded-lg p-2.5 text-gray-900 dark:text-white text-sm" 
+                                            className="w-full mt-1 bg-gray-50 dark:bg-[#111a22] border border-gray-200 dark:border-surface-border rounded-lg p-3 text-gray-900 dark:text-white text-sm" 
                                         />
                                     </div>
                                     <div>
                                         <label className="text-xs text-gray-500 dark:text-gray-400 uppercase">当前角色</label>
-                                        <input type="text" value={simulatedRole} disabled className="w-full mt-1 bg-gray-50 dark:bg-[#111a22] border border-gray-200 dark:border-surface-border rounded-lg p-2.5 text-gray-500 text-sm capitalize" />
+                                        <input type="text" value={simulatedRole} disabled className="w-full mt-1 bg-gray-50 dark:bg-[#111a22] border border-gray-200 dark:border-surface-border rounded-lg p-3 text-gray-500 text-sm capitalize" />
                                     </div>
                                     <button 
                                         onClick={() => updateProfileMutation.mutate()} 
@@ -1170,7 +1237,7 @@ export const Admin: React.FC = () => {
                                     type="text" 
                                     value={userFormData.name}
                                     onChange={(e) => setUserFormData({...userFormData, name: e.target.value})}
-                                    className="w-full mt-1 bg-gray-50 dark:bg-[#111a22] border border-gray-200 dark:border-surface-border rounded-lg p-2.5 text-gray-900 dark:text-white focus:outline-none focus:border-primary"
+                                    className="w-full mt-1 bg-gray-50 dark:bg-[#111a22] border border-gray-200 dark:border-surface-border rounded-lg p-3 text-gray-900 dark:text-white focus:outline-none focus:border-primary"
                                 />
                             </div>
                             <div>
@@ -1179,7 +1246,7 @@ export const Admin: React.FC = () => {
                                     type="email" 
                                     value={userFormData.email}
                                     onChange={(e) => setUserFormData({...userFormData, email: e.target.value})}
-                                    className="w-full mt-1 bg-gray-50 dark:bg-[#111a22] border border-gray-200 dark:border-surface-border rounded-lg p-2.5 text-gray-900 dark:text-white focus:outline-none focus:border-primary"
+                                    className="w-full mt-1 bg-gray-50 dark:bg-[#111a22] border border-gray-200 dark:border-surface-border rounded-lg p-3 text-gray-900 dark:text-white focus:outline-none focus:border-primary"
                                 />
                             </div>
                             <div>
@@ -1187,7 +1254,7 @@ export const Admin: React.FC = () => {
                                 <select 
                                     value={userFormData.role}
                                     onChange={(e) => setUserFormData({...userFormData, role: e.target.value as any})}
-                                    className="w-full mt-1 bg-gray-50 dark:bg-[#111a22] border border-gray-200 dark:border-surface-border rounded-lg p-2.5 text-gray-900 dark:text-white focus:outline-none focus:border-primary"
+                                    className="w-full mt-1 bg-gray-50 dark:bg-[#111a22] border border-gray-200 dark:border-surface-border rounded-lg p-3 text-gray-900 dark:text-white focus:outline-none focus:border-primary"
                                 >
                                     <option value="family">Family (家庭成员)</option>
                                     <option value="admin">Admin (管理员)</option>
@@ -1201,7 +1268,7 @@ export const Admin: React.FC = () => {
                                         type="password" 
                                         value={userFormData.password}
                                         onChange={(e) => setUserFormData({...userFormData, password: e.target.value})}
-                                        className="w-full mt-1 bg-gray-50 dark:bg-[#111a22] border border-gray-200 dark:border-surface-border rounded-lg p-2.5 text-gray-900 dark:text-white focus:outline-none focus:border-primary"
+                                        className="w-full mt-1 bg-gray-50 dark:bg-[#111a22] border border-gray-200 dark:border-surface-border rounded-lg p-3 text-gray-900 dark:text-white focus:outline-none focus:border-primary"
                                     />
                                 </div>
                             )}
@@ -1244,7 +1311,7 @@ export const Admin: React.FC = () => {
                                         value={newPassword}
                                         onChange={(e) => setNewPassword(e.target.value)}
                                         placeholder="输入新密码"
-                                        className="w-full mt-1 bg-gray-50 dark:bg-[#111a22] border border-gray-200 dark:border-surface-border rounded-lg p-2.5 text-gray-900 dark:text-white focus:outline-none focus:border-primary"
+                                        className="w-full mt-1 bg-gray-50 dark:bg-[#111a22] border border-gray-200 dark:border-surface-border rounded-lg p-3 text-gray-900 dark:text-white focus:outline-none focus:border-primary"
                                         autoFocus
                                     />
                                 </div>

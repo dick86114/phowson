@@ -19,7 +19,7 @@ export const photoSelectSql = (withLikes) => {
   const likesJoin = withLikes
     ? `
       left join lateral (
-        select json_agg(json_build_object('userId', pl.user_id)) as likes
+        select json_agg(json_build_object('userId', coalesce(pl.user_id, pl.guest_id))) as likes
         from photo_likes pl
         where pl.photo_id = p.id
       ) l on true
@@ -59,8 +59,16 @@ export const photoSelectSql = (withLikes) => {
           'id', pc.id,
           'content', pc.content,
           'createdAt', pc.created_at,
-          'userId', pc.user_id,
-          'user', ${buildUserJsonSql('cu')}
+          'userId', coalesce(pc.user_id, 'guest'),
+          'user', case 
+            when pc.user_id is not null then ${buildUserJsonSql('cu')}
+            else json_build_object(
+              'id', 'guest',
+              'name', coalesce(pc.guest_nickname, '游客'),
+              'avatar', 'https://ui-avatars.com/api/?name=' || coalesce(pc.guest_nickname, 'Guest') || '&background=random',
+              'role', 'guest'
+            )
+          end
         )
         order by pc.created_at asc
       ) as comments

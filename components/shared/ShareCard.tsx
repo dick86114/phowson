@@ -29,19 +29,40 @@ export const ShareCard: React.FC<{
 
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(shareUrl);
-      alert({ title: '已复制', content: '链接已复制' });
-    } catch {
-      alert({ title: '复制失败', content: '复制失败，请手动复制' });
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(shareUrl);
+        alert({ title: '已复制', content: '链接已复制到剪贴板' });
+      } else {
+        // Fallback for non-secure contexts or older browsers
+        const textArea = document.createElement("textarea");
+        textArea.value = shareUrl;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        alert({ title: '已复制', content: '链接已复制到剪贴板' });
+      }
+    } catch (err) {
+      console.error('Copy failed:', err);
+      alert({ title: '复制失败', content: '无法复制链接，请手动复制' });
     }
   };
 
   const handleSystemShare = async () => {
-    try {
-      if (!('share' in navigator)) return;
-      await (navigator as any).share({ title: photo.title, url: shareUrl });
-    } catch {
-      return;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: photo.title,
+          text: `查看 ${photo.user.name} 的摄影作品：${photo.title}`,
+          url: shareUrl,
+        });
+      } catch (err) {
+        if ((err as any).name !== 'AbortError') {
+          console.error('Share failed:', err);
+        }
+      }
+    } else {
+      alert({ title: '不支持', content: '您的浏览器不支持系统分享功能，请使用复制链接' });
     }
   };
 
@@ -50,14 +71,23 @@ export const ShareCard: React.FC<{
     setIsGenerating(true);
 
     try {
-      // 增加延时确保图片加载
+      // Wait for fonts and images to be ready
+      await document.fonts.ready;
       await new Promise(resolve => setTimeout(resolve, 500));
       
       const canvas = await html2canvas(posterRef.current, {
         useCORS: true,
-        scale: 2, // 提高清晰度
+        allowTaint: true,
+        scale: 2, // Improve quality
         backgroundColor: '#111a22',
         logging: false,
+        onclone: (clonedDoc) => {
+            // Ensure images in the cloned document are loaded
+            const images = clonedDoc.getElementsByTagName('img');
+            for (let i = 0; i < images.length; i++) {
+                images[i].crossOrigin = "anonymous";
+            }
+        }
       });
 
       const dataUrl = canvas.toDataURL('image/png');
@@ -81,6 +111,19 @@ export const ShareCard: React.FC<{
     return `${API_BASE_URL}${u}`;
   };
 
+  // Helper to strip "ISO" prefix if present and display cleaner value
+  const isoValue = exif.iso ? String(exif.iso).replace(/^ISO\s*/i, '') : '';
+
+  // Determine layout based on content length
+  const longContent = [
+    exif.camera || exif.Model,
+    exif.lens || exif.LensModel,
+  ].some(s => String(s || '').length > 20);
+
+  // Use the proxy URL to ensure CORS headers are present (via our backend proxy)
+  const posterMainUrl = `${API_BASE_URL}/media/photos/${photo.id}?variant=medium`;
+  const posterThumbUrl = `${API_BASE_URL}/media/photos/${photo.id}?variant=thumb`;
+
   return (
     <div className="fixed inset-0 z-[70] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto" onClick={onClose}>
       <div className="w-full max-w-4xl bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row" onClick={(e) => e.stopPropagation()}>
@@ -95,12 +138,20 @@ export const ShareCard: React.FC<{
               style={{ fontFamily: 'Inter, sans-serif' }}
             >
               {/* Photo */}
-              <div className="aspect-[4/5] w-full overflow-hidden rounded-sm bg-gray-900">
+              <div className="aspect-[4/5] w-full overflow-hidden rounded-sm bg-gray-900 relative">
+                {/* Background image for fill (Thumb) */}
                 <img 
-                  src={toMediaUrl(photo.mediumUrl || photo.url)} 
+                  src={posterThumbUrl} 
                   alt={photo.title}
                   crossOrigin="anonymous"
-                  className="w-full h-full object-cover"
+                  className="absolute inset-0 w-full h-full object-cover blur-2xl opacity-50"
+                />
+                {/* Main image (Medium) */}
+                <img 
+                  src={posterMainUrl} 
+                  alt={photo.title}
+                  crossOrigin="anonymous"
+                  className="relative z-10 w-full h-full object-contain"
                 />
               </div>
 
@@ -114,52 +165,66 @@ export const ShareCard: React.FC<{
                 {/* Divider */}
                 <div className="h-px bg-white/10 w-full" />
 
-                {/* EXIF & Footer Area */}
-                <div className="flex justify-between items-end gap-4">
-                  <div className="space-y-2 flex-1">
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[10px] text-gray-300">
-                      <div className="flex flex-col">
-                        <span className="text-gray-500 uppercase text-[8px] mb-0.5">Camera</span>
-                        <span className="truncate">{exif.camera || exif.Model || 'Unknown'}</span>
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-gray-500 uppercase text-[8px] mb-0.5">Lens</span>
-                        <span className="truncate">{exif.lens || exif.LensModel || '-'}</span>
-                      </div>
-                      <div className="flex flex-col mt-1">
-                        <span className="text-gray-500 uppercase text-[8px] mb-0.5">Settings</span>
-                        <span>{exif.aperture} {exif.shutterSpeed} ISO {exif.iso}</span>
-                      </div>
-                      <div className="flex flex-col mt-1">
-                        <span className="text-gray-500 uppercase text-[8px] mb-0.5">Date</span>
-                        <span>{exif.date || 'Unknown'}</span>
-                      </div>
-                    </div>
-                    {exif.location && (
-                      <div className="flex items-center gap-1 text-[9px] text-primary/80">
-                        <MapPin className="w-2.5 h-2.5" />
-                        <span>{exif.location}</span>
-                      </div>
-                    )}
-                  </div>
+                {/* Footer Area: Params/Logo (Left) + QR (Right) */}
+                <div className="relative mt-auto">
+                   <div className="flex items-end justify-between">
+                     {/* Left Column: Params, Location, Logo */}
+                     <div className="flex-1 min-w-0 pr-4 pb-1">
+                        {/* Dynamic Grid for Parameters */}
+                        <div className={`grid ${longContent ? 'grid-cols-1' : 'grid-cols-2'} gap-x-4 gap-y-3 text-[10px] text-gray-300 mb-4`}>
+                          <div className="flex flex-col">
+                            <span className="text-gray-500 uppercase text-[8px] mb-0.5">相机</span>
+                            <span className="break-words leading-tight">{exif.camera || exif.Model || 'Unknown'}</span>
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-gray-500 uppercase text-[8px] mb-0.5">镜头</span>
+                            <span className="break-words leading-tight">{exif.lens || exif.LensModel || '-'}</span>
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-gray-500 uppercase text-[8px] mb-0.5">拍摄参数</span>
+                            <div className="flex flex-wrap gap-1 leading-tight">
+                                 {exif.aperture && <span>{exif.aperture}</span>}
+                                 {exif.shutterSpeed && <span>{exif.shutterSpeed}</span>}
+                                 {isoValue && <span>ISO{isoValue}</span>}
+                            </div>
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-gray-500 uppercase text-[8px] mb-0.5">拍摄日期</span>
+                            <span className="break-words leading-tight">{exif.date || 'Unknown'}</span>
+                          </div>
+                        </div>
 
-                  {/* QR Code */}
-                  <div className="bg-white p-1 rounded-sm flex-shrink-0">
-                    <QRCodeCanvas 
-                      value={shareUrl} 
-                      size={48} 
-                      level="L"
-                      includeMargin={false}
-                    />
-                  </div>
-                </div>
+                        {/* Location & Logo Container - using block/margin instead of flex gap for html2canvas stability */}
+                        <div className="flex flex-col">
+                           {/* Location */}
+                           {exif.location && (
+                             <div className="flex items-center text-[9px] text-primary/80 mb-2">
+                               <MapPin className="w-2.5 h-2.5 flex-shrink-0 mr-1" />
+                               <span className="truncate">{exif.location}</span>
+                             </div>
+                           )}
 
-                <div className="pt-2 flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 text-primary">
-                    <Camera className="w-3 h-3" />
-                    <span className="text-[9px] font-black tracking-widest uppercase">Phowson</span>
-                  </div>
-                  <span className="text-[8px] text-gray-600">Scan to view original</span>
+                           {/* Logo */}
+                           <div className="flex items-center text-primary">
+                             <Camera className="w-3 h-3 mr-1.5" />
+                             <span className="text-[9px] font-black tracking-widest uppercase">Phowson</span>
+                           </div>
+                        </div>
+                     </div>
+
+                     {/* Right Column: QR Code + Text */}
+                     <div className="flex flex-col items-center flex-shrink-0">
+                       <div className="bg-white p-1 rounded-sm mb-1.5">
+                         <QRCodeCanvas 
+                           value={shareUrl} 
+                           size={48} 
+                           level="L"
+                           includeMargin={false}
+                         />
+                       </div>
+                       <span className="text-[7px] text-gray-600 tracking-tight whitespace-nowrap">Scan to view original</span>
+                     </div>
+                   </div>
                 </div>
               </div>
             </div>

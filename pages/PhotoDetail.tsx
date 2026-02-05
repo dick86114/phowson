@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Share2, Heart, MessageCircle, MoreHorizontal, Send, Bookmark, Maximize2, X, ZoomIn, ZoomOut, Download, RefreshCcw, Sparkles, Loader2, Monitor, HardDrive } from 'lucide-react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import { ArrowLeft, Share2, Heart, MessageCircle, MoreHorizontal, Send, Bookmark, Maximize2, X, ZoomIn, ZoomOut, Download, RefreshCcw, Sparkles, Loader2, Monitor, HardDrive, RefreshCw, LogIn } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { TransformWrapper, TransformComponent, useControls, useTransformComponent } from "react-zoom-pan-pinch";
 import api, { API_BASE_URL } from '../api';
@@ -52,10 +52,41 @@ export const PhotoDetail: React.FC = () => {
     const queryClient = useQueryClient();
     const { user: currentUser } = useAuth();
     const [inlineAspectRatio, setInlineAspectRatio] = useState<number>(4 / 3);
+    const [guestId, setGuestId] = useState('');
+    
+    // Guest Comment State
+    const [guestNickname, setGuestNickname] = useState('');
+    const [guestEmail, setGuestEmail] = useState('');
+    const [captchaInput, setCaptchaInput] = useState('');
+    const [captchaSvg, setCaptchaSvg] = useState('');
+    const [captchaToken, setCaptchaToken] = useState('');
 
     useEffect(() => {
         window.scrollTo(0, 0);
+        
+        // Init Guest ID
+        let gid = localStorage.getItem('phowson_guest_id');
+        if (!gid) {
+            gid = Math.random().toString(36).substring(2) + Date.now().toString(36);
+            localStorage.setItem('phowson_guest_id', gid);
+        }
+        setGuestId(gid);
     }, [id]);
+
+    const refreshCaptcha = async () => {
+        try {
+            const res = await api.get('/auth/captcha');
+            setCaptchaSvg(res.data.svg);
+            setCaptchaToken(res.data.token);
+            setCaptchaInput('');
+        } catch (e) {
+            console.error('Failed to fetch captcha', e);
+        }
+    };
+
+    useEffect(() => {
+        if (!currentUser) refreshCaptcha();
+    }, [currentUser]);
     
     // Fetch photo data
     const { data: photo, isLoading } = useQuery({
@@ -81,32 +112,52 @@ export const PhotoDetail: React.FC = () => {
     
     // Mutations
     const toggleLikeMutation = useMutation({
-        mutationFn: () => api.post(`/photos/${id}/like`),
+        mutationFn: () => api.post(`/photos/${id}/like`, { guestId: !currentUser ? guestId : undefined }),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['photo', id] });
         }
     });
 
     const addCommentMutation = useMutation({
-        mutationFn: (content: string) => api.post(`/photos/${id}/comment`, { content }),
+        mutationFn: (data: any) => api.post(`/photos/${id}/comment`, data),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['photo', id] });
             setCommentText('');
+            if (!currentUser) {
+                setCaptchaInput('');
+                refreshCaptcha();
+            }
+        },
+        onError: (err: any) => {
+             if (!currentUser) refreshCaptcha();
+             alert(err?.response?.data?.message || '评论失败');
         }
     });
 
     // --- Interaction Handlers ---
     const handleCommentSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!commentText.trim() || !currentUser) return;
-        addCommentMutation.mutate(commentText);
+        const content = commentText.trim();
+        if (!content) return;
+        
+        if (currentUser) {
+            addCommentMutation.mutate({ content });
+        } else {
+            if (!guestNickname || !guestEmail || !captchaInput) {
+                alert('请填写完整信息');
+                return;
+            }
+            addCommentMutation.mutate({
+                content,
+                nickname: guestNickname,
+                email: guestEmail,
+                captcha: captchaInput,
+                captchaToken
+            });
+        }
     };
 
     const handleLikeToggle = () => {
-        if (!currentUser) {
-            navigate('/login');
-            return;
-        }
         toggleLikeMutation.mutate();
     };
 
@@ -124,7 +175,10 @@ export const PhotoDetail: React.FC = () => {
     if (!photo) return <div className="p-8 text-center text-gray-500">Photo not found</div>;
 
     const exif = JSON.parse(photo.exif || '{}');
-    const isLiked = photo.likes?.some((l: any) => l.userId === currentUser?.id);
+    const isLiked = photo.likes?.some((l: any) => {
+        if (currentUser) return l.userId === currentUser.id;
+        return l.userId === guestId;
+    });
 
     return (
         <div className="bg-background-light dark:bg-background-dark min-h-screen pb-20 transition-colors duration-300">
@@ -143,9 +197,6 @@ export const PhotoDetail: React.FC = () => {
                         className="p-2 text-gray-600 dark:text-gray-300 hover:text-primary transition-colors hover:bg-gray-100 dark:hover:bg-surface-dark rounded-full"
                     >
                         <Share2 className="w-4 h-4" />
-                    </button>
-                    <button className="p-2 text-gray-600 dark:text-gray-300 hover:text-primary transition-colors hover:bg-gray-100 dark:hover:bg-surface-dark rounded-full">
-                        <Bookmark className="w-4 h-4" />
                     </button>
                 </div>
             </div>
@@ -197,9 +248,6 @@ export const PhotoDetail: React.FC = () => {
                             <div className="space-y-4">
                                 <div className="flex items-start justify-between">
                                     <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{photo.title}</h1>
-                                    <button className="text-gray-400 hover:text-gray-600 dark:hover:text-white">
-                                        <MoreHorizontal className="w-6 h-6" />
-                                    </button>
                                 </div>
                                 <div className="flex items-center gap-4">
                                     <img src={toMediaUrl(photo.user.avatar) || `https://ui-avatars.com/api/?name=${photo.user.name}`} alt={photo.user.name} className="w-10 h-10 rounded-full border border-gray-200 dark:border-surface-border" />
@@ -207,13 +255,10 @@ export const PhotoDetail: React.FC = () => {
                                         <p className="text-sm font-medium text-gray-900 dark:text-white">{photo.user.name}</p>
                                         <p className="text-xs text-gray-500">发布于 {new Date(photo.createdAt).toLocaleDateString()}</p>
                                     </div>
-                                    <button className="ml-auto bg-primary text-white text-xs px-3 py-1.5 rounded-full font-medium hover:bg-primary/90 transition">
-                                        关注
-                                    </button>
                                 </div>
                             </div>
 
-                            <div className="flex items-center justify-between py-4 border-y border-gray-200 dark:border-surface-border">
+                            <div className="flex items-center justify-between py-4">
                                 <div className="flex items-center gap-6">
                                     <button onClick={handleLikeToggle} className={`flex items-center gap-2 transition-colors group ${isLiked ? 'text-red-500' : 'text-gray-600 dark:text-gray-300 hover:text-red-500'}`}>
                                         <Heart className={`w-6 h-6 ${isLiked ? 'fill-red-500' : 'group-hover:fill-red-500'}`} />
@@ -224,10 +269,12 @@ export const PhotoDetail: React.FC = () => {
                                         <span className="font-medium">{photo.comments?.length || 0}</span>
                                     </button>
                                 </div>
-                                <a href={toMediaUrl(photo.originalUrl || photo.url)} download target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-surface-dark px-3 py-1.5 rounded-lg transition-colors">
-                                    <Download className="w-4 h-4" />
-                                    下载原图
-                                </a>
+                                {currentUser && (
+                                    <a href={toMediaUrl(photo.originalUrl || photo.url)} download target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-surface-dark px-3 py-1.5 rounded-lg transition-colors">
+                                        <Download className="w-4 h-4" />
+                                        下载原图
+                                    </a>
+                                )}
                             </div>
 
                             {/* AI Critique Section */}
@@ -238,7 +285,7 @@ export const PhotoDetail: React.FC = () => {
                                     </div>
                                     <h3 className="text-sm font-bold text-primary flex items-center gap-2">
                                         <Sparkles className="w-4 h-4" />
-                                        AI 摄影评论 (Gemini)
+                                        AI 摄影评论
                                     </h3>
                                     <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed italic">
                                         "{photo.aiCritique}"
@@ -254,10 +301,10 @@ export const PhotoDetail: React.FC = () => {
                                 </div>
                             </div>
 
-                            <div className="space-y-3">
+                            <div className="space-y-3 border-t border-gray-200 dark:border-surface-border pt-6">
                                 <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">拍摄参数</h3>
                                 <ExifGrid exif={exif} />
-                                <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-gray-200 dark:border-surface-border">
+                                <div className="grid grid-cols-2 gap-4 mt-4">
                                     <PhotoExifBadge 
                                         icon={<Monitor className="w-4 h-4"/>} 
                                         label="分辨率" 
@@ -271,12 +318,12 @@ export const PhotoDetail: React.FC = () => {
                                 </div>
                             </div>
 
-                            <div className="space-y-4 pt-4">
+                            <div className="space-y-4 border-t border-gray-200 dark:border-surface-border pt-6">
                                 <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">评论 ({photo.comments?.length || 0})</h3>
                                 <div className="space-y-4">
                                     {photo.comments?.map((comment: any) => (
                                         <div key={comment.id} className="flex gap-3">
-                                            <img src={comment.user.avatar || `https://ui-avatars.com/api/?name=${comment.user.name}`} alt={comment.user.name} className="w-8 h-8 rounded-full" />
+                                            <img src={toMediaUrl(comment.user.avatar) || `https://ui-avatars.com/api/?name=${comment.user.name}`} alt={comment.user.name} className="w-8 h-8 rounded-full" />
                                             <div className="flex-1">
                                                 <div className="flex items-baseline justify-between">
                                                     <span className="text-sm font-medium text-gray-900 dark:text-white">{comment.user.name}</span>
@@ -287,11 +334,68 @@ export const PhotoDetail: React.FC = () => {
                                         </div>
                                     ))}
                                 </div>
-                                <form onSubmit={handleCommentSubmit} className="relative mt-4">
-                                    <input type="text" placeholder={currentUser ? "写下你的评论..." : "登录后即可发表评论"} disabled={!currentUser} value={commentText} onChange={(e) => setCommentText(e.target.value)} className="w-full bg-gray-100 dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-lg py-3 pl-4 pr-12 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary placeholder-gray-500 disabled:opacity-50" />
-                                    <button type="submit" disabled={!commentText.trim() || addCommentMutation.isPending} className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-primary hover:bg-primary/10 rounded-md disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
-                                        <Send className="w-4 h-4" />
-                                    </button>
+                                <form onSubmit={handleCommentSubmit} className="relative mt-4 space-y-3">
+                                    {!currentUser && (
+                                        <>
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <input 
+                                                    type="text" 
+                                                    placeholder="昵称 (必填)" 
+                                                    required
+                                                    value={guestNickname}
+                                                    onChange={e => setGuestNickname(e.target.value)}
+                                                    className="w-full bg-gray-100 dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-lg py-2 px-3 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                                                />
+                                                <input 
+                                                    type="email" 
+                                                    placeholder="邮箱 (必填)" 
+                                                    required
+                                                    value={guestEmail}
+                                                    onChange={e => setGuestEmail(e.target.value)}
+                                                    className="w-full bg-gray-100 dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-lg py-2 px-3 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                                                />
+                                            </div>
+                                            <div className="flex gap-3">
+                                                <input 
+                                                    type="text" 
+                                                    placeholder="验证码" 
+                                                    required
+                                                    value={captchaInput}
+                                                    onChange={e => setCaptchaInput(e.target.value)}
+                                                    className="flex-1 bg-gray-100 dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-lg py-2 px-3 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                                                />
+                                                <div 
+                                                    className="h-10 w-24 bg-white rounded overflow-hidden cursor-pointer border border-gray-200"
+                                                    dangerouslySetInnerHTML={{ __html: captchaSvg }}
+                                                    onClick={refreshCaptcha}
+                                                    title="点击刷新"
+                                                />
+                                                <button type="button" onClick={refreshCaptcha} className="p-2 text-gray-500 hover:text-primary">
+                                                    <RefreshCw className="w-5 h-5" />
+                                                </button>
+                                            </div>
+                                        </>
+                                    )}
+                                    <div className="relative">
+                                        <input 
+                                            type="text" 
+                                            placeholder={currentUser ? "写下你的评论..." : "写下你的评论..."} 
+                                            value={commentText} 
+                                            onChange={(e) => setCommentText(e.target.value)} 
+                                            className="w-full bg-gray-100 dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-lg py-3 pl-4 pr-12 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary placeholder-gray-500 disabled:opacity-50" 
+                                        />
+                                        <button type="submit" disabled={!commentText.trim() || addCommentMutation.isPending} className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-primary hover:bg-primary/10 rounded-md disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                                            {addCommentMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                                        </button>
+                                    </div>
+                                    {!currentUser && (
+                                        <div className="text-right">
+                                            <Link to="/login" className="text-xs text-primary hover:underline flex items-center justify-end gap-1">
+                                                <LogIn className="w-3 h-3" />
+                                                已有账号？去登录
+                                            </Link>
+                                        </div>
+                                    )}
                                 </form>
                             </div>
                         </div>

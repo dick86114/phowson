@@ -4,6 +4,7 @@ import { normalizeRole } from '../lib/roles.mjs';
 import { hashPassword, verifyPassword } from '../lib/passwords.mjs';
 import { generateToken, hashToken } from '../lib/tokens.mjs';
 import { createSession, deleteSession } from '../db/sessions.mjs';
+import { createCaptcha } from '../lib/captcha.mjs';
 
 const getBearerToken = (req) => {
   const auth = String(req.headers.authorization ?? '').trim();
@@ -123,5 +124,9 @@ export const registerAuthRoutes = async (app) => {
       }
     }
     return { ok: true };
+  });
+
+  app.get('/auth/captcha', async () => {
+    return createCaptcha();
   });
 };

@@ -13,6 +13,7 @@ import { critiqueFromImage, fillFromImage } from '../lib/ai_provider.mjs';
 import sharp from 'sharp';
 import { bumpUploadActivity } from '../db/activity_logs.mjs';
 import { generateEmbedding, buildSemanticText } from '../lib/embedding.mjs';
+import { verifyCaptcha } from '../lib/captcha.mjs';
 
 const localDayIso = () => {
   const d = new Date();
@@ -592,12 +593,20 @@ export const registerPhotoRoutes = async (app) => {
         required: ['id'],
         properties: { id: { type: 'string', minLength: 1 } },
       },
+      body: {
+        type: 'object',
+        properties: {
+          guestId: { type: 'string' }
+        }
+      }
     },
-    preHandler: requireMember(),
     handler: async (req) => {
       const id = String(req.params.id);
       const user = req.authUser;
-      await upsertUser(user);
+      if (user) await upsertUser(user);
+
+      const guestId = String(req.body?.guestId || '').trim();
+      if (!user && !guestId) throw badRequest('GUEST_ID_REQUIRED', '需要登录或游客ID');
 
       const photoExists = await pool.query('select 1 from photos where id=$1', [id]);
       if (photoExists.rowCount === 0) throw notFound('PHOTO_NOT_FOUND', '照片不存在');
@@ -605,12 +614,26 @@ export const registerPhotoRoutes = async (app) => {
       const client = await pool.connect();
       try {
         await client.query('begin');
-        const exists = await client.query('select 1 from photo_likes where photo_id=$1 and user_id=$2', [id, user.id]);
+        let exists;
+        if (user) {
+          exists = await client.query('select 1 from photo_likes where photo_id=$1 and user_id=$2', [id, user.id]);
+        } else {
+          exists = await client.query('select 1 from photo_likes where photo_id=$1 and guest_id=$2', [id, guestId]);
+        }
+
         if (exists.rowCount > 0) {
-          await client.query('delete from photo_likes where photo_id=$1 and user_id=$2', [id, user.id]);
+          if (user) {
+            await client.query('delete from photo_likes where photo_id=$1 and user_id=$2', [id, user.id]);
+          } else {
+            await client.query('delete from photo_likes where photo_id=$1 and guest_id=$2', [id, guestId]);
+          }
           await client.query('update photos set likes_count = greatest(likes_count - 1, 0) where id=$1', [id]);
         } else {
-          await client.query('insert into photo_likes(photo_id, user_id) values ($1,$2)', [id, user.id]);
+          if (user) {
+            await client.query('insert into photo_likes(photo_id, user_id) values ($1,$2)', [id, user.id]);
+          } else {
+            await client.query('insert into photo_likes(photo_id, guest_id) values ($1,$2)', [id, guestId]);
+          }
           await client.query('update photos set likes_count = likes_count + 1 where id=$1', [id]);
         }
         await client.query('commit');
@@ -638,14 +661,17 @@ export const registerPhotoRoutes = async (app) => {
         required: ['content'],
         properties: {
           content: { type: 'string', minLength: 1, maxLength: 2000 },
+          nickname: { type: 'string' },
+          email: { type: 'string' },
+          captcha: { type: 'string' },
+          captchaToken: { type: 'string' },
         },
       },
     },
-    preHandler: requireMember(),
     handler: async (req) => {
       const id = String(req.params.id);
       const user = req.authUser;
-      await upsertUser(user);
+      if (user) await upsertUser(user);
 
       const photoExists = await pool.query('select 1 from photos where id=$1', [id]);
       if (photoExists.rowCount === 0) throw notFound('PHOTO_NOT_FOUND', '照片不存在');
@@ -653,7 +679,25 @@ export const registerPhotoRoutes = async (app) => {
       const content = String(req.body?.content ?? '').trim();
       if (!content) throw badRequest('CONTENT_REQUIRED', '评论内容不能为空');
 
-      await pool.query('insert into photo_comments(photo_id, user_id, content) values ($1,$2,$3)', [id, user.id, content]);
+      if (!user) {
+        const nickname = String(req.body?.nickname || '').trim();
+        const email = String(req.body?.email || '').trim();
+        const captcha = String(req.body?.captcha || '').trim();
+        const captchaToken = String(req.body?.captchaToken || '').trim();
+
+        if (!nickname) throw badRequest('NICKNAME_REQUIRED', '游客昵称不能为空');
+        if (!email) throw badRequest('EMAIL_REQUIRED', '游客邮箱不能为空');
+        if (!captcha) throw badRequest('CAPTCHA_REQUIRED', '验证码不能为空');
+
+        if (!verifyCaptcha(captcha, captchaToken)) {
+          throw badRequest('CAPTCHA_INVALID', '验证码错误或已过期');
+        }
+
+        await pool.query('insert into photo_comments(photo_id, guest_nickname, guest_email, content) values ($1,$2,$3,$4)', [id, nickname, email, content]);
+      } else {
+        await pool.query('insert into photo_comments(photo_id, user_id, content) values ($1,$2,$3)', [id, user.id, content]);
+      }
+
       const detail = await pool.query(`${photoSelectSql(true)} where p.id = $1`, [id]);
       return detail.rows[0];
     },
