@@ -36,6 +36,15 @@ const toMediaUrl = (url: string) => {
     return `${API_BASE_URL}${url}`;
 };
 
+const formatBytes = (bytes: number) => {
+    if (!Number.isFinite(bytes) || bytes <= 0) return '0B';
+    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.min(units.length - 1, Math.floor(Math.log(bytes) / Math.log(1024)));
+    const v = bytes / Math.pow(1024, i);
+    const fixed = v >= 100 || i === 0 ? 0 : v >= 10 ? 1 : 2;
+    return `${v.toFixed(fixed)}${units[i]}`;
+};
+
 const SiteSettingsPanel: React.FC = () => {
     const queryClient = useQueryClient();
     const { alert, confirm } = useModal();
@@ -385,12 +394,20 @@ export const Admin: React.FC = () => {
 
     const { data: categories = [], isLoading: categoriesLoading } = useQuery({
         queryKey: ['categories'],
-        enabled: isAdmin,
+        enabled: true,
         queryFn: async () => {
             const res = await api.get<ApiCategory[]>('/categories');
             return res.data;
         },
     });
+
+    const categoryLabelByValue = useMemo(() => {
+        const m = new Map<string, string>();
+        for (const c of categories) {
+            if (c?.value) m.set(String(c.value), String(c.label || c.value));
+        }
+        return m;
+    }, [categories]);
 
     const [newCatLabel, setNewCatLabel] = useState('');
     const [newCatValue, setNewCatValue] = useState('');
@@ -650,7 +667,7 @@ export const Admin: React.FC = () => {
                                                 <div>
                                                     <h3 className="font-medium text-gray-900 dark:text-white line-clamp-1">{photo.title}</h3>
                                                     <div className="flex items-center gap-2 mt-1">
-                                                        <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-surface-border text-gray-600 dark:text-gray-300">{photo.category}</span>
+                                                        <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-surface-border text-gray-600 dark:text-gray-300">{categoryLabelByValue.get(String(photo.category || '')) || photo.category}</span>
                                                         <span className="text-xs text-gray-500">{new Date(photo.createdAt).toLocaleDateString()}</span>
                                                         {photo.aiCritique ? (
                                                             <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full flex items-center gap-1">
@@ -663,6 +680,8 @@ export const Admin: React.FC = () => {
                                             </div>
                                             <div className="col-span-2 text-xs text-gray-500 dark:text-gray-400 space-y-1">
                                                 <div className="flex items-center gap-1"><Camera className="w-3 h-3" /> {exif.Model || '未知相机'}</div>
+                                                <div className="flex items-center gap-1"><ImageIcon className="w-3 h-3" /> {photo.imageWidth && photo.imageHeight ? `${photo.imageWidth}×${photo.imageHeight}` : '未知分辨率'}</div>
+                                                <div className="flex items-center gap-1"><Upload className="w-3 h-3" /> {photo.imageSizeBytes ? formatBytes(photo.imageSizeBytes) : '未知大小'}</div>
                                                 <div className="flex items-center gap-1"><Tag className="w-3 h-3" /> {photo.tags?.split(',').length || 0} 个标签</div>
                                             </div>
                                             <div className="col-span-3 flex items-center gap-4 text-sm text-gray-600 dark:text-gray-300">
@@ -792,10 +811,11 @@ export const Admin: React.FC = () => {
                                             {statsData?.categoryDistribution?.map((cat: any, idx: number) => {
                                                 const total = statsData.categoryDistribution.reduce((sum: number, c: any) => sum + c.count, 0);
                                                 const percentage = total > 0 ? Math.round((cat.count / total) * 100) : 0;
+                                                const label = categoryLabelByValue.get(String(cat.category || '')) || cat.category;
                                                 return (
                                                     <div key={idx}>
                                                         <div className="flex justify-between text-sm mb-2">
-                                                            <span className="text-gray-600 dark:text-gray-300 capitalize">{cat.category}</span>
+                                                            <span className="text-gray-600 dark:text-gray-300">{label}</span>
                                                             <span className="text-gray-900 dark:text-white font-medium">{cat.count} 张 ({percentage}%)</span>
                                                         </div>
                                                         <div className="h-2 w-full bg-gray-100 dark:bg-surface-border rounded-full overflow-hidden">

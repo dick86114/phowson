@@ -114,7 +114,49 @@ const main = async () => {
   }
 
   const fd = new FormData();
-  const file = new File([Buffer.from('hello')], 'test.jpg', { type: 'image/jpeg' });
+  const onePixelJpegBase64 =
+    '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABALDA4MChAODQ4SERATGCgaGBYWGDEjJR0oOjM9PDkzODdASFxOQERXRTc4UG1RV19iZ2hnPk1xeXBkeFxlZ2P/2wBDARASExgYGCgaGDEkJSQkJGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGP/wAARCAABAAEDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD3+iiigD//2Q==';
+  const imageBytes = Buffer.from(onePixelJpegBase64, 'base64');
+  {
+    const importId = `smoke-import-${Date.now()}`;
+    const importRes = await fetch(`${baseUrl}/admin/migrate/localstorage`, {
+      method: 'POST',
+      headers: { ...headers, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        photos: [
+          {
+            id: importId,
+            title: 'smoke import',
+            description: 'smoke import',
+            category: 'uncategorized',
+            tags: ['a', 'b'],
+            exif: JSON.stringify({ camera: 'smoke-import' }),
+            url: `data:image/jpeg;base64,${onePixelJpegBase64}`,
+            createdAt: new Date().toISOString(),
+            viewsCount: 0,
+            likesCount: 0,
+          },
+        ],
+      }),
+    });
+    assert.equal(importRes.status, 200);
+    const importBody = await importRes.json();
+    assert.equal(importBody.ok, true);
+
+    const importDetailRes = await fetch(`${baseUrl}/photos/${importId}`);
+    assert.equal(importDetailRes.status, 200);
+    const importDetail = await importDetailRes.json();
+    assert.equal(importDetail.id, importId);
+    assert.equal(importDetail.imageWidth, 1);
+    assert.equal(importDetail.imageHeight, 1);
+    assert.equal(importDetail.imageSizeBytes, imageBytes.length);
+
+    const importDelRes = await fetch(`${baseUrl}/photos/${importId}`, { method: 'DELETE', headers });
+    assert.equal(importDelRes.status, 200);
+    const importDelBody = await importDelRes.json();
+    assert.equal(importDelBody.ok, true);
+  }
+  const file = new File([imageBytes], 'test.jpg', { type: 'image/jpeg' });
   fd.append('photo', file);
   fd.append('title', 'smoke photo');
   fd.append('description', 'smoke');
@@ -130,6 +172,9 @@ const main = async () => {
   assert.equal(createRes.status, 201);
   const created = await createRes.json();
   assert.ok(created.id);
+  assert.equal(created.imageWidth, 1);
+  assert.equal(created.imageHeight, 1);
+  assert.equal(created.imageSizeBytes, imageBytes.length);
 
   const id = created.id;
 
@@ -137,6 +182,9 @@ const main = async () => {
   assert.equal(detailRes.status, 200);
   const detail = await detailRes.json();
   assert.equal(detail.id, id);
+  assert.equal(detail.imageWidth, 1);
+  assert.equal(detail.imageHeight, 1);
+  assert.equal(detail.imageSizeBytes, imageBytes.length);
 
   const commentRes = await fetch(`${baseUrl}/photos/${id}/comment`, {
     method: 'POST',

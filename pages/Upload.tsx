@@ -25,6 +25,9 @@ type UploadItem = {
     title: string;
     description: string;
     status: UploadStatus;
+    width?: number | null;
+    height?: number | null;
+    bytes?: number | null;
     error?: string;
     photoId?: string;
 };
@@ -56,6 +59,24 @@ const toMediaUrl = (url: string | null | undefined) => {
     return `${API_BASE_URL}${u}`;
 };
 
+const formatBytes = (bytes: number) => {
+    if (!Number.isFinite(bytes) || bytes <= 0) return '0B';
+    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.min(units.length - 1, Math.floor(Math.log(bytes) / Math.log(1024)));
+    const v = bytes / Math.pow(1024, i);
+    const fixed = v >= 100 || i === 0 ? 0 : v >= 10 ? 1 : 2;
+    return `${v.toFixed(fixed)}${units[i]}`;
+};
+
+const getImageDimensions = (src: string) => {
+    return new Promise<{ width: number; height: number }>((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve({ width: img.naturalWidth || 0, height: img.naturalHeight || 0 });
+        img.onerror = () => reject(new Error('图片加载失败'));
+        img.src = src;
+    });
+};
+
 export const Upload: React.FC = () => {
     const navigate = useNavigate();
     const { id } = useParams<{ id: string }>(); 
@@ -69,6 +90,7 @@ export const Upload: React.FC = () => {
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [uploadItems, setUploadItems] = useState<UploadItem[]>([]);
     const [isUploadingQueue, setIsUploadingQueue] = useState(false);
+    const [fileMeta, setFileMeta] = useState<{ width: number | null; height: number | null; bytes: number | null } | null>(null);
     
     // Data State
     const [title, setTitle] = useState('');
@@ -133,6 +155,11 @@ export const Upload: React.FC = () => {
                         iso: parsedExif.iso?.toString?.() || parsedExif.ISO?.toString?.() || String(parsedExif.iso || parsedExif.ISO || ''),
                         focalLength: parsedExif.focalLength || (parsedExif.FocalLength ? `${parsedExif.FocalLength}mm` : '')
                     });
+                    setFileMeta({
+                        width: Number.isFinite(photo.imageWidth) ? photo.imageWidth : null,
+                        height: Number.isFinite(photo.imageHeight) ? photo.imageHeight : null,
+                        bytes: Number.isFinite(photo.imageSizeBytes) ? photo.imageSizeBytes : null,
+                    });
                 } catch (err) {
                     console.error('Error fetching photo:', err);
                 }
@@ -182,11 +209,23 @@ export const Upload: React.FC = () => {
                     title: filenameToTitle(file.name),
                     description: '',
                     status: 'queued' as const,
+                    width: null,
+                    height: null,
+                    bytes: file.size,
                 };
             });
 
         if (!next.length) return;
         setUploadItems(prev => [...prev, ...next]);
+        for (const it of next) {
+            getImageDimensions(it.previewUrl)
+                .then(({ width, height }) => {
+                    setUploadItems(prev => prev.map(p => (p.id === it.id ? { ...p, width, height } : p)));
+                })
+                .catch(() => {
+                    setUploadItems(prev => prev.map(p => (p.id === it.id ? { ...p, width: null, height: null } : p)));
+                });
+        }
     };
 
     const handleFiles = async (files: File[]) => {
@@ -206,6 +245,16 @@ export const Upload: React.FC = () => {
 
     const handleFile = async (file: File) => {
         setSelectedFile(file);
+        setFileMeta({ width: null, height: null, bytes: file.size });
+        try {
+            const objUrl = URL.createObjectURL(file);
+            getImageDimensions(objUrl)
+                .then(({ width, height }) => setFileMeta({ width: width || null, height: height || null, bytes: file.size }))
+                .catch(() => setFileMeta({ width: null, height: null, bytes: file.size }))
+                .finally(() => URL.revokeObjectURL(objUrl));
+        } catch {
+            setFileMeta({ width: null, height: null, bytes: file.size });
+        }
         const reader = new FileReader();
         reader.onloadend = () => {
             setPreviewUrl(reader.result as string);
@@ -441,6 +490,12 @@ export const Upload: React.FC = () => {
             if (data.description) setDescription(data.description);
             if (data.tags && Array.isArray(data.tags)) setTags(data.tags);
             if (data.category) setCategory(data.category);
+            {
+                const hint = String(data.locationHint || '').trim();
+                if (hint) {
+                    setLocation((prev) => (String(prev || '').trim() ? prev : hint));
+                }
+            }
             
             if (data.exif && typeof data.exif === 'object') {
                 setExif(prev => ({
@@ -602,6 +657,10 @@ export const Upload: React.FC = () => {
                                                             onChange={(e) => setUploadItems(prev => prev.map(p => (p.id === it.id ? { ...p, title: e.target.value } : p)))}
                                                             className="w-full bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-primary truncate disabled:opacity-70"
                                                         />
+                                                        <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                                                            {it.width && it.height ? `${it.width}×${it.height}` : '未知分辨率'}
+                                                            {it.bytes ? ` · ${formatBytes(it.bytes)}` : ''}
+                                                        </div>
                                                         <div className="flex items-center gap-2">
                                                             <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${statusClassName(it.status)}`}>{statusText(it.status)}</span>
                                                             {it.error ? <span className="text-xs text-red-600 dark:text-red-300 truncate">{it.error}</span> : null}
@@ -645,9 +704,25 @@ export const Upload: React.FC = () => {
                             ) : previewUrl ? (
                                 <div className="relative w-full h-full group">
                                     <img src={previewUrl} alt="Preview" className="w-full h-full object-contain bg-black/5 dark:bg-black/20" />
+                                    {fileMeta ? (
+                                        <div className="absolute bottom-4 left-4 bg-black/55 backdrop-blur-sm text-white text-xs px-3 py-1.5 rounded-full flex items-center gap-3 border border-white/10">
+                                            <span className="inline-flex items-center gap-1.5">
+                                                <ImageIcon className="w-3.5 h-3.5" />
+                                                {fileMeta.width && fileMeta.height ? `${fileMeta.width}×${fileMeta.height}` : '未知分辨率'}
+                                            </span>
+                                            <span className="inline-flex items-center gap-1.5">
+                                                <Disc className="w-3.5 h-3.5" />
+                                                {fileMeta.bytes ? formatBytes(fileMeta.bytes) : '未知大小'}
+                                            </span>
+                                        </div>
+                                    ) : null}
                                     <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
                                         <button 
-                                            onClick={() => setPreviewUrl(null)}
+                                            onClick={() => {
+                                                setPreviewUrl(null);
+                                                setSelectedFile(null);
+                                                setFileMeta(null);
+                                            }}
                                             className="p-3 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-lg"
                                             title="移除照片"
                                         >

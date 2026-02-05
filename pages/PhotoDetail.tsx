@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Share2, Heart, MessageCircle, MoreHorizontal, Send, Bookmark, Maximize2, X, ZoomIn, ZoomOut, Download, RefreshCcw, Sparkles, Loader2 } from 'lucide-react';
+import { ArrowLeft, Share2, Heart, MessageCircle, MoreHorizontal, Send, Bookmark, Maximize2, X, ZoomIn, ZoomOut, Download, RefreshCcw, Sparkles, Loader2, Monitor, HardDrive } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { TransformWrapper, TransformComponent, useControls, useTransformComponent } from "react-zoom-pan-pinch";
 import api, { API_BASE_URL } from '../api';
 import { useAuth } from '../hooks/useAuth';
-import { ExifGrid } from '../components/PhotoComponents';
+import { ExifGrid, PhotoExifBadge } from '../components/PhotoComponents';
 import { ShareCard } from '../components/shared/ShareCard';
 import { ProgressiveImage } from '../components/ProgressiveImage';
 
@@ -14,6 +14,15 @@ const toMediaUrl = (url: string | null | undefined) => {
     if (!u) return '';
     if (/^https?:\/\//i.test(u)) return u;
     return `${API_BASE_URL}${u}`;
+};
+
+const formatBytes = (bytes: number) => {
+    if (!Number.isFinite(bytes) || bytes <= 0) return '0B';
+    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.min(units.length - 1, Math.floor(Math.log(bytes) / Math.log(1024)));
+    const v = bytes / Math.pow(1024, i);
+    const fixed = v >= 100 || i === 0 ? 0 : v >= 10 ? 1 : 2;
+    return `${v.toFixed(fixed)}${units[i]}`;
 };
 
 const ZoomControls = () => {
@@ -248,6 +257,18 @@ export const PhotoDetail: React.FC = () => {
                             <div className="space-y-3">
                                 <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">拍摄参数</h3>
                                 <ExifGrid exif={exif} />
+                                <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-gray-200 dark:border-surface-border">
+                                    <PhotoExifBadge 
+                                        icon={<Monitor className="w-4 h-4"/>} 
+                                        label="分辨率" 
+                                        value={photo.imageWidth && photo.imageHeight ? `${photo.imageWidth} × ${photo.imageHeight}` : '未知'} 
+                                    />
+                                    <PhotoExifBadge 
+                                        icon={<HardDrive className="w-4 h-4"/>} 
+                                        label="文件大小" 
+                                        value={photo.imageSizeBytes ? formatBytes(photo.imageSizeBytes) : '未知'} 
+                                    />
+                                </div>
                             </div>
 
                             <div className="space-y-4 pt-4">

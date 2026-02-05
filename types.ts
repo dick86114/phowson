@@ -38,4 +38,7 @@ export interface Photo {
   views: number;
   comments: Comment[];
   category: 'landscape' | 'portrait' | 'street' | 'travel' | 'macro' | 'uncategorized';
+  imageWidth?: number;
+  imageHeight?: number;
+  imageSizeBytes?: number;
 }

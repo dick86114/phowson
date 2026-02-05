@@ -178,6 +178,18 @@ export const registerPhotoRoutes = async (app) => {
     const allowed = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/avif']);
     if (imageMime && !allowed.has(String(imageMime).toLowerCase())) throw badRequest('PHOTO_MIME_NOT_ALLOWED', '仅支持 jpg/png/webp/avif');
 
+    const imageSizeBytes = imageBuffer.length;
+    let imageWidth = null;
+    let imageHeight = null;
+    try {
+      const meta = await sharp(imageBuffer).metadata();
+      if (Number.isFinite(meta?.width) && meta.width > 0) imageWidth = meta.width;
+      if (Number.isFinite(meta?.height) && meta.height > 0) imageHeight = meta.height;
+    } catch {
+      imageWidth = null;
+      imageHeight = null;
+    }
+
     const id = crypto.randomUUID();
 
     let imageUrl = null;
@@ -230,11 +242,11 @@ export const registerPhotoRoutes = async (app) => {
 
     const r = await pool.query(
       `
-        insert into photos(id, owner_user_id, title, description, category, tags, exif, image_mime, image_bytes, image_url, image_variants, lat, lng)
-        values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+        insert into photos(id, owner_user_id, title, description, category, tags, exif, image_mime, image_bytes, image_url, image_variants, lat, lng, image_width, image_height, image_size_bytes)
+        values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
         returning id
       `,
-      [id, user.id, title, description, category, tags, exif, imageMime, imageBytes, imageUrl, imageVariants, exif.lat ?? null, exif.lng ?? null],
+      [id, user.id, title, description, category, tags, exif, imageMime, imageBytes, imageUrl, imageVariants, exif.lat ?? null, exif.lng ?? null, imageWidth, imageHeight, imageSizeBytes],
     );
 
     const createdId = r.rows[0].id;
@@ -323,11 +335,24 @@ export const registerPhotoRoutes = async (app) => {
       let imageUrl = null;
       let imageBytes = imageBuffer;
       let imageVariants = null;
+      let imageWidth = null;
+      let imageHeight = null;
+      let imageSizeBytes = null;
       if (imageBuffer) {
         const maxBytes = Number(process.env.UPLOAD_MAX_BYTES || 25 * 1024 * 1024);
         if (imageBuffer.length > maxBytes) throw badRequest('PHOTO_TOO_LARGE', `照片过大，最大支持 ${Math.floor(maxBytes / 1024 / 1024)}MB`);
         const allowed = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/avif']);
         if (imageMime && !allowed.has(String(imageMime).toLowerCase())) throw badRequest('PHOTO_MIME_NOT_ALLOWED', '仅支持 jpg/png/webp/avif');
+
+        imageSizeBytes = imageBuffer.length;
+        try {
+          const meta = await sharp(imageBuffer).metadata();
+          if (Number.isFinite(meta?.width) && meta.width > 0) imageWidth = meta.width;
+          if (Number.isFinite(meta?.height) && meta.height > 0) imageHeight = meta.height;
+        } catch {
+          imageWidth = null;
+          imageHeight = null;
+        }
 
         if (isObjectStorageEnabled()) {
           const key = createPhotoObjectKey({ photoId: id, mime: imageMime });
@@ -368,10 +393,13 @@ export const registerPhotoRoutes = async (app) => {
             image_url = coalesce($9, image_url),
             image_variants = coalesce($10, image_variants),
             lat = coalesce($11, lat),
-            lng = coalesce($12, lng)
+            lng = coalesce($12, lng),
+            image_width = coalesce($13, image_width),
+            image_height = coalesce($14, image_height),
+            image_size_bytes = coalesce($15, image_size_bytes)
           where id = $1
         `,
-        [id, title, description, category, tags, exif, imageMime, imageBytes, imageUrl, imageVariants, exif?.lat ?? null, exif?.lng ?? null],
+        [id, title, description, category, tags, exif, imageMime, imageBytes, imageUrl, imageVariants, exif?.lat ?? null, exif?.lng ?? null, imageWidth, imageHeight, imageSizeBytes],
       );
 
       const detail = await pool.query(`${photoSelectSql(true)} where p.id = $1`, [id]);

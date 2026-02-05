@@ -68,12 +68,14 @@ Analyze this photo and return STRICT JSON with these keys:
   "title": string,
   "description": string,
   "tags": string[],
+  "locationHint": string,
   "category": "landscape"|"portrait"|"street"|"travel"|"macro"|"uncategorized",
   "exif": {"camera"?:string,"lens"?:string,"aperture"?:string,"shutterSpeed"?:string,"iso"?:string,"focalLength"?:string}
 }
 Rules:
 - Output JSON only. No markdown. No extra text.
 - Use Chinese for title/description/tags.
+ - locationHint 用中文给一个“地点参考”，尽量具体但不要硬编；不确定就输出场景类型（如：城市街区/山野/海边/室内/夜景等）。
   `.trim();
 };
 
