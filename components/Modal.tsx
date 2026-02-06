@@ -1,124 +1,202 @@
-import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
+import { X } from 'lucide-react';
+import { createPortal } from 'react-dom';
 
-type ModalButton = {
-  text: string;
-  primary?: boolean;
-  danger?: boolean;
-  onClick?: () => void;
-};
+interface ModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
+  children: React.ReactNode;
+  footer?: React.ReactNode;
+}
 
-type ModalOptions = {
-  title?: string;
-  content?: React.ReactNode;
-  type?: 'success' | 'warning' | 'error' | 'confirm' | 'info';
-  buttons?: ModalButton[];
-  escClosable?: boolean;
-  maskClosable?: boolean;
-  onClose?: () => void;
-};
+export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, footer }) => {
+  const overlayRef = useRef<HTMLDivElement>(null);
 
-type ModalContextValue = {
-  open: (opts: ModalOptions) => void;
-  close: () => void;
-  confirm: (opts: Omit<ModalOptions, 'type' | 'buttons'> & { onConfirm?: () => void; onCancel?: () => void }) => void;
-  alert: (opts: Omit<ModalOptions, 'type' | 'buttons'>) => void;
-};
-
-const ModalContext = createContext<ModalContextValue | null>(null);
-
-export const useModal = (): ModalContextValue => {
-  const ctx = useContext(ModalContext);
-  if (!ctx) {
-    return {
-      open: () => {},
-      close: () => {},
-      confirm: () => {},
-      alert: () => {},
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
     };
-  }
-  return ctx;
+
+    if (isOpen) {
+      document.addEventListener('keydown', handleEscape);
+      document.body.style.overflow = 'hidden';
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleEscape);
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen, onClose]);
+
+  const handleOverlayClick = (e: React.MouseEvent) => {
+    if (overlayRef.current === e.target) {
+      onClose();
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return createPortal(
+    <div
+      ref={overlayRef}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+      onClick={handleOverlayClick}
+    >
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 border border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+            {title}
+          </h3>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300 transition-colors rounded-lg p-1 hover:bg-gray-100 dark:hover:bg-gray-700"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        
+        <div className="p-6 text-gray-600 dark:text-gray-300">
+          {children}
+        </div>
+
+        {footer && (
+          <div className="px-6 py-4 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-100 dark:border-gray-700 flex justify-end gap-3">
+            {footer}
+          </div>
+        )}
+      </div>
+    </div>,
+    document.body
+  );
 };
+
+interface ConfirmOptions {
+  title?: string;
+  content: React.ReactNode;
+  onConfirm?: () => void;
+  onCancel?: () => void;
+}
+
+interface ModalContextType {
+  alert: (message: string) => Promise<void>;
+  confirm: (optionsOrMessage: string | ConfirmOptions) => Promise<boolean>;
+}
+
+const ModalContext = createContext<ModalContextType | undefined>(undefined);
 
 export const ModalProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [visible, setVisible] = useState(false);
-  const [opts, setOpts] = useState<ModalOptions | null>(null);
+  const [modalConfig, setModalConfig] = useState<{
+    isOpen: boolean;
+    title: string;
+    content: React.ReactNode;
+    footer?: React.ReactNode;
+    onClose: () => void;
+  } | null>(null);
 
   const close = useCallback(() => {
-    setVisible(false);
-    const onClose = opts?.onClose;
-    setTimeout(() => onClose && onClose(), 0);
-  }, [opts]);
-
-  const open = useCallback((next: ModalOptions) => {
-    setOpts(next);
-    setVisible(true);
+    setModalConfig(null);
   }, []);
 
-  const confirm = useCallback((next: Omit<ModalOptions, 'type' | 'buttons'> & { onConfirm?: () => void; onCancel?: () => void }) => {
-    open({
-      ...next,
-      type: 'confirm',
-      buttons: [
-        { text: '取消', onClick: () => { next.onCancel && next.onCancel(); close(); } },
-        { text: '确认', primary: true, onClick: () => { next.onConfirm && next.onConfirm(); close(); } },
-      ],
+  const alert = useCallback((message: string) => {
+    return new Promise<void>((resolve) => {
+      setModalConfig({
+        isOpen: true,
+        title: '提示',
+        content: message,
+        onClose: () => {
+          setModalConfig(null);
+          resolve();
+        },
+        footer: (
+          <button
+            onClick={() => {
+              setModalConfig(null);
+              resolve();
+            }}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            确定
+          </button>
+        )
+      });
     });
-  }, [open, close]);
+  }, []);
 
-  const alert = useCallback((next: Omit<ModalOptions, 'type' | 'buttons'>) => {
-    open({
-      ...next,
-      type: 'info',
-      buttons: [{ text: '知道了', primary: true, onClick: () => close() }],
+  const confirm = useCallback((optionsOrMessage: string | ConfirmOptions) => {
+    return new Promise<boolean>((resolve) => {
+      let title = '确认';
+      let content: React.ReactNode = '';
+      let onConfirm: (() => void) | undefined;
+      let onCancel: (() => void) | undefined;
+
+      if (typeof optionsOrMessage === 'string') {
+        content = optionsOrMessage;
+      } else {
+        title = optionsOrMessage.title || '确认';
+        content = optionsOrMessage.content;
+        onConfirm = optionsOrMessage.onConfirm;
+        onCancel = optionsOrMessage.onCancel;
+      }
+
+      setModalConfig({
+        isOpen: true,
+        title,
+        content,
+        onClose: () => {
+          setModalConfig(null);
+          if (onCancel) onCancel();
+          resolve(false);
+        },
+        footer: (
+          <>
+            <button
+              onClick={() => {
+                setModalConfig(null);
+                if (onCancel) onCancel();
+                resolve(false);
+              }}
+              className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            >
+              取消
+            </button>
+            <button
+              onClick={() => {
+                setModalConfig(null);
+                if (onConfirm) onConfirm();
+                resolve(true);
+              }}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              确定
+            </button>
+          </>
+        )
+      });
     });
-  }, [open, close]);
-
-  const value = useMemo(() => ({ open, close, confirm, alert }), [open, close, confirm, alert]);
+  }, []);
 
   return (
-    <ModalContext.Provider value={value}>
+    <ModalContext.Provider value={{ alert, confirm }}>
       {children}
-      {visible && opts && (
-        <div
-          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-          onClick={() => {
-            if (opts?.maskClosable) close();
-          }}
+      {modalConfig && (
+        <Modal
+          isOpen={modalConfig.isOpen}
+          onClose={modalConfig.onClose}
+          title={modalConfig.title}
+          footer={modalConfig.footer}
         >
-          <div
-            className="bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-xl w-full max-w-md p-6 shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {opts.title ? (
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-3">
-                {opts.title}
-              </h3>
-            ) : null}
-            {opts.content ? (
-              <div className="text-sm text-gray-700 dark:text-gray-200">{opts.content}</div>
-            ) : null}
-            <div className="mt-6 flex justify-end gap-3">
-              {(opts.buttons || []).map((btn, i) => (
-                <button
-                  key={i}
-                  onClick={btn.onClick}
-                  className={[
-                    'px-4 py-2 rounded-lg text-sm font-medium transition-colors',
-                    btn.primary
-                      ? 'bg-primary hover:bg-primary/90 text-white'
-                      : btn.danger
-                        ? 'bg-red-500 hover:bg-red-600 text-white'
-                        : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-surface-border',
-                  ].join(' ')}
-                >
-                  {btn.text}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
+          {modalConfig.content}
+        </Modal>
       )}
     </ModalContext.Provider>
   );
 };
 
+export const useModal = () => {
+  const context = useContext(ModalContext);
+  if (context === undefined) {
+    throw new Error('useModal must be used within a ModalProvider');
+  }
+  return context;
+};

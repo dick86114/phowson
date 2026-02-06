@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Share2, Heart, MessageCircle, MoreHorizontal, Send, Bookmark, Maximize2, X, ZoomIn, ZoomOut, Download, RefreshCcw, Sparkles, Loader2, Monitor, HardDrive, RefreshCw, LogIn } from 'lucide-react';
+import { ArrowLeft, Share2, Heart, MessageCircle, MoreHorizontal, Send, Bookmark, Maximize2, X, ZoomIn, ZoomOut, Download, RefreshCcw, Sparkles, Loader2, Monitor, HardDrive, RefreshCw, LogIn, ChevronDown, ChevronUp } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { TransformWrapper, TransformComponent, useControls, useTransformComponent } from "react-zoom-pan-pinch";
 import api, { API_BASE_URL } from '../api';
@@ -115,6 +115,7 @@ export const PhotoDetail: React.FC = () => {
     const [commentText, setCommentText] = useState('');
     const [isFullScreen, setIsFullScreen] = useState(false);
     const [showShareCard, setShowShareCard] = useState(false);
+    const [isAiCritiqueOpen, setIsAiCritiqueOpen] = useState(true);
     
     // Mutations
     const toggleLikeMutation = useMutation({
@@ -254,7 +255,7 @@ export const PhotoDetail: React.FC = () => {
 
                     {/* Info Sidebar */}
                     <div className="xl:w-[500px] border-l border-gray-200 dark:border-surface-border bg-white dark:bg-background-dark flex flex-col transition-colors duration-300">
-                        <div className="p-6 space-y-8 overflow-y-auto max-h-[calc(100vh-8rem)] custom-scrollbar">
+                        <div className="p-6 space-y-8">
                             <div className="space-y-4">
                                 <div className="flex items-start justify-between">
                                     <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{photo.title}</h1>
@@ -289,17 +290,28 @@ export const PhotoDetail: React.FC = () => {
 
                             {/* AI Critique Section */}
                             {currentUser?.role === 'admin' && photo.aiCritique && (
-                                <div className="bg-primary/5 dark:bg-primary/10 border border-primary/20 p-5 rounded-2xl space-y-3 relative overflow-hidden group">
-                                    <div className="absolute top-0 right-0 p-3 opacity-20 group-hover:opacity-40 transition-opacity">
-                                        <Sparkles className="w-12 h-12 text-primary" />
+                                <div className="bg-primary/5 dark:bg-primary/10 border border-primary/20 rounded-2xl relative overflow-hidden group transition-all duration-300">
+                                    <button 
+                                        onClick={() => setIsAiCritiqueOpen(!isAiCritiqueOpen)}
+                                        className="w-full p-5 flex items-center justify-between text-left focus:outline-none"
+                                    >
+                                        <h3 className="text-sm font-bold text-primary flex items-center gap-2">
+                                            <Sparkles className="w-4 h-4" />
+                                            AI 摄影评论
+                                        </h3>
+                                        <div className="flex items-center gap-2">
+                                            {isAiCritiqueOpen ? <ChevronUp className="w-4 h-4 text-primary" /> : <ChevronDown className="w-4 h-4 text-primary" />}
+                                        </div>
+                                    </button>
+                                    
+                                    <div className={`px-5 pb-5 transition-all duration-300 ${isAiCritiqueOpen ? 'opacity-100 max-h-[1000px]' : 'opacity-0 max-h-0 overflow-hidden pb-0'}`}>
+                                        <div className="absolute top-0 right-0 p-3 opacity-20 group-hover:opacity-40 transition-opacity pointer-events-none">
+                                            <Sparkles className="w-12 h-12 text-primary" />
+                                        </div>
+                                        <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed italic relative z-10">
+                                            "{photo.aiCritique}"
+                                        </p>
                                     </div>
-                                    <h3 className="text-sm font-bold text-primary flex items-center gap-2">
-                                        <Sparkles className="w-4 h-4" />
-                                        AI 摄影评论
-                                    </h3>
-                                    <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed italic">
-                                        "{photo.aiCritique}"
-                                    </p>
                                 </div>
                             )}
 

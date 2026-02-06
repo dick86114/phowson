@@ -257,20 +257,13 @@ export const ShareCard: React.FC<{
               {isGenerating ? '正在生成...' : '保存分享海报'}
             </button>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3">
               <button
                 onClick={handleCopy}
                 className="inline-flex items-center justify-center gap-2 bg-white dark:bg-[#1a2632] border border-gray-200 dark:border-surface-border hover:bg-gray-100 dark:hover:bg-[#233648] text-gray-700 dark:text-gray-200 px-4 py-3 rounded-xl text-sm font-semibold transition-colors"
               >
                 <Copy className="w-4 h-4" />
                 复制链接
-              </button>
-              <button
-                onClick={handleSystemShare}
-                className="inline-flex items-center justify-center gap-2 bg-white dark:bg-[#1a2632] border border-gray-200 dark:border-surface-border hover:bg-gray-100 dark:hover:bg-[#233648] text-gray-700 dark:text-gray-200 px-4 py-3 rounded-xl text-sm font-semibold transition-colors"
-              >
-                <Share2 className="w-4 h-4" />
-                系统分享
               </button>
             </div>
           </div>

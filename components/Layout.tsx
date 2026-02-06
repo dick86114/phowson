@@ -357,7 +357,7 @@ export const Footer: React.FC = () => {
                     <div className="flex items-center gap-1 text-sm text-gray-400">
                         <span>Made with</span>
                         <Heart className="w-3 h-3 text-red-500 fill-red-500" />
-                        <span>by Alex Chen</span>
+                        <span>by Dickies</span>
                     </div>
                 </div>
             </div>

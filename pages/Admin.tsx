@@ -11,7 +11,7 @@ import {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api, { API_BASE_URL } from '../api';
 import { useAuth } from '../hooks/useAuth';
-import { useModal } from '../components/Modal';
+import { useModal, Modal } from '../components/Modal';
 import { useToast } from '../components/Toast';
 
 type Tab = 'photos' | 'stats' | 'users' | 'settings' | 'categories' | 'comments';
@@ -87,6 +87,9 @@ export const Admin: React.FC = () => {
     const queryClient = useQueryClient();
     const [activeTab, setActiveTab] = useState<Tab>('photos');
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [rejectModalOpen, setRejectModalOpen] = useState(false);
+    const [rejectReason, setRejectReason] = useState('');
+    const [rejectCommentId, setRejectCommentId] = useState<string | null>(null);
 
     // Gesture support
     const [touchStart, setTouchStart] = useState<number | null>(null);
@@ -1013,8 +1016,9 @@ export const Admin: React.FC = () => {
                                                 </button>
                                                 <button
                                                     onClick={() => {
-                                                        const reason = prompt('请输入拒绝原因（可选）', '') || '';
-                                                        moderateCommentMutation.mutate({ id: c.id, status: 'rejected', reason });
+                                                        setRejectCommentId(c.id);
+                                                        setRejectReason('');
+                                                        setRejectModalOpen(true);
                                                     }}
                                                     disabled={moderateCommentMutation.isPending}
                                                     className="p-2 text-gray-400 hover:text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-500/10 rounded-lg transition-colors disabled:opacity-50"
@@ -1634,6 +1638,52 @@ export const Admin: React.FC = () => {
                     </div>
                 </div>
             )}
+
+            <Modal
+                isOpen={rejectModalOpen}
+                onClose={() => setRejectModalOpen(false)}
+                title="拒绝评论"
+                footer={
+                    <>
+                        <button
+                            onClick={() => setRejectModalOpen(false)}
+                            className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-surface-border rounded-lg transition-colors"
+                        >
+                            取消
+                        </button>
+                        <button
+                            onClick={() => {
+                                if (rejectCommentId) {
+                                    moderateCommentMutation.mutate({ 
+                                        id: rejectCommentId, 
+                                        status: 'rejected', 
+                                        reason: rejectReason 
+                                    });
+                                    setRejectModalOpen(false);
+                                    setRejectCommentId(null);
+                                }
+                            }}
+                            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                        >
+                            确认拒绝
+                        </button>
+                    </>
+                }
+            >
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        拒绝原因（可选）
+                    </label>
+                    <textarea
+                        value={rejectReason}
+                        onChange={(e) => setRejectReason(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent bg-white dark:bg-surface-dark text-gray-900 dark:text-white"
+                        rows={4}
+                        placeholder="请输入拒绝原因..."
+                        autoFocus
+                    />
+                </div>
+            </Modal>
         </div>
     );
 };
