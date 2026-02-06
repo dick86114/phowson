@@ -75,6 +75,7 @@ export const photoSelectSql = (withLikes) => {
       from photo_comments pc
       left join users cu on cu.id = pc.user_id
       where pc.photo_id = p.id
+        and pc.status = 'approved'
     ) c on true
     ${likesJoin}
   `;

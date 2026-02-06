@@ -196,6 +196,60 @@ const main = async () => {
   assert.ok(Array.isArray(afterComment.comments));
   assert.ok(afterComment.comments.length >= 1);
 
+  {
+    const ts = Date.now();
+    const captchaRes = await fetch(`${baseUrl}/auth/captcha`);
+    assert.equal(captchaRes.status, 200);
+    const captchaBody = await captchaRes.json();
+    assert.ok(typeof captchaBody?.token === 'string');
+    const decoded = Buffer.from(String(captchaBody.token), 'base64').toString('utf8');
+    const [answer] = decoded.split(':');
+    assert.ok(answer);
+
+    const guestContent = `smoke guest comment ${ts}`;
+    const guestId = `smoke-guest-${ts}`;
+
+    const guestCommentRes = await fetch(`${baseUrl}/photos/${id}/comment`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        content: guestContent,
+        guestId,
+        nickname: 'SmokeGuest',
+        email: `smoke-${ts}@example.com`,
+        captcha: answer,
+        captchaToken: captchaBody.token,
+      }),
+    });
+    assert.equal(guestCommentRes.status, 200);
+    const guestAfter = await guestCommentRes.json();
+    assert.ok(Array.isArray(guestAfter.comments));
+    assert.equal(guestAfter.comments.some((c) => c?.content === guestContent), false);
+
+    const pendingListRes = await fetch(
+      `${baseUrl}/admin/comments?status=pending&onlyGuest=true&q=${encodeURIComponent(guestContent)}&limit=10&offset=0`,
+      { headers },
+    );
+    assert.equal(pendingListRes.status, 200);
+    const pendingList = await pendingListRes.json();
+    assert.ok(Array.isArray(pendingList.items));
+    const pending = pendingList.items.find((x) => x?.content === guestContent);
+    assert.ok(pending?.id);
+
+    const approveRes = await fetch(`${baseUrl}/admin/comments/${pending.id}`, {
+      method: 'PATCH',
+      headers: { ...headers, 'content-type': 'application/json' },
+      body: JSON.stringify({ status: 'approved' }),
+    });
+    assert.equal(approveRes.status, 200);
+
+    const afterApproveDetailRes = await fetch(`${baseUrl}/photos/${id}`);
+    assert.equal(afterApproveDetailRes.status, 200);
+    const afterApproveDetail = await afterApproveDetailRes.json();
+    assert.ok(Array.isArray(afterApproveDetail.comments));
+    assert.equal(afterApproveDetail.comments.some((c) => c?.content === guestContent), true);
+  }
+
   const like1Res = await fetch(`${baseUrl}/photos/${id}/like`, { method: 'POST', headers });
   assert.equal(like1Res.status, 200);
   const liked1 = await like1Res.json();

@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { TransformWrapper, TransformComponent, useControls, useTransformComponent } from "react-zoom-pan-pinch";
 import api, { API_BASE_URL } from '../api';
 import { useAuth } from '../hooks/useAuth';
+import { useModal } from '../components/Modal';
 import { ExifGrid, PhotoExifBadge } from '../components/PhotoComponents';
 import { ShareCard } from '../components/shared/ShareCard';
 import { ProgressiveImage } from '../components/ProgressiveImage';
@@ -51,6 +52,7 @@ export const PhotoDetail: React.FC = () => {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
     const { user: currentUser } = useAuth();
+    const modal = useModal();
     const [inlineAspectRatio, setInlineAspectRatio] = useState<number>(4 / 3);
     const [guestId, setGuestId] = useState('');
     
@@ -127,14 +129,17 @@ export const PhotoDetail: React.FC = () => {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['photo', id] });
             setCommentText('');
-            if (!currentUser) {
+            if (currentUser) {
+                modal.alert({ title: '成功', content: '评论发表成功' });
+            } else {
                 setCaptchaInput('');
                 refreshCaptcha();
+                modal.alert({ title: '提示', content: '评论已提交，等待审核后展示' });
             }
         },
         onError: (err: any) => {
              if (!currentUser) refreshCaptcha();
-             alert(err?.response?.data?.message || '评论失败');
+             modal.alert({ title: '评论失败', content: String(err?.response?.data?.message || '评论失败') });
         }
     });
 
@@ -148,11 +153,12 @@ export const PhotoDetail: React.FC = () => {
             addCommentMutation.mutate({ content });
         } else {
             if (!guestNickname || !guestEmail || !captchaInput) {
-                alert('请填写完整信息');
+                modal.alert({ title: '提示', content: '请填写完整信息' });
                 return;
             }
             addCommentMutation.mutate({
                 content,
+                guestId,
                 nickname: guestNickname,
                 email: guestEmail,
                 captcha: captchaInput,

@@ -2,12 +2,20 @@ import { pool } from '../db.mjs';
 import { upsertUser } from '../db/users.mjs';
 import { normalizeExif } from '../lib/exif.mjs';
 import { parseTags, safeJsonParse } from '../lib/parsers.mjs';
-import { badRequest } from '../lib/http_errors.mjs';
+import { badRequest, notFound } from '../lib/http_errors.mjs';
 import { requireAdmin } from '../plugins/rbac.mjs';
-import { getPhotoImage } from '../lib/photo_image.mjs';
+import { fillFromImage, translateText } from '../lib/ai_provider.mjs';
 import sharp from 'sharp';
 
 export const registerAdminRoutes = async (app) => {
+  const parseBool = (v, defaultValue) => {
+    if (v === undefined || v === null || v === '') return defaultValue;
+    const s = String(v).toLowerCase();
+    if (s === '1' || s === 'true' || s === 'yes' || s === 'y') return true;
+    if (s === '0' || s === 'false' || s === 'no' || s === 'n') return false;
+    return defaultValue;
+  };
+
   const ensureSiteSettingsTables = async () => {
     await pool.query(`
       create table if not exists site_settings (
@@ -297,6 +305,208 @@ export const registerAdminRoutes = async (app) => {
       }
 
       return { ok: true, count: photos.length };
+    },
+  });
+
+  app.get('/admin/comments/summary', {
+    preHandler: requireAdmin(),
+    handler: async () => {
+      const r = await pool.query(
+        `
+          select
+            count(*) filter (where pc.status = 'pending' and pc.user_id is null) as "pendingGuestCount"
+          from photo_comments pc
+        `,
+      );
+      return {
+        pendingGuestCount: Number(r.rows?.[0]?.pendingGuestCount ?? 0) || 0,
+      };
+    },
+  });
+
+  app.get('/admin/comments', {
+    preHandler: requireAdmin(),
+    schema: {
+      querystring: {
+        type: 'object',
+        properties: {
+          status: { type: 'string' },
+          onlyGuest: { type: 'string' },
+          photoId: { type: 'string' },
+          q: { type: 'string' },
+          limit: { type: 'integer', minimum: 1, maximum: 200 },
+          offset: { type: 'integer', minimum: 0 },
+        },
+      },
+    },
+    handler: async (req) => {
+      const status = String(req.query?.status ?? 'pending').trim() || 'pending';
+      const onlyGuest = parseBool(req.query?.onlyGuest, true);
+      const photoId = String(req.query?.photoId ?? '').trim() || null;
+      const q = String(req.query?.q ?? '').trim() || null;
+      const limit = Math.max(1, Math.min(200, Number(req.query?.limit ?? 50) || 50));
+      const offset = Math.max(0, Number(req.query?.offset ?? 0) || 0);
+
+      const allowedStatus = new Set(['pending', 'approved', 'rejected', 'all']);
+      if (!allowedStatus.has(status)) throw badRequest('STATUS_INVALID', 'status 不合法');
+
+      const where = [];
+      const args = [];
+      let i = 1;
+
+      if (status !== 'all') {
+        where.push(`pc.status = $${i++}`);
+        args.push(status);
+      }
+      if (onlyGuest) {
+        where.push(`pc.user_id is null`);
+      }
+      if (photoId) {
+        where.push(`pc.photo_id = $${i++}`);
+        args.push(photoId);
+      }
+      if (q) {
+        where.push(`(pc.content ilike $${i} or pc.guest_nickname ilike $${i} or pc.guest_email ilike $${i})`);
+        args.push(`%${q}%`);
+        i += 1;
+      }
+
+      const whereSql = where.length ? `where ${where.join(' and ')}` : '';
+      const countRes = await pool.query(
+        `
+          select count(*)::int as total
+          from photo_comments pc
+          ${whereSql}
+        `,
+        args,
+      );
+      const total = Number(countRes.rows?.[0]?.total ?? 0) || 0;
+
+      const itemsArgs = [...args, limit, offset];
+      const itemsRes = await pool.query(
+        `
+          select
+            pc.id,
+            pc.photo_id as "photoId",
+            p.title as "photoTitle",
+            pc.content,
+            pc.created_at as "createdAt",
+            pc.user_id as "userId",
+            pc.guest_id as "guestId",
+            pc.guest_nickname as "guestNickname",
+            pc.guest_email as "guestEmail",
+            pc.status,
+            pc.reviewed_by as "reviewedBy",
+            pc.reviewed_at as "reviewedAt",
+            pc.review_reason as "reviewReason",
+            pc.client_ip as "clientIp",
+            pc.user_agent as "userAgent"
+          from photo_comments pc
+          join photos p on p.id = pc.photo_id
+          ${whereSql}
+          order by pc.created_at desc
+          limit $${i} offset $${i + 1}
+        `,
+        itemsArgs,
+      );
+
+      return {
+        items: itemsRes.rows || [],
+        total,
+        limit,
+        offset,
+      };
+    },
+  });
+
+  app.patch('/admin/comments/:id', {
+    preHandler: requireAdmin(),
+    schema: {
+      params: {
+        type: 'object',
+        required: ['id'],
+        properties: { id: { type: 'string', minLength: 1 } },
+      },
+      body: {
+        type: 'object',
+        required: ['status'],
+        properties: {
+          status: { type: 'string' },
+          reason: { type: 'string', maxLength: 2000 },
+        },
+      },
+    },
+    handler: async (req) => {
+      const id = String(req.params.id);
+      const user = req.authUser;
+      const status = String(req.body?.status ?? '').trim();
+      const reason = String(req.body?.reason ?? '').trim() || null;
+
+      const allowedStatus = new Set(['pending', 'approved', 'rejected']);
+      if (!allowedStatus.has(status)) throw badRequest('STATUS_INVALID', 'status 不合法');
+
+      const r = await pool.query(
+        `
+          update photo_comments
+          set
+            status = $1,
+            reviewed_by = $2,
+            reviewed_at = now(),
+            review_reason = $3
+          where id = $4
+          returning
+            id,
+            photo_id as "photoId",
+            content,
+            created_at as "createdAt",
+            user_id as "userId",
+            guest_id as "guestId",
+            guest_nickname as "guestNickname",
+            guest_email as "guestEmail",
+            status,
+            reviewed_by as "reviewedBy",
+            reviewed_at as "reviewedAt",
+            review_reason as "reviewReason"
+        `,
+        [status, user?.id || null, reason, id],
+      );
+      if (!r.rowCount) throw notFound('COMMENT_NOT_FOUND', '评论不存在');
+      return r.rows[0];
+    },
+  });
+
+  app.delete('/admin/comments/:id', {
+    preHandler: requireAdmin(),
+    schema: {
+      params: {
+        type: 'object',
+        required: ['id'],
+        properties: { id: { type: 'string', minLength: 1 } },
+      },
+    },
+    handler: async (req) => {
+      const id = String(req.params.id);
+      const r = await pool.query('delete from photo_comments where id=$1 returning id', [id]);
+      if (!r.rowCount) throw notFound('COMMENT_NOT_FOUND', '评论不存在');
+      return { ok: true };
+    },
+  });
+
+  app.post('/admin/comments/translate', {
+    preHandler: requireAdmin(),
+    schema: {
+      body: {
+        type: 'object',
+        required: ['text'],
+        properties: {
+          text: { type: 'string', minLength: 1, maxLength: 5000 },
+        },
+      },
+    },
+    handler: async (req) => {
+      const text = String(req.body.text);
+      const translated = await translateText({ text });
+      return { translated };
     },
   });
 

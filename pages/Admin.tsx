@@ -6,14 +6,14 @@ import {
     Monitor, Save, Bell, Shield, Search, MoreHorizontal, Camera, Lock,
     Tag, X, AlertTriangle, Maximize2, Check, RefreshCw, Key, Download,
     PieChart, ThumbsUp, MessageSquare, User as UserIcon, Mail, Upload,
-    Ban, Loader2, Sparkles, Menu
+    Ban, Loader2, Sparkles, Menu, Languages
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api, { API_BASE_URL } from '../api';
 import { useAuth } from '../hooks/useAuth';
 import { useModal } from '../components/Modal';
 
-type Tab = 'photos' | 'stats' | 'users' | 'settings' | 'categories';
+type Tab = 'photos' | 'stats' | 'users' | 'settings' | 'categories' | 'comments';
 
 type ApiUser = {
     id: string;
@@ -28,6 +28,31 @@ type ApiCategory = {
     value: string;
     label: string;
     sortOrder: number;
+};
+
+type AdminComment = {
+    id: string;
+    photoId: string;
+    photoTitle: string | null;
+    content: string;
+    createdAt: string;
+    userId: string | null;
+    guestId: string | null;
+    guestNickname: string | null;
+    guestEmail: string | null;
+    status: 'pending' | 'approved' | 'rejected';
+    reviewedBy: string | null;
+    reviewedAt: string | null;
+    reviewReason: string | null;
+    clientIp: string | null;
+    userAgent: string | null;
+};
+
+type AdminCommentsResponse = {
+    items: AdminComment[];
+    total: number;
+    limit: number;
+    offset: number;
 };
 
 const toMediaUrl = (url: string) => {
@@ -287,6 +312,15 @@ export const Admin: React.FC = () => {
     
     const isAdmin = currentUser?.role === 'admin';
 
+    const { data: commentSummary } = useQuery({
+        queryKey: ['admin-comments-summary'],
+        enabled: isAdmin,
+        queryFn: async () => {
+            const res = await api.get('/admin/comments/summary');
+            return res.data as { pendingGuestCount: number };
+        }
+    });
+
     // Fetch photos
     const { data: photos = [], isLoading: photosLoading } = useQuery({
         queryKey: ['admin-photos'],
@@ -404,10 +438,22 @@ export const Admin: React.FC = () => {
     const [photoToDelete, setPhotoToDelete] = useState<string | null>(null);
     const [userToDelete, setUserToDelete] = useState<string | null>(null);
     const [categoryToDelete, setCategoryToDelete] = useState<string | null>(null);
+    const [commentToDelete, setCommentToDelete] = useState<AdminComment | null>(null);
+    const [translatingCommentId, setTranslatingCommentId] = useState<string | null>(null);
     const [previewPhotoUrl, setPreviewPhotoUrl] = useState<string | null>(null);
     const [avatarUrl, setAvatarUrl] = useState(toMediaUrl(currentUser?.avatar || `/media/avatars/${currentUser?.id || 'me'}`));
     const avatarInputRef = useRef<HTMLInputElement>(null);
     const [profileName, setProfileName] = useState<string>(currentUser?.name || '');
+
+    const [commentStatus, setCommentStatus] = useState<'pending' | 'approved' | 'rejected' | 'all'>('pending');
+    const [commentOnlyGuest, setCommentOnlyGuest] = useState(true);
+    const [commentKeyword, setCommentKeyword] = useState('');
+    const [commentOffset, setCommentOffset] = useState(0);
+    const commentLimit = 50;
+
+    useEffect(() => {
+        setCommentOffset(0);
+    }, [commentStatus, commentOnlyGuest, commentKeyword]);
 
     const effectiveUser = {
         id: currentUser?.id || 'admin',
@@ -431,6 +477,47 @@ export const Admin: React.FC = () => {
         queryFn: async () => {
             const res = await api.get<ApiCategory[]>('/categories');
             return res.data;
+        },
+    });
+
+    const { data: commentsData, isLoading: commentsLoading } = useQuery({
+        queryKey: ['admin-comments', commentStatus, commentOnlyGuest, commentKeyword, commentLimit, commentOffset],
+        enabled: isAdmin && activeTab === 'comments',
+        queryFn: async () => {
+            const params = new URLSearchParams();
+            params.set('status', commentStatus);
+            params.set('onlyGuest', String(commentOnlyGuest));
+            const q = commentKeyword.trim();
+            if (q) params.set('q', q);
+            params.set('limit', String(commentLimit));
+            params.set('offset', String(commentOffset));
+            const res = await api.get<AdminCommentsResponse>(`/admin/comments?${params.toString()}`);
+            return res.data;
+        },
+    });
+
+    const moderateCommentMutation = useMutation({
+        mutationFn: (payload: { id: string; status: 'approved' | 'rejected' | 'pending'; reason?: string | null }) => {
+            return api.patch(`/admin/comments/${payload.id}`, { status: payload.status, reason: payload.reason || '' });
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['admin-comments'] });
+            queryClient.invalidateQueries({ queryKey: ['admin-comments-summary'] });
+        },
+        onError: (err: any) => {
+            alert({ title: '操作失败', content: String(err?.data?.message || err?.message || '操作失败') });
+        },
+    });
+
+    const deleteCommentMutation = useMutation({
+        mutationFn: (id: string) => api.delete(`/admin/comments/${id}`),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['admin-comments'] });
+            queryClient.invalidateQueries({ queryKey: ['admin-comments-summary'] });
+            setCommentToDelete(null);
+        },
+        onError: (err: any) => {
+            alert({ title: '删除失败', content: String(err?.data?.message || err?.message || '删除失败') });
         },
     });
 
@@ -458,6 +545,7 @@ export const Admin: React.FC = () => {
     const [passwordModalUser, setPasswordModalUser] = useState<ApiUser | null>(null);
     const [resetPasswordSuccess, setResetPasswordSuccess] = useState(false);
     const [newPassword, setNewPassword] = useState('');
+    const [translatedComments, setTranslatedComments] = useState<Record<string, string>>({});
 
     // Sync avatar
     useEffect(() => {
@@ -489,6 +577,25 @@ export const Admin: React.FC = () => {
     const confirmDeleteCategory = () => {
         if (!categoryToDelete) return;
         deleteCategoryMutation.mutate(categoryToDelete);
+    };
+
+    const confirmDeleteComment = () => {
+        if (!commentToDelete) return;
+        deleteCommentMutation.mutate(commentToDelete.id);
+    };
+
+    const handleTranslate = async (comment: AdminComment) => {
+        if (!comment.content) return;
+        setTranslatingCommentId(comment.id);
+        try {
+            const res = await api.post('/admin/comments/translate', { text: comment.content });
+            setTranslatedComments(prev => ({ ...prev, [comment.id]: res.data.translated }));
+        } catch (e: any) {
+            console.error('Translation failed', e);
+            alert({ title: '翻译失败', content: String(e?.response?.data?.message || e?.message || '请求失败') });
+        } finally {
+            setTranslatingCommentId(null);
+        }
     };
 
     const handleAddCategory = (e: React.FormEvent) => {
@@ -602,6 +709,7 @@ export const Admin: React.FC = () => {
         { id: 'photos', label: '照片管理', icon: ImageIcon },
         { id: 'stats', label: '数据统计', icon: BarChart3 },
         ...(isAdmin ? [
+            { id: 'comments', label: '评论审核', icon: MessageSquare, badge: commentSummary?.pendingGuestCount || 0 },
             { id: 'categories', label: '分类管理', icon: Tag },
             { id: 'users', label: '用户管理', icon: Users },
         ] : []),
@@ -654,7 +762,14 @@ export const Admin: React.FC = () => {
                             }`}
                         >
                             <item.icon className="w-5 h-5" />
-                            {item.label}
+                            <span className="flex-1 text-left">{item.label}</span>
+                            {Number((item as any).badge || 0) > 0 ? (
+                                <span className={`min-w-5 h-5 px-1 flex items-center justify-center rounded-full text-[10px] font-bold ${
+                                    activeTab === item.id ? 'bg-white/20 text-white' : 'bg-primary/10 text-primary'
+                                }`}>
+                                    {(item as any).badge}
+                                </span>
+                            ) : null}
                         </button>
                     ))}
                 </nav>
@@ -901,6 +1016,192 @@ export const Admin: React.FC = () => {
                                 </div>
                             </>
                         )}
+                    </div>
+                )}
+
+                {/* --- COMMENTS TAB (Admin Only) --- */}
+                {activeTab === 'comments' && isAdmin && (
+                    <div className="space-y-6 animate-in fade-in duration-300">
+                        <div className="flex items-start md:items-center justify-between gap-4 flex-col md:flex-row">
+                            <div>
+                                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">评论审核</h2>
+                                <p className="text-gray-500 dark:text-gray-400 mt-1">
+                                    默认仅展示游客待审核评论
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs px-3 py-1 rounded-full bg-primary/10 text-primary font-semibold">
+                                    待审核：{commentSummary?.pendingGuestCount || 0}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className="bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-xl p-4 shadow-sm">
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                                <div>
+                                    <label className="text-xs text-gray-500 dark:text-gray-400">状态</label>
+                                    <select
+                                        value={commentStatus}
+                                        onChange={(e) => setCommentStatus(e.target.value as any)}
+                                        className="w-full mt-1 bg-gray-50 dark:bg-[#111a22] border border-gray-200 dark:border-surface-border rounded-lg p-2.5 text-gray-900 dark:text-white focus:outline-none focus:border-primary"
+                                    >
+                                        <option value="pending">待审核</option>
+                                        <option value="approved">已通过</option>
+                                        <option value="rejected">已拒绝</option>
+                                        <option value="all">全部</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="text-xs text-gray-500 dark:text-gray-400">来源</label>
+                                    <select
+                                        value={commentOnlyGuest ? 'guest' : 'all'}
+                                        onChange={(e) => setCommentOnlyGuest(e.target.value === 'guest')}
+                                        className="w-full mt-1 bg-gray-50 dark:bg-[#111a22] border border-gray-200 dark:border-surface-border rounded-lg p-2.5 text-gray-900 dark:text-white focus:outline-none focus:border-primary"
+                                    >
+                                        <option value="guest">仅游客</option>
+                                        <option value="all">全部</option>
+                                    </select>
+                                </div>
+                                <div className="md:col-span-2">
+                                    <label className="text-xs text-gray-500 dark:text-gray-400">关键词</label>
+                                    <div className="mt-1 flex items-center gap-2 bg-gray-50 dark:bg-[#111a22] border border-gray-200 dark:border-surface-border rounded-lg px-3">
+                                        <Search className="w-4 h-4 text-gray-400" />
+                                        <input
+                                            value={commentKeyword}
+                                            onChange={(e) => setCommentKeyword(e.target.value)}
+                                            placeholder="内容 / 昵称 / 邮箱"
+                                            className="w-full bg-transparent py-2.5 text-sm text-gray-900 dark:text-white focus:outline-none"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-xl overflow-hidden shadow-sm">
+                            <div className="hidden md:grid grid-cols-12 gap-4 p-4 border-b border-gray-200 dark:border-surface-border text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider bg-gray-50 dark:bg-[#111a22]">
+                                <div className="col-span-3">照片</div>
+                                <div className="col-span-5">评论内容</div>
+                                <div className="col-span-2">游客信息</div>
+                                <div className="col-span-1">状态</div>
+                                <div className="col-span-1 text-right">操作</div>
+                            </div>
+                            <div className="divide-y divide-gray-200 dark:divide-surface-border">
+                                {commentsLoading ? (
+                                    <div className="p-8 flex justify-center"><Loader2 className="animate-spin text-primary" /></div>
+                                ) : (commentsData?.items || []).map((c) => {
+                                    const statusLabel = c.status === 'pending' ? '待审核' : c.status === 'approved' ? '通过' : '拒绝';
+                                    const statusCls = c.status === 'pending'
+                                        ? 'bg-yellow-500/10 text-yellow-700 dark:text-yellow-300'
+                                        : c.status === 'approved'
+                                            ? 'bg-green-500/10 text-green-700 dark:text-green-300'
+                                            : 'bg-red-500/10 text-red-700 dark:text-red-300';
+                                    return (
+                                        <div key={c.id} className="flex flex-col md:grid md:grid-cols-12 gap-4 p-4 hover:bg-gray-50 dark:hover:bg-surface-border/30 transition-colors md:items-center">
+                                            <div className="md:col-span-3 min-w-0">
+                                                <div className="text-sm font-medium text-gray-900 dark:text-white line-clamp-1">
+                                                    {c.photoTitle || c.photoId}
+                                                </div>
+                                                <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center gap-2">
+                                                    <span>{new Date(c.createdAt).toLocaleString()}</span>
+                                                    <Link to={`/photo/${c.photoId}`} className="text-primary hover:underline">查看</Link>
+                                                </div>
+                                            </div>
+                                            <div className="md:col-span-5 min-w-0">
+                                                <div className="text-sm text-gray-900 dark:text-white whitespace-pre-wrap break-words">
+                                                    {c.content}
+                                                </div>
+                                                {translatedComments[c.id] && (
+                                                    <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded text-sm text-gray-700 dark:text-gray-300 border border-blue-100 dark:border-blue-800/30">
+                                                        <div className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 mb-1 font-medium">
+                                                            <Languages className="w-3 h-3" />
+                                                            <span>翻译结果</span>
+                                                        </div>
+                                                        {translatedComments[c.id]}
+                                                    </div>
+                                                )}
+                                                {c.reviewReason ? (
+                                                    <div className="text-xs mt-2 text-gray-500 dark:text-gray-400">
+                                                        拒绝原因：{c.reviewReason}
+                                                    </div>
+                                                ) : null}
+                                            </div>
+                                            <div className="md:col-span-2 text-xs text-gray-600 dark:text-gray-300 space-y-1">
+                                                <div className="flex items-center gap-1"><UserIcon className="w-3 h-3" /> {c.guestNickname || '游客'}</div>
+                                                <div className="flex items-center gap-1"><Mail className="w-3 h-3" /> {c.guestEmail || '-'}</div>
+                                            </div>
+                                            <div className="md:col-span-1">
+                                                <span className={`inline-flex px-2 py-1 rounded-full text-xs font-semibold ${statusCls}`}>{statusLabel}</span>
+                                            </div>
+                                            <div className="md:col-span-1 flex md:justify-end gap-2">
+                                                <button
+                                                    onClick={() => handleTranslate(c)}
+                                                    disabled={!!translatingCommentId}
+                                                    className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-lg transition-colors disabled:opacity-50"
+                                                    title="翻译"
+                                                >
+                                                    {translatingCommentId === c.id ? (
+                                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                                    ) : (
+                                                        <Languages className="w-4 h-4" />
+                                                    )}
+                                                </button>
+                                                <button
+                                                    onClick={() => moderateCommentMutation.mutate({ id: c.id, status: 'approved' })}
+                                                    disabled={moderateCommentMutation.isPending}
+                                                    className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-500/10 rounded-lg transition-colors disabled:opacity-50"
+                                                    title="通过"
+                                                >
+                                                    <Check className="w-4 h-4" />
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        const reason = prompt('请输入拒绝原因（可选）', '') || '';
+                                                        moderateCommentMutation.mutate({ id: c.id, status: 'rejected', reason });
+                                                    }}
+                                                    disabled={moderateCommentMutation.isPending}
+                                                    className="p-2 text-gray-400 hover:text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-500/10 rounded-lg transition-colors disabled:opacity-50"
+                                                    title="拒绝"
+                                                >
+                                                    <Ban className="w-4 h-4" />
+                                                </button>
+                                                <button
+                                                    onClick={() => setCommentToDelete(c)}
+                                                    className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors"
+                                                    title="删除"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                                {!commentsLoading && (commentsData?.items || []).length === 0 && (
+                                    <div className="p-8 text-center text-gray-500">暂无符合条件的评论</div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                                共 {commentsData?.total || 0} 条
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => setCommentOffset(Math.max(0, commentOffset - commentLimit))}
+                                    disabled={commentOffset <= 0}
+                                    className="px-3 py-2 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-surface-border disabled:opacity-50"
+                                >
+                                    上一页
+                                </button>
+                                <button
+                                    onClick={() => setCommentOffset(commentOffset + commentLimit)}
+                                    disabled={(commentOffset + commentLimit) >= (commentsData?.total || 0)}
+                                    className="px-3 py-2 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-surface-border disabled:opacity-50"
+                                >
+                                    下一页
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 )}
 
@@ -1197,24 +1498,24 @@ export const Admin: React.FC = () => {
                 </div>
             )}
 
-            {(photoToDelete || userToDelete || categoryToDelete) && (
+            {(photoToDelete || userToDelete || categoryToDelete || commentToDelete) && (
                 <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
                     <div className="bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-xl w-full max-w-sm p-6 shadow-2xl">
                         <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">确认删除?</h3>
                         <p className="text-gray-500 dark:text-gray-400 text-sm mb-6">此操作无法撤销，数据将被永久移除。</p>
                         <div className="flex justify-end gap-3">
                             <button 
-                                onClick={() => { setPhotoToDelete(null); setUserToDelete(null); setCategoryToDelete(null); }} 
+                                onClick={() => { setPhotoToDelete(null); setUserToDelete(null); setCategoryToDelete(null); setCommentToDelete(null); }} 
                                 className="px-4 py-2 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-surface-border transition-colors"
                             >
                                 取消
                             </button>
                             <button 
-                                onClick={() => { if(photoToDelete) confirmDeletePhoto(); if(userToDelete) confirmDeleteUser(); if(categoryToDelete) confirmDeleteCategory(); }}
+                                onClick={() => { if(photoToDelete) confirmDeletePhoto(); if(userToDelete) confirmDeleteUser(); if(categoryToDelete) confirmDeleteCategory(); if(commentToDelete) confirmDeleteComment(); }}
                                 className="px-4 py-2 rounded-lg text-sm font-medium bg-red-500 hover:bg-red-600 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                disabled={deletePhotoMutation.isPending || deleteUserMutation.isPending || deleteCategoryMutation.isPending}
+                                disabled={deletePhotoMutation.isPending || deleteUserMutation.isPending || deleteCategoryMutation.isPending || deleteCommentMutation.isPending}
                             >
-                                {deletePhotoMutation.isPending || deleteUserMutation.isPending || deleteCategoryMutation.isPending ? '正在删除...' : '确认删除'}
+                                {deletePhotoMutation.isPending || deleteUserMutation.isPending || deleteCategoryMutation.isPending || deleteCommentMutation.isPending ? '正在删除...' : '确认删除'}
                             </button>
                         </div>
                     </div>

@@ -280,6 +280,80 @@ const extractText = (maybe) => {
   return s;
 };
 
+export const translateText = async ({ text, targetLang = 'Chinese' }) => {
+  const cfg = resolveAiConfig();
+  const provider = String(cfg.provider || '').toLowerCase();
+
+  const prompt = `
+Please translate the following text into ${targetLang}. 
+If the text is already in ${targetLang}, return it as is.
+Only output the translated text, do not include any other explanations.
+
+Text to translate:
+${text}
+  `.trim();
+
+  if (provider === 'gemini') {
+    if (!cfg.gemini.apiKey) throw new HttpError(501, 'AI_NOT_CONFIGURED', '未配置 GEMINI_API_KEY/GOOGLE_API_KEY');
+    const ai = new GoogleGenAI({ apiKey: cfg.gemini.apiKey });
+    const m = ai.getGenerativeModel({ model: cfg.gemini.model });
+    const result = await m.generateContent({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    });
+    return extractText(result?.response?.text?.());
+  }
+
+  if (provider === 'openai' || provider === 'openai_compatible' || provider === 'openrouter' || provider === 'vercelai_gateway') {
+    let apiKey, baseUrl, model;
+    
+    if (provider === 'openai') {
+      ({ apiKey, baseUrl, model } = cfg.openai);
+    } else if (provider === 'openai_compatible') {
+      ({ apiKey, baseUrl, model } = cfg.openai_compatible);
+    } else if (provider === 'openrouter') {
+      ({ apiKey, baseUrl, model } = cfg.openrouter);
+    } else {
+      ({ apiKey, baseUrl, model } = cfg.vercelai_gateway);
+    }
+
+    if (!apiKey) throw new HttpError(501, 'AI_NOT_CONFIGURED', `未配置 API Key for ${provider}`);
+    
+    const url = `${String(baseUrl).replace(/\/+$/, '')}/chat/completions`;
+    
+    const headers = { authorization: `Bearer ${apiKey}` };
+    if (provider === 'openrouter') {
+      headers['http-referer'] = pick(process.env.OPENROUTER_SITE_URL);
+      headers['x-title'] = pick(process.env.OPENROUTER_APP_NAME);
+    }
+
+    const json = await postJson(url, {
+      headers,
+      body: { 
+        model, 
+        messages: [{ role: 'user', content: prompt }] 
+      },
+    });
+    return extractText(json?.choices?.[0]?.message?.content);
+  }
+
+  if (provider === 'anthropic') {
+    if (!cfg.anthropic.apiKey) throw new HttpError(501, 'AI_NOT_CONFIGURED', '未配置 ANTHROPIC_API_KEY');
+    const url = 'https://api.anthropic.com/v1/messages';
+    const json = await postJson(url, {
+      headers: { 'x-api-key': cfg.anthropic.apiKey, 'anthropic-version': '2023-06-01' },
+      body: { 
+        model: cfg.anthropic.model, 
+        max_tokens: 1000, 
+        messages: [{ role: 'user', content: prompt }] 
+      },
+    });
+    const content = Array.isArray(json?.content) ? json.content.map((p) => (p?.type === 'text' ? String(p.text || '') : '')).join('\n') : '';
+    return extractText(content);
+  }
+
+  throw new HttpError(501, 'AI_NOT_CONFIGURED', '未配置 AI_PROVIDER 或任一大模型 Key');
+};
+
 export const critiqueFromImage = async ({ imageBase64, mimeType }) => {
   const cfg = resolveAiConfig();
   const provider = String(cfg.provider || '').toLowerCase();

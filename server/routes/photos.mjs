@@ -595,9 +595,10 @@ export const registerPhotoRoutes = async (app) => {
       },
       body: {
         type: 'object',
+        nullable: true,
         properties: {
           guestId: { type: 'string' }
-        }
+        },
       }
     },
     handler: async (req) => {
@@ -661,6 +662,7 @@ export const registerPhotoRoutes = async (app) => {
         required: ['content'],
         properties: {
           content: { type: 'string', minLength: 1, maxLength: 2000 },
+          guestId: { type: 'string', maxLength: 200 },
           nickname: { type: 'string' },
           email: { type: 'string' },
           captcha: { type: 'string' },
@@ -680,6 +682,7 @@ export const registerPhotoRoutes = async (app) => {
       if (!content) throw badRequest('CONTENT_REQUIRED', '评论内容不能为空');
 
       if (!user) {
+        const guestId = String(req.body?.guestId || '').trim() || null;
         const nickname = String(req.body?.nickname || '').trim();
         const email = String(req.body?.email || '').trim();
         const captcha = String(req.body?.captcha || '').trim();
@@ -693,9 +696,14 @@ export const registerPhotoRoutes = async (app) => {
           throw badRequest('CAPTCHA_INVALID', '验证码错误或已过期');
         }
 
-        await pool.query('insert into photo_comments(photo_id, guest_nickname, guest_email, content) values ($1,$2,$3,$4)', [id, nickname, email, content]);
+        const ip = String(req.ip || '');
+        const userAgent = String(req.headers?.['user-agent'] || '').slice(0, 1000);
+        await pool.query(
+          'insert into photo_comments(photo_id, guest_nickname, guest_email, guest_id, content, status, client_ip, user_agent) values ($1,$2,$3,$4,$5,$6,$7,$8)',
+          [id, nickname, email, guestId, content, 'pending', ip, userAgent],
+        );
       } else {
-        await pool.query('insert into photo_comments(photo_id, user_id, content) values ($1,$2,$3)', [id, user.id, content]);
+        await pool.query('insert into photo_comments(photo_id, user_id, content, status) values ($1,$2,$3,$4)', [id, user.id, content, 'approved']);
       }
 
       const detail = await pool.query(`${photoSelectSql(true)} where p.id = $1`, [id]);
