@@ -84,8 +84,17 @@ const request = async <T,>(method: HttpMethod, url: string, body?: unknown): Pro
 };
 
 const api = {
-  get<T = any>(url: string) {
-    return request<T>('GET', url);
+  get<T = any>(url: string, params?: Record<string, any>) {
+    let finalUrl = url;
+    if (params) {
+      const sp = new URLSearchParams();
+      Object.entries(params).forEach(([k, v]) => {
+        if (v !== undefined && v !== null) sp.append(k, String(v));
+      });
+      const qs = sp.toString();
+      if (qs) finalUrl += (finalUrl.includes('?') ? '&' : '?') + qs;
+    }
+    return request<T>('GET', finalUrl);
   },
   post<T = any>(url: string, body?: unknown) {
     return request<T>('POST', url, body);

@@ -94,5 +94,24 @@ export const registerMediaRoutes = async (app) => {
       return reply.code(404).send();
     },
   });
+
+  app.get('/media/files/:id', {
+    schema: {
+      params: {
+        type: 'object',
+        required: ['id'],
+        properties: { id: { type: 'string', minLength: 1 } },
+      },
+    },
+    handler: async (req, reply) => {
+      const id = String(req.params.id);
+      const r = await pool.query('select mime, data from files where id=$1', [id]);
+      if (r.rowCount === 0) return reply.code(404).send();
+
+      const file = r.rows[0];
+      const mime = file.mime || 'application/octet-stream';
+      return reply.type(mime).send(file.data);
+    },
+  });
 };
 

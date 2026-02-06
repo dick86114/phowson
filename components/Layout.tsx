@@ -4,6 +4,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { API_BASE_URL } from '../api';
 import { useTheme } from '../ThemeContext';
+import { useSiteSettings, toMediaUrl as toSiteMediaUrl } from '../SiteSettingsContext';
 
 export const Header: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -13,6 +14,7 @@ export const Header: React.FC = () => {
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
   const { user: currentUser, logout } = useAuth();
+  const settings = useSiteSettings();
   const userMenuButtonRef = useRef<HTMLButtonElement | null>(null);
   const userMenuRef = useRef<HTMLDivElement | null>(null);
   const userMenuId = useId();
@@ -96,10 +98,14 @@ export const Header: React.FC = () => {
         <div className="flex h-16 items-center justify-between">
           <div className="flex items-center gap-2">
             <Link to="/" className="flex items-center gap-2 text-gray-900 dark:text-white hover:text-primary transition-colors">
-              <div className="size-8 flex items-center justify-center text-primary bg-primary/10 rounded-lg">
-                <Camera className="w-5 h-5" />
-              </div>
-              <h1 className="text-lg font-bold tracking-tight">光影视界</h1>
+              {settings.siteLogo ? (
+                  <img src={toSiteMediaUrl(settings.siteLogo)} alt="Logo" className="w-8 h-8 object-contain" />
+              ) : (
+                  <div className="size-8 flex items-center justify-center text-primary bg-primary/10 rounded-lg">
+                    <Camera className="w-5 h-5" />
+                  </div>
+              )}
+              <h1 className="text-lg font-bold tracking-tight">{settings.siteName || '光影视界'}</h1>
             </Link>
           </div>
 
@@ -294,16 +300,21 @@ export const Header: React.FC = () => {
 };
 
 export const Footer: React.FC = () => {
+    const settings = useSiteSettings();
     return (
         <footer className="bg-white dark:bg-[#111a22] border-t border-gray-200 dark:border-surface-border transition-colors duration-300">
             <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 py-12">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
                     <div className="col-span-1 md:col-span-1 space-y-4">
                         <Link to="/" className="flex items-center gap-2 text-gray-900 dark:text-white hover:text-primary transition-colors">
-                            <div className="size-8 flex items-center justify-center text-primary bg-primary/10 rounded-lg">
-                                <Camera className="w-5 h-5" />
-                            </div>
-                            <span className="text-lg font-bold tracking-tight">Phowson</span>
+                            {settings.siteLogo ? (
+                                <img src={toSiteMediaUrl(settings.siteLogo)} alt="Logo" className="w-8 h-8 object-contain" />
+                            ) : (
+                                <div className="size-8 flex items-center justify-center text-primary bg-primary/10 rounded-lg">
+                                    <Camera className="w-5 h-5" />
+                                </div>
+                            )}
+                            <span className="text-lg font-bold tracking-tight">{settings.siteName || 'Phowson'}</span>
                         </Link>
                         <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
                             记录光影，讲述故事。<br/>
@@ -341,7 +352,7 @@ export const Footer: React.FC = () => {
                 
                 <div className="pt-8 border-t border-gray-200 dark:border-surface-border flex flex-col md:flex-row justify-between items-center gap-4">
                     <p className="text-sm text-gray-500 dark:text-gray-400">
-                        &copy; {new Date().getFullYear()} Phowson Photography. All rights reserved.
+                        &copy; {new Date().getFullYear()} {settings.siteName || 'Phowson Photography'}. All rights reserved.
                     </p>
                     <div className="flex items-center gap-1 text-sm text-gray-400">
                         <span>Made with</span>

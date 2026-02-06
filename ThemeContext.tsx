@@ -47,6 +47,12 @@ export function ThemeProvider({
         root.classList.add(theme);
     }, [theme]);
 
+    useEffect(() => {
+        if (!localStorage.getItem(storageKey)) {
+            setTheme(defaultTheme);
+        }
+    }, [defaultTheme, storageKey]);
+
     const value = {
         theme,
         setTheme: (theme: Theme) => {

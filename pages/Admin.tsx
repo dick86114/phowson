@@ -6,12 +6,13 @@ import {
     Monitor, Save, Bell, Shield, Search, MoreHorizontal, Camera, Lock,
     Tag, X, AlertTriangle, Maximize2, Check, RefreshCw, Key, Download,
     PieChart, ThumbsUp, MessageSquare, User as UserIcon, Mail, Upload,
-    Ban, Loader2, Sparkles, Menu, Languages
+    Ban, Loader2, Sparkles, Menu, Languages, Sun, Moon
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api, { API_BASE_URL } from '../api';
 import { useAuth } from '../hooks/useAuth';
 import { useModal } from '../components/Modal';
+import { useToast } from '../components/Toast';
 
 type Tab = 'photos' | 'stats' | 'users' | 'settings' | 'categories' | 'comments';
 
@@ -48,6 +49,14 @@ type AdminComment = {
     userAgent: string | null;
 };
 
+type SiteSettings = {
+    siteName?: string;
+    siteLogo?: string;
+    documentTitle?: string;
+    favicon?: string;
+    defaultTheme?: 'light' | 'dark' | 'system';
+};
+
 type AdminCommentsResponse = {
     items: AdminComment[];
     total: number;
@@ -70,204 +79,11 @@ const formatBytes = (bytes: number) => {
     return `${v.toFixed(fixed)}${units[i]}`;
 };
 
-const SiteSettingsPanel: React.FC = () => {
-    const queryClient = useQueryClient();
-    const { alert, confirm } = useModal();
-    const { data: siteSettings } = useQuery({
-        queryKey: ['site-settings'],
-        queryFn: async () => {
-            const res = await api.get('/site-settings');
-            return res.data as any;
-        },
-    });
-    const [siteName, setSiteName] = useState<string>(siteSettings?.siteName || '');
-    const [logoUrl, setLogoUrl] = useState<string>(siteSettings?.logoUrl || '');
-    const [seoTitle, setSeoTitle] = useState<string>(siteSettings?.seo?.title || '');
-    const [seoDesc, setSeoDesc] = useState<string>(siteSettings?.seo?.description || '');
-    const [seoKeywords, setSeoKeywords] = useState<string>(siteSettings?.seo?.keywords || '');
-    const [themeMode, setThemeMode] = useState<string>(siteSettings?.theme?.mode || 'system');
-    const [primaryColor, setPrimaryColor] = useState<string>(siteSettings?.theme?.colorPrimary || '#137fec');
-    const presetColors = [
-        { value: '#4f7cac', label: '蓝灰' },
-        { value: '#6c8cbf', label: '浅蓝' },
-        { value: '#8faadc', label: '淡蓝' },
-        { value: '#12b886', label: '青绿' },
-        { value: '#22b8cf', label: '青色' },
-        { value: '#f59f00', label: '橙黄' },
-    ];
-
-    useEffect(() => {
-        setSiteName(siteSettings?.siteName || '');
-        setLogoUrl(siteSettings?.logoUrl || '');
-        setSeoTitle(siteSettings?.seo?.title || '');
-        setSeoDesc(siteSettings?.seo?.description || '');
-        setSeoKeywords(siteSettings?.seo?.keywords || '');
-        setThemeMode(siteSettings?.theme?.mode || 'system');
-        setPrimaryColor(siteSettings?.theme?.colorPrimary || '#137fec');
-        const color = siteSettings?.theme?.colorPrimary || '#137fec';
-        if (typeof document !== 'undefined') {
-            document.documentElement.style.setProperty('--color-primary', color);
-        }
-    }, [siteSettings]);
-
-    const saveMutation = useMutation({
-        mutationFn: () =>
-            api.post('/admin/site-settings', {
-                siteName,
-                logoUrl,
-                seo: { title: seoTitle, description: seoDesc, keywords: seoKeywords },
-                theme: { mode: themeMode, colorPrimary: primaryColor },
-            }),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['site-settings'] });
-            alert({ title: '保存成功', content: '站点配置已更新并生效' });
-            if (typeof document !== 'undefined') {
-                document.documentElement.style.setProperty('--color-primary', primaryColor);
-            }
-        },
-        onError: (err: any) => {
-            alert({ title: '保存失败', content: String(err?.data?.message || err?.message || '保存失败') });
-        },
-    });
-
-    const rollbackMutation = useMutation({
-        mutationFn: () => api.post('/admin/site-settings/rollback', {}),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['site-settings'] });
-            alert({ title: '已回滚', content: '已回滚到上一版本配置' });
-        },
-        onError: (err: any) => {
-            alert({ title: '回滚失败', content: String(err?.data?.message || err?.message || '回滚失败') });
-        },
-    });
-
-    return (
-        <div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                    <label className="text-xs text-gray-500 dark:text-gray-400 uppercase">网站标题</label>
-                    <input
-                        type="text"
-                        value={siteName}
-                        onChange={(e) => setSiteName(e.target.value)}
-                        className="w-full mt-1 bg-gray-50 dark:bg-[#111a22] border border-gray-200 dark:border-surface-border rounded-lg p-3 text-gray-900 dark:text-white text-sm"
-                    />
-                </div>
-                <div>
-                    <label className="text-xs text-gray-500 dark:text-gray-400 uppercase">LOGO URL</label>
-                    <input
-                        type="text"
-                        value={logoUrl}
-                        onChange={(e) => setLogoUrl(e.target.value)}
-                        className="w-full mt-1 bg-gray-50 dark:bg-[#111a22] border border-gray-200 dark:border-surface-border rounded-lg p-3 text-gray-900 dark:text-white text-sm"
-                    />
-                </div>
-                <div>
-                    <label className="text-xs text-gray-500 dark:text-gray-400 uppercase">SEO 标题</label>
-                    <input
-                        type="text"
-                        value={seoTitle}
-                        onChange={(e) => setSeoTitle(e.target.value)}
-                        className="w-full mt-1 bg-gray-50 dark:bg-[#111a22] border border-gray-200 dark:border-surface-border rounded-lg p-3 text-gray-900 dark:text-white text-sm"
-                    />
-                </div>
-                <div>
-                    <label className="text-xs text-gray-500 dark:text-gray-400 uppercase">SEO 描述</label>
-                    <input
-                        type="text"
-                        value={seoDesc}
-                        onChange={(e) => setSeoDesc(e.target.value)}
-                        className="w-full mt-1 bg-gray-50 dark:bg-[#111a22] border border-gray-200 dark:border-surface-border rounded-lg p-3 text-gray-900 dark:text-white text-sm"
-                    />
-                </div>
-                <div>
-                    <label className="text-xs text-gray-500 dark:text-gray-400 uppercase">SEO 关键词</label>
-                    <input
-                        type="text"
-                        value={seoKeywords}
-                        onChange={(e) => setSeoKeywords(e.target.value)}
-                        className="w-full mt-1 bg-gray-50 dark:bg-[#111a22] border border-gray-200 dark:border-surface-border rounded-lg p-3 text-gray-900 dark:text-white text-sm"
-                    />
-                </div>
-                <div>
-                    <label className="text-xs text-gray-500 dark:text-gray-400 uppercase">主题模式</label>
-                    <select
-                        value={themeMode}
-                        onChange={(e) => setThemeMode(e.target.value)}
-                        className="w-full mt-1 bg-gray-50 dark:bg-[#111a22] border border-gray-200 dark:border-surface-border rounded-lg p-3 text-gray-900 dark:text-white text-sm"
-                    >
-                        <option value="system">跟随系统</option>
-                        <option value="light">浅色</option>
-                        <option value="dark">深色</option>
-                    </select>
-                </div>
-                <div>
-                    <label className="text-xs text-gray-500 dark:text-gray-400 uppercase">主题主色</label>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                        {presetColors.map(c => (
-                            <button
-                                key={c.value}
-                                onClick={() => setPrimaryColor(c.value)}
-                                className={`w-10 h-10 rounded-lg border ${primaryColor === c.value ? 'border-primary ring-2 ring-primary/30' : 'border-gray-200 dark:border-surface-border'}`}
-                                style={{ backgroundColor: c.value }}
-                                title={c.label}
-                            />
-                        ))}
-                    </div>
-                </div>
-            </div>
-            <div className="mt-6 flex items-center gap-2">
-                <button
-                    onClick={() => saveMutation.mutate()}
-                    className="flex items-center gap-2 bg-primary hover:bg-primary/90 text白 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                >
-                    <Save className="w-4 h-4" />
-                    保存配置
-                </button>
-                <button
-                    onClick={() =>
-                        confirm({
-                            title: '回滚确认',
-                            content: '回滚到上一版本配置？此操作不可撤销。',
-                            onConfirm: () => rollbackMutation.mutate(),
-                        })
-                    }
-                    className="flex items-center gap-2 bg-gray-100 dark:bg-surface-border hover:bg-gray-200 dark:hover:bg-[#2a4055] text-gray-800 dark:text-gray-100 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                >
-                    <RefreshCw className="w-4 h-4" />
-                    回滚配置
-                </button>
-                <button
-                    onClick={() => {
-                        const raw = localStorage.getItem('photologs:mock:photos');
-                        const photos = raw ? JSON.parse(raw) : [];
-                        if (!Array.isArray(photos) || photos.length === 0) {
-                            alert({ title: '导入提示', content: '未找到可导入的本地数据' });
-                            return;
-                        }
-                        api.post('/admin/migrate/localstorage', { photos })
-                          .then(() => {
-                              queryClient.invalidateQueries({ queryKey: ['admin-photos'] });
-                              queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
-                              alert({ title: '成功', content: '导入完成' });
-                          })
-                          .catch(() => {
-                              alert({ title: '失败', content: '导入失败' });
-                          });
-                    }}
-                    className="flex items-center gap-2 bg-gray-100 dark:bg-surface-border hover:bg-gray-200 dark:hover:bg-[#2a4055] text-gray-800 dark:text-gray-100 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                >
-                    导入本地数据
-                </button>
-            </div>
-        </div>
-    );
-};
-
 export const Admin: React.FC = () => {
     const navigate = useNavigate();
     const { user: currentUser, logout, setSession } = useAuth();
     const { alert, confirm } = useModal();
+    const { success, error } = useToast();
     const queryClient = useQueryClient();
     const [activeTab, setActiveTab] = useState<Tab>('photos');
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -347,10 +163,7 @@ export const Admin: React.FC = () => {
             setPhotoToDelete(null);
         },
         onError: (err: any) => {
-            alert({
-                title: '操作失败',
-                content: String(err?.data?.message || err?.message || '删除失败'),
-            });
+            error(String(err?.data?.message || err?.message || '删除失败'));
             setPhotoToDelete(null);
         },
     });
@@ -362,10 +175,7 @@ export const Admin: React.FC = () => {
             queryClient.invalidateQueries({ queryKey: ['admin-photos'] });
         },
         onError: (err: any) => {
-            alert({
-                title: 'AI 点评失败',
-                content: String(err?.data?.message || err?.message || 'AI 点评失败'),
-            });
+            error(String(err?.data?.message || err?.message || 'AI 点评失败'));
         },
         onSettled: () => {
             setCritiquePhotoId(null);
@@ -419,10 +229,7 @@ export const Admin: React.FC = () => {
             setNewCatValue('');
         },
         onError: (err: any) => {
-            alert({
-                title: '添加分类失败',
-                content: String(err?.data?.message || err?.message || '添加分类失败'),
-            });
+            error(String(err?.data?.message || err?.message || '添加分类失败'));
         }
     });
 
@@ -444,6 +251,15 @@ export const Admin: React.FC = () => {
     const [avatarUrl, setAvatarUrl] = useState(toMediaUrl(currentUser?.avatar || `/media/avatars/${currentUser?.id || 'me'}`));
     const avatarInputRef = useRef<HTMLInputElement>(null);
     const [profileName, setProfileName] = useState<string>(currentUser?.name || '');
+
+    // Site Settings State
+    const [siteSettingsForm, setSiteSettingsForm] = useState<SiteSettings>({
+        siteName: '',
+        siteLogo: '',
+        documentTitle: '',
+        favicon: '',
+        defaultTheme: 'system',
+    });
 
     const [commentStatus, setCommentStatus] = useState<'pending' | 'approved' | 'rejected' | 'all'>('pending');
     const [commentOnlyGuest, setCommentOnlyGuest] = useState(true);
@@ -470,6 +286,27 @@ export const Admin: React.FC = () => {
             return res.data;
         },
     });
+
+    const { data: siteSettingsData } = useQuery({
+        queryKey: ['site-settings'],
+        enabled: isAdmin,
+        queryFn: async () => {
+            const res = await api.get('/admin/site-settings');
+            return res.data;
+        },
+    });
+
+    useEffect(() => {
+        if (siteSettingsData) {
+            setSiteSettingsForm({
+                siteName: siteSettingsData.siteName || '',
+                siteLogo: siteSettingsData.siteLogo || '',
+                documentTitle: siteSettingsData.documentTitle || '',
+                favicon: siteSettingsData.favicon || '',
+                defaultTheme: siteSettingsData.defaultTheme || 'system',
+            });
+        }
+    }, [siteSettingsData]);
 
     const { data: categories = [], isLoading: categoriesLoading } = useQuery({
         queryKey: ['categories'],
@@ -505,7 +342,7 @@ export const Admin: React.FC = () => {
             queryClient.invalidateQueries({ queryKey: ['admin-comments-summary'] });
         },
         onError: (err: any) => {
-            alert({ title: '操作失败', content: String(err?.data?.message || err?.message || '操作失败') });
+            error(String(err?.data?.message || err?.message || '操作失败'));
         },
     });
 
@@ -517,7 +354,7 @@ export const Admin: React.FC = () => {
             setCommentToDelete(null);
         },
         onError: (err: any) => {
-            alert({ title: '删除失败', content: String(err?.data?.message || err?.message || '删除失败') });
+            error(String(err?.data?.message || err?.message || '删除失败'));
         },
     });
 
@@ -592,7 +429,7 @@ export const Admin: React.FC = () => {
             setTranslatedComments(prev => ({ ...prev, [comment.id]: res.data.translated }));
         } catch (e: any) {
             console.error('Translation failed', e);
-            alert({ title: '翻译失败', content: String(e?.response?.data?.message || e?.message || '请求失败') });
+            error(String(e?.response?.data?.message || e?.message || '请求失败'));
         } finally {
             setTranslatingCommentId(null);
         }
@@ -680,27 +517,46 @@ export const Admin: React.FC = () => {
         onSuccess: () => {
             const token = localStorage.getItem('photologs:auth:token') || '';
             setSession({ ...currentUser, name: profileName }, token);
-            alert({ title: '成功', content: '个人资料已更新' });
+            success('个人资料已更新');
         },
         onError: (err: any) => {
-            alert({ title: '更新失败', content: String(err?.data?.message || err?.message || '更新失败') });
+            error(String(err?.data?.message || err?.message || '更新失败'));
         },
     });
-    const handleImportLocalStorage = async () => {
-        try {
-            const raw = localStorage.getItem('photologs:mock:photos');
-            const photos = raw ? JSON.parse(raw) : [];
-            if (!Array.isArray(photos) || photos.length === 0) {
-                alert({ title: '导入提示', content: '未找到可导入的本地数据' });
-                return;
+
+    const updateSiteSettingsMutation = useMutation({
+        mutationFn: (data: SiteSettings) => api.post('/admin/site-settings', data),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['site-settings'] });
+            // Refresh global settings cache if any
+            queryClient.invalidateQueries({ queryKey: ['global-site-settings'] });
+            success('网站设置已保存');
+        },
+        onError: (err: any) => {
+            error(String(err?.data?.message || err?.message || '保存失败'));
+        },
+    });
+
+    const uploadFileMutation = useMutation({
+        mutationFn: async (file: File) => {
+            const formData = new FormData();
+            formData.append('file', file);
+            const res = await api.post('/admin/upload', formData);
+            return res.data.url;
+        },
+        onError: (err: any) => {
+            error(String(err?.data?.message || err?.message || '上传失败'));
+        },
+    });
+
+    const handleSiteSettingFileChange = async (e: React.ChangeEvent<HTMLInputElement>, field: 'siteLogo' | 'favicon') => {
+        if (e.target.files && e.target.files[0]) {
+            try {
+                const url = await uploadFileMutation.mutateAsync(e.target.files[0]);
+                setSiteSettingsForm(prev => ({ ...prev, [field]: url }));
+            } catch (error) {
+                // Error handled in mutation
             }
-            await api.post('/admin/migrate/localstorage', { photos });
-            queryClient.invalidateQueries({ queryKey: ['admin-photos'] });
-            queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
-            alert({ title: '成功', content: '导入完成' });
-        } catch (e) {
-            console.error(e);
-            alert({ title: '失败', content: '导入失败' });
         }
     };
 
@@ -910,6 +766,8 @@ export const Admin: React.FC = () => {
                                 )}
                             </div>
                         </div>
+
+{null}
                     </div>
                 )}
 
@@ -1396,6 +1254,161 @@ export const Admin: React.FC = () => {
                             </p>
                         </div>
 
+                        {/* Site Settings (Admin Only) */}
+                        {isAdmin && (
+                            <div className="bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-xl p-6 shadow-sm">
+                                <h3 className="font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+                                    <Settings className="w-5 h-5 text-primary" />
+                                    网站设置
+                                </h3>
+                                <div className="space-y-6">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div>
+                                            <label className="text-xs text-gray-500 dark:text-gray-400 uppercase font-medium">网站名称</label>
+                                            <input 
+                                                type="text" 
+                                                value={siteSettingsForm.siteName || ''}
+                                                onChange={(e) => setSiteSettingsForm({...siteSettingsForm, siteName: e.target.value})}
+                                                placeholder="显示在Header和Footer的名称"
+                                                className="w-full mt-2 bg-gray-50 dark:bg-[#111a22] border border-gray-200 dark:border-surface-border rounded-lg p-3 text-gray-900 dark:text-white text-sm focus:outline-none focus:border-primary"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-xs text-gray-500 dark:text-gray-400 uppercase font-medium">浏览器标题</label>
+                                            <input 
+                                                type="text" 
+                                                value={siteSettingsForm.documentTitle || ''}
+                                                onChange={(e) => setSiteSettingsForm({...siteSettingsForm, documentTitle: e.target.value})}
+                                                placeholder="浏览器标签页标题"
+                                                className="w-full mt-2 bg-gray-50 dark:bg-[#111a22] border border-gray-200 dark:border-surface-border rounded-lg p-3 text-gray-900 dark:text-white text-sm focus:outline-none focus:border-primary"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        {/* Logo Upload */}
+                                        <div>
+                                            <label className="text-xs text-gray-500 dark:text-gray-400 uppercase font-medium mb-2 block">网站 Logo</label>
+                                            <div className="flex items-center gap-4">
+                                                {siteSettingsForm.siteLogo ? (
+                                                    <div className="relative w-16 h-16 bg-gray-100 dark:bg-[#111a22] rounded-lg border border-gray-200 dark:border-surface-border flex items-center justify-center overflow-hidden">
+                                                        <img src={toMediaUrl(siteSettingsForm.siteLogo)} alt="Logo" className="max-w-full max-h-full object-contain" />
+                                                        <button 
+                                                            onClick={() => setSiteSettingsForm({...siteSettingsForm, siteLogo: ''})}
+                                                            className="absolute top-0 right-0 bg-red-500 text-white p-0.5 rounded-bl shadow-sm hover:bg-red-600"
+                                                        >
+                                                            <X className="w-3 h-3" />
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <div className="w-16 h-16 bg-gray-50 dark:bg-[#111a22] rounded-lg border border-dashed border-gray-300 dark:border-surface-border flex items-center justify-center text-gray-400">
+                                                        <ImageIcon className="w-6 h-6" />
+                                                    </div>
+                                                )}
+                                                <div>
+                                                    <label className="cursor-pointer bg-white dark:bg-surface-border text-gray-700 dark:text-gray-200 px-3 py-2 rounded-lg text-sm border border-gray-200 dark:border-surface-border hover:bg-gray-50 dark:hover:bg-[#2a4055] transition-colors inline-flex items-center gap-2">
+                                                        <Upload className="w-3 h-3" />
+                                                        上传图片
+                                                        <input 
+                                                            type="file" 
+                                                            className="hidden" 
+                                                            accept="image/*"
+                                                            onChange={async (e) => {
+                                                                if (e.target.files?.[0]) {
+                                                                    try {
+                                                                        const url = await uploadFileMutation.mutateAsync(e.target.files[0]);
+                                                                        setSiteSettingsForm(prev => ({ ...prev, siteLogo: url }));
+                                                                    } catch {}
+                                                                }
+                                                            }}
+                                                        />
+                                                    </label>
+                                                    <p className="text-xs text-gray-500 mt-1">建议尺寸 64x64 或更高</p>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Favicon Upload */}
+                                        <div>
+                                            <label className="text-xs text-gray-500 dark:text-gray-400 uppercase font-medium mb-2 block">网站 Favicon</label>
+                                            <div className="flex items-center gap-4">
+                                                {siteSettingsForm.favicon ? (
+                                                    <div className="relative w-16 h-16 bg-gray-100 dark:bg-[#111a22] rounded-lg border border-gray-200 dark:border-surface-border flex items-center justify-center overflow-hidden">
+                                                        <img src={toMediaUrl(siteSettingsForm.favicon)} alt="Favicon" className="w-8 h-8 object-contain" />
+                                                        <button 
+                                                            onClick={() => setSiteSettingsForm({...siteSettingsForm, favicon: ''})}
+                                                            className="absolute top-0 right-0 bg-red-500 text-white p-0.5 rounded-bl shadow-sm hover:bg-red-600"
+                                                        >
+                                                            <X className="w-3 h-3" />
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <div className="w-16 h-16 bg-gray-50 dark:bg-[#111a22] rounded-lg border border-dashed border-gray-300 dark:border-surface-border flex items-center justify-center text-gray-400">
+                                                        <Settings className="w-6 h-6" />
+                                                    </div>
+                                                )}
+                                                <div>
+                                                    <label className="cursor-pointer bg-white dark:bg-surface-border text-gray-700 dark:text-gray-200 px-3 py-2 rounded-lg text-sm border border-gray-200 dark:border-surface-border hover:bg-gray-50 dark:hover:bg-[#2a4055] transition-colors inline-flex items-center gap-2">
+                                                        <Upload className="w-3 h-3" />
+                                                        上传图片
+                                                        <input 
+                                                            type="file" 
+                                                            className="hidden" 
+                                                            accept="image/png,image/x-icon,image/vnd.microsoft.icon,image/jpeg"
+                                                            onChange={async (e) => {
+                                                                if (e.target.files?.[0]) {
+                                                                    try {
+                                                                        const url = await uploadFileMutation.mutateAsync(e.target.files[0]);
+                                                                        setSiteSettingsForm(prev => ({ ...prev, favicon: url }));
+                                                                    } catch {}
+                                                                }
+                                                            }}
+                                                        />
+                                                    </label>
+                                                    <p className="text-xs text-gray-500 mt-1">建议 .ico 或 .png 格式</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label className="text-xs text-gray-500 dark:text-gray-400 uppercase font-medium">默认主题模式</label>
+                                        <div className="grid grid-cols-3 gap-2 mt-2">
+                                            {[
+                                                { val: 'light', label: '浅色模式', icon: Sun },
+                                                { val: 'dark', label: '深色模式', icon: Moon },
+                                                { val: 'system', label: '跟随系统', icon: Monitor },
+                                            ].map((opt) => (
+                                                <button
+                                                    key={opt.val}
+                                                    onClick={() => setSiteSettingsForm({...siteSettingsForm, defaultTheme: opt.val as any})}
+                                                    className={`flex flex-col items-center justify-center gap-1.5 p-2 rounded-lg border transition-all ${
+                                                        siteSettingsForm.defaultTheme === opt.val
+                                                        ? 'bg-primary/5 border-primary text-primary ring-1 ring-primary'
+                                                        : 'bg-gray-50 dark:bg-[#111a22] border-gray-200 dark:border-surface-border text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-surface-border'
+                                                    }`}
+                                                >
+                                                    <opt.icon className="w-4 h-4" />
+                                                    <span className="text-xs font-medium">{opt.label}</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div className="pt-4 border-t border-gray-100 dark:border-surface-border flex justify-end">
+                                        <button
+                                            onClick={() => updateSiteSettingsMutation.mutate(siteSettingsForm)}
+                                            disabled={updateSiteSettingsMutation.isPending}
+                                            className="bg-primary hover:bg-primary/90 text-white px-6 py-2.5 rounded-lg font-medium transition-all shadow-lg shadow-primary/20 flex items-center gap-2 disabled:opacity-70"
+                                        >
+                                            {updateSiteSettingsMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                                            保存全局设置
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
                         {/* Profile Settings */}
                         <div className="bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-xl p-6 shadow-sm">
                             <h3 className="font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
@@ -1440,17 +1453,6 @@ export const Admin: React.FC = () => {
                                 </div>
                             </div>
                         </div>
-
-                        {/* Site Settings (Admin Only) */}
-                        {isAdmin && (
-                            <div className="bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-xl p-6 shadow-sm">
-                                <h3 className="font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
-                                    <Monitor className="w-5 h-5 text-primary" />
-                                    站点配置
-                                </h3>
-                                <SiteSettingsPanel />
-                            </div>
-                        )}
 
                         {/* Account Security */}
                         <div className="bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-xl p-6 shadow-sm">
