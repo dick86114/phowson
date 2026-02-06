@@ -76,7 +76,11 @@ export const PhotoDetail: React.FC = () => {
     const refreshCaptcha = async () => {
         try {
             const res = await api.get('/auth/captcha');
-            setCaptchaSvg(res.data.svg);
+            let svg = res.data.svg;
+            // Make SVG responsive
+            svg = svg.replace(/width="\d+"/, 'width="100%"').replace(/height="\d+"/, 'height="100%"');
+            // Ensure viewBox is preserved (it usually is in the output)
+            setCaptchaSvg(svg);
             setCaptchaToken(res.data.token);
             setCaptchaInput('');
         } catch (e) {
