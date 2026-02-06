@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Calendar, MapPin, Camera, Grid, Image as ImageIcon, User, Plane, Flame, Heart, MessageCircle, ChevronDown, X, Search } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import api, { API_BASE_URL } from '../api';
 import { MasonryVirtual } from '../components/MasonryVirtual';
 import { Heatmap } from '../components/Heatmap';
@@ -84,6 +84,9 @@ export const Home: React.FC = () => {
     const [searchMode, setSearchMode] = useState<'normal' | 'semantic'>('normal');
     const [searchQuery, setSearchQuery] = useState('');
     const [isSearching, setIsSearching] = useState(false);
+    
+    // Heatmap State
+    const [heatmapYear, setHeatmapYear] = useState(new Date().getFullYear());
 
     const { data: photos = [], isLoading } = useQuery({
         queryKey: ['photos'],
@@ -124,11 +127,12 @@ export const Home: React.FC = () => {
     });
 
     const { data: heatmapData } = useQuery<HeatmapData>({
-        queryKey: ['activity', 'heatmap'],
+        queryKey: ['activity', 'heatmap', heatmapYear],
         queryFn: async () => {
-            const res = await api.get<HeatmapData>('/activity/heatmap');
+            const res = await api.get<HeatmapData>(`/activity/heatmap?year=${heatmapYear}`);
             return res.data;
         },
+        placeholderData: keepPreviousData,
         enabled: !!currentUser,
     });
     
@@ -384,18 +388,12 @@ export const Home: React.FC = () => {
             {/* Heatmap Section */}
             {heatmapData && currentUser && !searchQuery && (
                 <section className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
-                    <div className="mb-4 flex items-center gap-2">
-                        <Flame className="text-primary w-5 h-5" />
-                        <h3 className="text-lg font-bold text-gray-900 dark:text-white">上传热力图</h3>
-                        <span className="text-sm text-gray-500 dark:text-gray-400">过去一年</span>
-                    </div>
                     <Heatmap
                         data={heatmapData.days}
+                        year={heatmapYear}
+                        onYearChange={setHeatmapYear}
                         startDate={heatmapData.startDate}
                         endDate={heatmapData.endDate}
-                        onDayClick={(day, count) => {
-                            console.log('Clicked day:', day, 'count:', count);
-                        }}
                     />
                 </section>
             )}

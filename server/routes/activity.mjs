@@ -81,8 +81,18 @@ export const registerActivityRoutes = async (app) => {
 
   app.get('/activity/heatmap', { preHandler: requireMember() }, async (req) => {
     const userId = req.authUser.id;
-    const today = localDayIso();
-    const oneYearAgo = addDaysIso(today, -365);
+    const year = req.query.year ? parseInt(req.query.year) : null;
+    
+    let startDate, endDate;
+    
+    if (year) {
+      startDate = `${year}-01-01`;
+      endDate = `${year}-12-31`;
+    } else {
+      const today = localDayIso();
+      endDate = today;
+      startDate = addDaysIso(today, -365);
+    }
 
     const rows = await pool.query(
       `
@@ -93,7 +103,7 @@ export const registerActivityRoutes = async (app) => {
           and day <= $3::date
         order by day asc
       `,
-      [userId, oneYearAgo, today],
+      [userId, startDate, endDate],
     );
 
     const heatmap = new Map();
@@ -103,8 +113,8 @@ export const registerActivityRoutes = async (app) => {
     }
 
     return {
-      startDate: oneYearAgo,
-      endDate: today,
+      startDate,
+      endDate,
       days: Object.fromEntries(heatmap),
     };
   });
