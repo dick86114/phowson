@@ -3,8 +3,9 @@ import { upsertUser } from '../db/users.mjs';
 import { badRequest } from '../lib/http_errors.mjs';
 import { notFound } from '../lib/http_errors.mjs';
 import { normalizeRole } from '../lib/roles.mjs';
-import { hashPassword } from '../lib/passwords.mjs';
+import { hashPassword, verifyPassword } from '../lib/passwords.mjs';
 import { requireAdmin, requireMember } from '../plugins/rbac.mjs';
+import { deleteSessionsByUserId } from '../db/sessions.mjs';
 import crypto from 'node:crypto';
 
 const normalizeEmail = (email) => {
@@ -16,11 +17,186 @@ const normalizeEmail = (email) => {
 };
 
 const assertAtLeastOneAdmin = async (excludingUserId) => {
-  const r = await pool.query('select count(*)::int as c from users where role=$1 and id <> $2', ['admin', String(excludingUserId ?? '')]);
+  const r = await pool.query(
+    'select count(*)::int as c from users where role=$1 and disabled_at is null and id <> $2',
+    ['admin', String(excludingUserId ?? '')],
+  );
   if ((r.rows[0]?.c ?? 0) <= 0) throw badRequest('LAST_ADMIN_PROTECTED', '必须至少保留一个管理员');
 };
 
 export const registerUserRoutes = async (app) => {
+  app.get('/users/page', {
+    preHandler: requireAdmin(),
+    schema: {
+      querystring: {
+        type: 'object',
+        properties: {
+          q: { type: 'string' },
+          role: { type: 'string', enum: ['admin', 'family', 'all'] },
+          status: { type: 'string', enum: ['enabled', 'disabled', 'all'] },
+          limit: { type: 'integer', minimum: 1, maximum: 200 },
+          offset: { type: 'integer', minimum: 0 },
+        },
+      },
+    },
+    handler: async (req) => {
+      const q = String(req.query?.q ?? '').trim() || null;
+      const role = String(req.query?.role ?? 'all').trim() || 'all';
+      const status = String(req.query?.status ?? 'all').trim() || 'all';
+      const limit = Math.max(1, Math.min(200, Number(req.query?.limit ?? 50) || 50));
+      const offset = Math.max(0, Number(req.query?.offset ?? 0) || 0);
+
+      const where = [];
+      const args = [];
+      let i = 1;
+
+      if (role !== 'all') {
+        const normalized = normalizeRole(role);
+        if (!normalized) throw badRequest('ROLE_INVALID', '角色不合法');
+        where.push(`role = $${i++}`);
+        args.push(normalized);
+      }
+
+      if (q) {
+        where.push(`(id ilike $${i} or name ilike $${i} or email ilike $${i})`);
+        args.push(`%${q}%`);
+        i += 1;
+      }
+
+      if (status !== 'all') {
+        const allowed = new Set(['enabled', 'disabled', 'all']);
+        if (!allowed.has(status)) throw badRequest('STATUS_INVALID', 'status 不合法');
+        where.push(status === 'enabled' ? 'disabled_at is null' : 'disabled_at is not null');
+      }
+
+      const whereSql = where.length ? `where ${where.join(' and ')}` : '';
+
+      const totalRes = await pool.query(
+        `
+          select count(*)::int as total
+          from users
+          ${whereSql}
+        `,
+        args,
+      );
+      const total = Number(totalRes.rows?.[0]?.total ?? 0) || 0;
+
+      const itemsRes = await pool.query(
+        `
+          select
+            id,
+            name,
+            role,
+            coalesce(avatar_url, '/media/avatars/' || id) as avatar,
+            email,
+            disabled_at as "disabledAt",
+            created_at as "createdAt"
+          from users
+          ${whereSql}
+          order by created_at desc
+          limit $${i} offset $${i + 1}
+        `,
+        [...args, limit, offset],
+      );
+
+      return { items: itemsRes.rows || [], total, limit, offset };
+    },
+  });
+
+  app.get('/me/profile', {
+    preHandler: requireMember(),
+    handler: async (req) => {
+      const user = req.authUser;
+      await upsertUser(user);
+      const r = await pool.query(
+        `
+          select
+            id,
+            name,
+            role,
+            coalesce(avatar_url, '/media/avatars/' || id) as avatar,
+            email,
+            created_at as "createdAt"
+          from users
+          where id = $1
+          limit 1
+        `,
+        [user.id],
+      );
+      if (!r.rowCount) throw notFound('USER_NOT_FOUND', '用户不存在');
+      return r.rows[0];
+    },
+  });
+
+  app.patch('/me/profile', {
+    preHandler: requireMember(),
+    schema: {
+      body: {
+        type: 'object',
+        required: ['name'],
+        properties: {
+          name: { type: 'string', minLength: 1, maxLength: 80 },
+        },
+      },
+    },
+    handler: async (req) => {
+      const user = req.authUser;
+      await upsertUser(user);
+      const name = String(req.body?.name ?? '').trim();
+      if (!name) throw badRequest('NAME_REQUIRED', '显示名称不能为空');
+      const r = await pool.query(
+        `
+          update users set name = $2
+          where id = $1
+          returning
+            id,
+            name,
+            role,
+            coalesce(avatar_url, '/media/avatars/' || id) as avatar,
+            email,
+            created_at as "createdAt"
+        `,
+        [user.id, name],
+      );
+      if (!r.rowCount) throw notFound('USER_NOT_FOUND', '用户不存在');
+      return r.rows[0];
+    },
+  });
+
+  app.post('/me/profile/password', {
+    preHandler: requireMember(),
+    schema: {
+      body: {
+        type: 'object',
+        required: ['newPassword'],
+        properties: {
+          currentPassword: { type: 'string', maxLength: 2000 },
+          newPassword: { type: 'string', minLength: 8, maxLength: 2000 },
+        },
+      },
+    },
+    handler: async (req) => {
+      const user = req.authUser;
+      await upsertUser(user);
+
+      const currentPassword = String(req.body?.currentPassword ?? '');
+      const newPassword = String(req.body?.newPassword ?? '');
+      if (newPassword.length < 8) throw badRequest('PASSWORD_TOO_SHORT', '新密码至少 8 位');
+      if (!/[a-zA-Z]/.test(newPassword) || !/\d/.test(newPassword)) throw badRequest('PASSWORD_WEAK', '新密码需包含字母与数字');
+
+      const r = await pool.query('select password_hash from users where id=$1 limit 1', [user.id]);
+      if (!r.rowCount) throw notFound('USER_NOT_FOUND', '用户不存在');
+      const passwordHash = r.rows[0]?.password_hash ? String(r.rows[0].password_hash) : '';
+      if (passwordHash) {
+        if (!currentPassword) throw badRequest('CURRENT_PASSWORD_REQUIRED', '请输入当前密码');
+        if (!verifyPassword(currentPassword, passwordHash)) throw badRequest('CURRENT_PASSWORD_INVALID', '当前密码错误');
+      }
+
+      await pool.query('update users set password_hash=$2 where id=$1', [user.id, hashPassword(newPassword)]);
+      return { ok: true };
+    },
+  });
+
   app.get('/users', {
     preHandler: requireAdmin(),
     handler: async () => {
@@ -32,12 +208,63 @@ export const registerUserRoutes = async (app) => {
             role,
             coalesce(avatar_url, '/media/avatars/' || id) as avatar,
             email,
+            disabled_at as "disabledAt",
             created_at as "createdAt"
           from users
           order by created_at desc
         `,
       );
       return r.rows;
+    },
+  });
+
+  app.patch('/users/:id/status', {
+    preHandler: requireAdmin(),
+    schema: {
+      params: {
+        type: 'object',
+        required: ['id'],
+        properties: { id: { type: 'string', minLength: 1 } },
+      },
+      body: {
+        type: 'object',
+        required: ['disabled'],
+        properties: {
+          disabled: { type: 'boolean' },
+        },
+      },
+    },
+    handler: async (req) => {
+      const id = String(req.params.id);
+      const disabled = Boolean(req.body?.disabled);
+      const acting = req.authUser;
+      if (acting?.id && String(acting.id) === id) throw badRequest('CANNOT_DISABLE_SELF', '不能禁用当前登录用户');
+
+      const existing = await pool.query('select role, disabled_at from users where id=$1', [id]);
+      if (!existing.rowCount) throw notFound('USER_NOT_FOUND', '用户不存在');
+      const prevRole = String(existing.rows[0].role);
+
+      if (disabled && prevRole === 'admin') {
+        await assertAtLeastOneAdmin(id);
+      }
+
+      const nextDisabledAt = disabled ? 'now()' : 'null';
+      const r = await pool.query(
+        `
+          update users set disabled_at = ${nextDisabledAt}
+          where id = $1
+          returning id, name, role, coalesce(avatar_url, '/media/avatars/' || id) as avatar, email, disabled_at as "disabledAt", created_at as "createdAt"
+        `,
+        [id],
+      );
+
+      if (disabled) {
+        try {
+          await deleteSessionsByUserId(id);
+        } catch {}
+      }
+
+      return r.rows[0];
     },
   });
 

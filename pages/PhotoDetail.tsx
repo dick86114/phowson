@@ -205,7 +205,9 @@ export const PhotoDetail: React.FC = () => {
                 <div className="flex items-center gap-3">
                     <button 
                         onClick={() => setShowShareCard(true)}
-                        className="p-2 text-gray-600 dark:text-gray-300 hover:text-primary transition-colors hover:bg-gray-100 dark:hover:bg-surface-dark rounded-full"
+                        type="button"
+                        aria-label="分享"
+                        className="p-2 text-gray-600 dark:text-gray-300 hover:text-primary transition-colors hover:bg-gray-100 dark:hover:bg-surface-dark rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-background-dark"
                     >
                         <Share2 className="w-4 h-4" />
                     </button>
@@ -241,12 +243,16 @@ export const PhotoDetail: React.FC = () => {
                                 onClick={() => setIsFullScreen(true)}
                                 className="absolute inset-0"
                                 aria-label="全屏查看"
+                                aria-hidden="true"
+                                tabIndex={-1}
                                 type="button"
                             />
                         </div>
                          <button
                             onClick={() => setIsFullScreen(true)}
-                            className="absolute top-6 right-6 p-2 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70 backdrop-blur-sm"
+                            type="button"
+                            aria-label="全屏查看"
+                            className="absolute top-6 right-6 p-2 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70 backdrop-blur-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
                             title="全屏查看"
                         >
                             <Maximize2 className="w-5 h-5" />
@@ -293,7 +299,8 @@ export const PhotoDetail: React.FC = () => {
                                 <div className="bg-primary/5 dark:bg-primary/10 border border-primary/20 rounded-2xl relative overflow-hidden group transition-all duration-300">
                                     <button 
                                         onClick={() => setIsAiCritiqueOpen(!isAiCritiqueOpen)}
-                                        className="w-full p-5 flex items-center justify-between text-left focus:outline-none"
+                                        type="button"
+                                        className="w-full p-5 flex items-center justify-between text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-background-dark rounded-2xl"
                                     >
                                         <h3 className="text-sm font-bold text-primary flex items-center gap-2">
                                             <Sparkles className="w-4 h-4" />
@@ -387,12 +394,26 @@ export const PhotoDetail: React.FC = () => {
                                                     className="flex-1 bg-gray-100 dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-lg py-2 px-3 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                                                 />
                                                 <div 
-                                                    className="h-10 w-24 bg-white rounded overflow-hidden cursor-pointer border border-gray-200"
+                                                    className="h-10 w-24 bg-white rounded overflow-hidden cursor-pointer border border-gray-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-background-dark"
                                                     dangerouslySetInnerHTML={{ __html: captchaSvg }}
                                                     onClick={refreshCaptcha}
                                                     title="点击刷新"
+                                                    role="button"
+                                                    tabIndex={0}
+                                                    aria-label="刷新验证码"
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter' || e.key === ' ') {
+                                                            e.preventDefault();
+                                                            refreshCaptcha();
+                                                        }
+                                                    }}
                                                 />
-                                                <button type="button" onClick={refreshCaptcha} className="p-2 text-gray-500 hover:text-primary">
+                                                <button
+                                                    type="button"
+                                                    onClick={refreshCaptcha}
+                                                    aria-label="刷新验证码"
+                                                    className="p-2 text-gray-500 hover:text-primary rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-background-dark"
+                                                >
                                                     <RefreshCw className="w-5 h-5" />
                                                 </button>
                                             </div>
@@ -406,7 +427,12 @@ export const PhotoDetail: React.FC = () => {
                                             onChange={(e) => setCommentText(e.target.value)} 
                                             className="w-full bg-gray-100 dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-lg py-3 pl-4 pr-12 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary placeholder-gray-500 disabled:opacity-50" 
                                         />
-                                        <button type="submit" disabled={!commentText.trim() || addCommentMutation.isPending} className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-primary hover:bg-primary/10 rounded-md disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                                        <button
+                                            type="submit"
+                                            aria-label="发送评论"
+                                            disabled={!commentText.trim() || addCommentMutation.isPending}
+                                            className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-primary hover:bg-primary/10 rounded-md disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-background-dark"
+                                        >
                                             {addCommentMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                                         </button>
                                     </div>
@@ -434,7 +460,9 @@ export const PhotoDetail: React.FC = () => {
                         <h2 className="text-white font-medium text-lg drop-shadow-md pointer-events-auto">{photo.title}</h2>
                         <button 
                             onClick={() => setIsFullScreen(false)} 
-                            className="p-2 bg-black/40 hover:bg-red-500/80 rounded-full text-white backdrop-blur-sm transition-colors pointer-events-auto border border-white/10"
+                            type="button"
+                            aria-label="关闭全屏"
+                            className="p-2 bg-black/40 hover:bg-red-500/80 rounded-full text-white backdrop-blur-sm transition-colors pointer-events-auto border border-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
                         >
                             <X className="w-6 h-6" />
                         </button>

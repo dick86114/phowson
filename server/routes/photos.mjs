@@ -14,6 +14,7 @@ import sharp from 'sharp';
 import { bumpUploadActivity } from '../db/activity_logs.mjs';
 import { generateEmbedding, buildSemanticText } from '../lib/embedding.mjs';
 import { verifyCaptcha } from '../lib/captcha.mjs';
+import { buildMePhotosWhere, parseListParam } from '../lib/me_photos.mjs';
 
 const localDayIso = () => {
   const d = new Date();
@@ -23,11 +24,117 @@ const localDayIso = () => {
   return `${y}-${m}-${day}`;
 };
 
+const parseMonthDay = (raw) => {
+  if (!raw) return null;
+  const s = String(raw).trim();
+  const m = /^(\d{1,2})-(\d{1,2})$/.exec(s);
+  if (!m) return null;
+  const month = Number.parseInt(m[1], 10);
+  const day = Number.parseInt(m[2], 10);
+  if (!Number.isFinite(month) || month < 1 || month > 12) return null;
+  if (!Number.isFinite(day) || day < 1 || day > 31) return null;
+  return { month, day };
+};
+
 const ensureMultipart = (req) => {
   if (!req.isMultipart()) throw badRequest('INVALID_CONTENT_TYPE', '需要 multipart/form-data');
 };
 
 export const registerPhotoRoutes = async (app) => {
+  app.get('/admin/photos/filters', { preHandler: requireAdmin() }, async () => {
+    const tagsRes = await pool.query(
+      `
+        select distinct t as tag
+        from photos p
+        cross join unnest(p.tags) t
+        where t is not null
+          and t <> ''
+        order by t asc
+      `,
+    );
+
+    const camerasRes = await pool.query(
+      `
+        select distinct nullif(p.exif->>'Model','') as model
+        from photos p
+        where nullif(p.exif->>'Model','') is not null
+        order by model asc
+      `,
+    );
+
+    return {
+      tags: (tagsRes.rows || []).map((r) => r.tag),
+      cameras: (camerasRes.rows || []).map((r) => r.model),
+    };
+  });
+
+  app.get('/admin/photos/page', { preHandler: requireAdmin() }, async (req) => {
+    const q = req.query || {};
+    const limitRaw = q.limit ?? q.pageSize ?? 50;
+    const offsetRaw = q.offset ?? 0;
+    const limit = Math.max(1, Math.min(200, Number.parseInt(String(limitRaw), 10) || 50));
+    const offset = Math.max(0, Number.parseInt(String(offsetRaw), 10) || 0);
+
+    const monthRaw = q.month;
+    const month = Number.parseInt(String(monthRaw ?? ''), 10);
+    const tags = parseListParam(q.tags);
+    const camera = String(q.camera ?? '').trim();
+    const category = String(q.category ?? '').trim();
+    const ownerId = String(q.ownerId ?? '').trim();
+    const keyword = String(q.q ?? q.keyword ?? '').trim();
+
+    const parts = [];
+    const params = [];
+    let i = 1;
+
+    if (ownerId) {
+      parts.push(`p.owner_user_id = $${i++}`);
+      params.push(ownerId);
+    }
+
+    if (category && category !== 'all') {
+      parts.push(`p.category = $${i++}`);
+      params.push(category);
+    }
+
+    if (Number.isFinite(month) && month >= 1 && month <= 12) {
+      parts.push(`extract(month from p.created_at) = $${i++}`);
+      params.push(month);
+    }
+
+    if (Array.isArray(tags) && tags.length > 0) {
+      parts.push(`p.tags && $${i++}::text[]`);
+      params.push(tags);
+    }
+
+    if (camera && camera !== 'all') {
+      parts.push(`coalesce(p.exif->>'Model','') ilike $${i++}`);
+      params.push(`%${camera}%`);
+    }
+
+    if (keyword) {
+      parts.push(`(p.id ilike $${i} or p.title ilike $${i} or p.description ilike $${i} or array_to_string(p.tags, ',') ilike $${i})`);
+      params.push(`%${keyword}%`);
+      i += 1;
+    }
+
+    const whereSql = parts.length ? ` where ${parts.join(' and ')}` : '';
+
+    const itemsSql = `${photoSelectSql(false)}${whereSql} order by p.created_at desc limit $${params.length + 1} offset $${params.length + 2}`;
+    const itemsRes = await pool.query(itemsSql, [...params, limit, offset]);
+
+    const totalSql = `select count(1)::int as total from photos p${whereSql}`;
+    const totalRes = await pool.query(totalSql, params);
+    const total = Number(totalRes.rows?.[0]?.total || 0);
+
+    return {
+      items: itemsRes.rows || [],
+      limit,
+      offset,
+      total,
+    };
+  });
+
   app.get('/photos', async (req) => {
     const user = req.authUser;
     let sql = photoSelectSql(false);
@@ -49,6 +156,107 @@ export const registerPhotoRoutes = async (app) => {
     const itemsSql = `${photoSelectSql(false)} order by p.created_at desc limit $1 offset $2`;
     const itemsRes = await pool.query(itemsSql, [limit, offset]);
     const totalRes = await pool.query('select count(1)::int as total from photos');
+    const total = Number(totalRes.rows?.[0]?.total || 0);
+    const items = itemsRes.rows || [];
+    const nextOffset = offset + items.length;
+
+    return {
+      items,
+      limit,
+      offset,
+      total,
+      hasMore: nextOffset < total,
+      nextOffset,
+    };
+  });
+
+  app.get('/me/photos/filters', { preHandler: requireMember() }, async (req) => {
+    const user = req.authUser;
+
+    const tagsRes = await pool.query(
+      `
+        select distinct t as tag
+        from photos p
+        cross join unnest(p.tags) t
+        where p.owner_user_id = $1
+          and t is not null
+          and t <> ''
+        order by t asc
+      `,
+      [user.id],
+    );
+
+    const camerasRes = await pool.query(
+      `
+        select distinct nullif(p.exif->>'Model','') as model
+        from photos p
+        where p.owner_user_id = $1
+          and nullif(p.exif->>'Model','') is not null
+        order by model asc
+      `,
+      [user.id],
+    );
+
+    const monthsRes = await pool.query(
+      `
+        select distinct to_char(created_at, 'YYYY-MM') as value, to_char(created_at, 'YYYY年FMMM月') as label
+        from photos
+        where owner_user_id = $1
+        order by value desc
+      `,
+      [user.id],
+    );
+
+    return {
+      tags: (tagsRes.rows || []).map((r) => r.tag),
+      cameras: (camerasRes.rows || []).map((r) => r.model),
+      months: monthsRes.rows || [],
+    };
+  });
+
+  app.get('/me/photos/page', { preHandler: requireMember() }, async (req) => {
+    const user = req.authUser;
+    const q = req.query || {};
+    const limitRaw = q.limit ?? q.pageSize ?? 24;
+    const offsetRaw = q.offset ?? 0;
+    const limit = Math.max(1, Math.min(50, Number.parseInt(String(limitRaw), 10) || 24));
+    const offset = Math.max(0, Number.parseInt(String(offsetRaw), 10) || 0);
+
+    const yearRaw = q.year;
+    const year = Number.parseInt(String(yearRaw ?? ''), 10);
+    const monthRaw = q.month;
+    const monthParsed = Number.parseInt(String(monthRaw ?? ''), 10);
+    const category = String(q.category ?? 'all');
+    const tags = parseListParam(q.tags);
+    const camera = String(q.camera ?? '').trim();
+
+    let filterMonth = Number.isFinite(monthParsed) ? monthParsed : null;
+    let filterDay = null;
+    let excludeYear = null;
+
+    if (q.onThisDay) {
+        const d = new Date();
+        filterMonth = d.getMonth() + 1;
+        filterDay = d.getDate();
+        excludeYear = d.getFullYear();
+    }
+
+    const { whereSql, params } = buildMePhotosWhere({
+      userId: user.id,
+      year: Number.isFinite(year) ? year : null,
+      month: filterMonth,
+      day: filterDay,
+      excludeYear,
+      category: category === 'all' ? null : category,
+      tags,
+      camera: camera || null,
+    });
+
+    const itemsSql = `${photoSelectSql(false)}${whereSql} order by p.created_at desc limit $${params.length + 1} offset $${params.length + 2}`;
+    const itemsRes = await pool.query(itemsSql, [...params, limit, offset]);
+
+    const totalSql = `select count(1)::int as total from photos p${whereSql}`;
+    const totalRes = await pool.query(totalSql, params);
     const total = Number(totalRes.rows?.[0]?.total || 0);
     const items = itemsRes.rows || [];
     const nextOffset = offset + items.length;

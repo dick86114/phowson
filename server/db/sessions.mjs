@@ -10,7 +10,7 @@ export const findSessionUserByTokenHash = async (tokenHash) => {
         coalesce(u.avatar_url, '/media/avatars/' || u.id) as avatar
       from sessions s
       join users u on u.id = s.user_id
-      where s.token_hash = $1 and s.expires_at > now()
+      where s.token_hash = $1 and s.expires_at > now() and u.disabled_at is null
     `,
     [tokenHash],
   );
@@ -31,6 +31,10 @@ export const createSession = async (tokenHash, userId, ttlDays) => {
 
 export const deleteSession = async (tokenHash) => {
   await pool.query('delete from sessions where token_hash=$1', [tokenHash]);
+};
+
+export const deleteSessionsByUserId = async (userId) => {
+  await pool.query('delete from sessions where user_id=$1', [String(userId)]);
 };
 
 export const cleanupExpiredSessions = async () => {

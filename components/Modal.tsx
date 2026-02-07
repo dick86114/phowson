@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
+import React, { createContext, useContext, useId, useState, useCallback, useRef, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { createPortal } from 'react-dom';
 
@@ -12,6 +12,11 @@ interface ModalProps {
 
 export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, footer }) => {
   const overlayRef = useRef<HTMLDivElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const restoreFocusRef = useRef<HTMLElement | null>(null);
+  const titleId = useId();
+  const contentId = useId();
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -19,13 +24,20 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
     };
 
     if (isOpen) {
+      restoreFocusRef.current = document.activeElement as HTMLElement | null;
       document.addEventListener('keydown', handleEscape);
       document.body.style.overflow = 'hidden';
+      window.setTimeout(() => {
+        closeButtonRef.current?.focus();
+      }, 0);
     }
 
     return () => {
       document.removeEventListener('keydown', handleEscape);
       document.body.style.overflow = 'unset';
+      window.setTimeout(() => {
+        restoreFocusRef.current?.focus?.();
+      }, 0);
     };
   }, [isOpen, onClose]);
 
@@ -43,20 +55,56 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200"
       onClick={handleOverlayClick}
     >
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 border border-gray-200 dark:border-gray-700">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={contentId}
+        tabIndex={-1}
+        onKeyDown={(e) => {
+          if (e.key !== 'Tab') return;
+          const root = dialogRef.current;
+          if (!root) return;
+          const focusables = Array.from(
+            root.querySelectorAll(
+              'a[href],button:not([disabled]),textarea:not([disabled]),input:not([disabled]),select:not([disabled]),[tabindex]:not([tabindex="-1"])',
+            ),
+          ) as HTMLElement[];
+          if (focusables.length === 0) return;
+          const first = focusables[0];
+          const last = focusables[focusables.length - 1];
+          const active = document.activeElement as HTMLElement | null;
+          if (e.shiftKey) {
+            if (!active || active === first || !root.contains(active)) {
+              e.preventDefault();
+              last.focus();
+            }
+          } else {
+            if (!active || active === last || !root.contains(active)) {
+              e.preventDefault();
+              first.focus();
+            }
+          }
+        }}
+        className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 border border-gray-200 dark:border-gray-700 focus:outline-none"
+      >
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+          <h3 id={titleId} className="text-lg font-semibold text-gray-900 dark:text-gray-100">
             {title}
           </h3>
           <button
+            ref={closeButtonRef}
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300 transition-colors rounded-lg p-1 hover:bg-gray-100 dark:hover:bg-gray-700"
+            type="button"
+            aria-label="关闭对话框"
+            className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300 transition-colors rounded-lg p-1 hover:bg-gray-100 dark:hover:bg-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-800"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
         
-        <div className="p-6 text-gray-600 dark:text-gray-300">
+        <div id={contentId} className="p-6 text-gray-600 dark:text-gray-300">
           {children}
         </div>
 
@@ -114,7 +162,7 @@ export const ModalProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               setModalConfig(null);
               resolve();
             }}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-800"
           >
             确定
           </button>
@@ -156,7 +204,7 @@ export const ModalProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 if (onCancel) onCancel();
                 resolve(false);
               }}
-              className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-800"
             >
               取消
             </button>
@@ -166,7 +214,7 @@ export const ModalProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 if (onConfirm) onConfirm();
                 resolve(true);
               }}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-800"
             >
               确定
             </button>

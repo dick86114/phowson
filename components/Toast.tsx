@@ -56,10 +56,11 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return (
         <ToastContext.Provider value={{ addToast, removeToast, success, error, info, warning }}>
             {children}
-            <div className="fixed top-4 right-4 z-[100] flex flex-col gap-2 pointer-events-none">
+            <div className="fixed top-4 right-4 z-[100] flex flex-col gap-2 pointer-events-none" aria-live="polite" aria-relevant="additions removals">
                 {toasts.map((toast) => (
                     <div
                         key={toast.id}
+                        role={toast.type === 'error' || toast.type === 'warning' ? 'alert' : 'status'}
                         className={`
                             pointer-events-auto min-w-[300px] max-w-md p-4 rounded-lg shadow-lg border flex items-start gap-3 transform transition-all duration-300 animate-in slide-in-from-right-full
                             ${toast.type === 'success' ? 'bg-white dark:bg-surface-card border-green-200 dark:border-green-900/30 text-green-800 dark:text-green-200' : ''}
@@ -76,8 +77,10 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                         </div>
                         <div className="flex-1 text-sm font-medium break-words">{toast.content}</div>
                         <button
+                            type="button"
                             onClick={() => removeToast(toast.id)}
-                            className="flex-shrink-0 text-current opacity-50 hover:opacity-100 transition-opacity"
+                            aria-label="关闭提示"
+                            className="flex-shrink-0 text-current opacity-50 hover:opacity-100 transition-opacity rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current/30 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-surface-card"
                         >
                             <X className="w-4 h-4" />
                         </button>

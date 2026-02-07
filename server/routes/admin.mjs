@@ -34,6 +34,19 @@ export const registerAdminRoutes = async (app) => {
     return defaultValue;
   };
 
+  const parseDateIso = (raw) => {
+    if (!raw) return null;
+    const s = String(raw).trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
+    const [y, m, d] = s.split('-').map((v) => Number(v));
+    const dt = new Date(Date.UTC(y, m - 1, d));
+    if (!Number.isFinite(dt.getTime())) return null;
+    const yy = dt.getUTCFullYear();
+    const mm = String(dt.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(dt.getUTCDate()).padStart(2, '0');
+    return `${yy}-${mm}-${dd}`;
+  };
+
   // Public settings
   app.get('/site-settings', async (req) => {
     const r = await pool.query(`select data from site_settings where id = 'global'`);
@@ -132,7 +145,10 @@ export const registerAdminRoutes = async (app) => {
           status: { type: 'string' },
           onlyGuest: { type: 'string' },
           photoId: { type: 'string' },
+          userId: { type: 'string' },
           q: { type: 'string' },
+          from: { type: 'string' },
+          to: { type: 'string' },
           limit: { type: 'integer', minimum: 1, maximum: 200 },
           offset: { type: 'integer', minimum: 0 },
         },
@@ -142,7 +158,10 @@ export const registerAdminRoutes = async (app) => {
       const status = String(req.query?.status ?? 'pending').trim() || 'pending';
       const onlyGuest = parseBool(req.query?.onlyGuest, true);
       const photoId = String(req.query?.photoId ?? '').trim() || null;
+      const userId = String(req.query?.userId ?? '').trim() || null;
       const q = String(req.query?.q ?? '').trim() || null;
+      const from = parseDateIso(req.query?.from);
+      const to = parseDateIso(req.query?.to);
       const limit = Math.max(1, Math.min(200, Number(req.query?.limit ?? 50) || 50));
       const offset = Math.max(0, Number(req.query?.offset ?? 0) || 0);
 
@@ -164,10 +183,26 @@ export const registerAdminRoutes = async (app) => {
         where.push(`pc.photo_id = $${i++}`);
         args.push(photoId);
       }
+      if (userId) {
+        if (userId === 'guest') {
+          where.push(`pc.user_id is null`);
+        } else {
+          where.push(`pc.user_id = $${i++}`);
+          args.push(userId);
+        }
+      }
       if (q) {
         where.push(`(pc.content ilike $${i} or pc.guest_nickname ilike $${i} or pc.guest_email ilike $${i})`);
         args.push(`%${q}%`);
         i += 1;
+      }
+      if (from) {
+        where.push(`pc.created_at >= $${i++}::date`);
+        args.push(from);
+      }
+      if (to) {
+        where.push(`pc.created_at < ($${i++}::date + interval '1 day')`);
+        args.push(to);
       }
 
       const whereSql = where.length ? `where ${where.join(' and ')}` : '';
@@ -215,6 +250,53 @@ export const registerAdminRoutes = async (app) => {
         limit,
         offset,
       };
+    },
+  });
+
+  app.post('/admin/comments/batch', {
+    preHandler: requireAdmin(),
+    schema: {
+      body: {
+        type: 'object',
+        required: ['action', 'ids'],
+        properties: {
+          action: { type: 'string' },
+          ids: { type: 'array', minItems: 1, maxItems: 500, items: { type: 'string', minLength: 1 } },
+          reason: { type: 'string', maxLength: 2000 },
+        },
+      },
+    },
+    handler: async (req) => {
+      const user = req.authUser;
+      const action = String(req.body?.action ?? '').trim();
+      const ids = Array.isArray(req.body?.ids) ? req.body.ids.map((x) => String(x).trim()).filter(Boolean) : [];
+      const reason = String(req.body?.reason ?? '').trim() || null;
+
+      if (ids.length === 0) throw badRequest('IDS_REQUIRED', 'ids 不能为空');
+
+      if (action === 'delete') {
+        const r = await pool.query('delete from photo_comments where id = any($1::text[])', [ids]);
+        return { ok: true, action, matched: Number(r.rowCount || 0), updated: 0, deleted: Number(r.rowCount || 0) };
+      }
+
+      const allowed = new Set(['approve', 'reject']);
+      if (!allowed.has(action)) throw badRequest('ACTION_INVALID', 'action 不合法');
+      const nextStatus = action === 'approve' ? 'approved' : 'rejected';
+
+      const r = await pool.query(
+        `
+          update photo_comments
+          set
+            status = $1,
+            reviewed_by = $2,
+            reviewed_at = now(),
+            review_reason = $3
+          where id = any($4::text[])
+        `,
+        [nextStatus, user?.id || null, reason, ids],
+      );
+
+      return { ok: true, action, matched: Number(r.rowCount || 0), updated: Number(r.rowCount || 0), deleted: 0 };
     },
   });
 

@@ -1,4 +1,6 @@
 import { pool } from '../db.mjs';
+import { upsertUser } from '../db/users.mjs';
+import { badRequest } from '../lib/http_errors.mjs';
 import { requireMember } from '../plugins/rbac.mjs';
 
 const localDayIso = () => {
@@ -16,6 +18,19 @@ const addDaysIso = (iso, deltaDays) => {
   const yy = next.getUTCFullYear();
   const mm = String(next.getUTCMonth() + 1).padStart(2, '0');
   const dd = String(next.getUTCDate()).padStart(2, '0');
+  return `${yy}-${mm}-${dd}`;
+};
+
+const parseDateIso = (raw) => {
+  if (!raw) return null;
+  const s = String(raw).trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
+  const [y, m, d] = s.split('-').map((v) => Number(v));
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  if (!Number.isFinite(dt.getTime())) return null;
+  const yy = dt.getUTCFullYear();
+  const mm = String(dt.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(dt.getUTCDate()).padStart(2, '0');
   return `${yy}-${mm}-${dd}`;
 };
 
@@ -116,6 +131,102 @@ export const registerActivityRoutes = async (app) => {
       startDate,
       endDate,
       days: Object.fromEntries(heatmap),
+    };
+  });
+
+  app.get('/me/uploads/timeline', { preHandler: requireMember() }, async (req) => {
+    const user = req.authUser;
+    await upsertUser(user);
+
+    const q = req.query || {};
+    const today = localDayIso();
+
+    const from = parseDateIso(q.from) || addDaysIso(today, -30);
+    const to = parseDateIso(q.to) || today;
+    if (from > to) throw badRequest('DATE_RANGE_INVALID', '日期范围不合法');
+
+    const dayLimit = Math.max(1, Math.min(60, Number.parseInt(String(q.limitDays ?? 14), 10) || 14));
+    const dayOffset = Math.max(0, Number.parseInt(String(q.offsetDays ?? 0), 10) || 0);
+
+    const keyword = String(q.keyword ?? '').trim();
+    const hasKeyword = keyword.length > 0;
+    const keywordParam = `%${keyword.replace(/%/g, '\\%').replace(/_/g, '\\_')}%`;
+
+    const baseWhere = `
+      p.owner_user_id = $1
+      and p.created_at >= $2::date
+      and p.created_at < ($3::date + interval '1 day')
+      ${hasKeyword ? `and (p.title ilike $4 or p.description ilike $4 or array_to_string(p.tags, ',') ilike $4)` : ''}
+    `;
+
+    const baseParams = hasKeyword ? [user.id, from, to, keywordParam] : [user.id, from, to];
+    const paramsWithPaging = [...baseParams, dayLimit, dayOffset];
+
+    const daysSql = `
+      with days as (
+        select date_trunc('day', p.created_at)::date as day, count(1)::int as count
+        from photos p
+        where ${baseWhere}
+        group by 1
+        order by 1 desc
+        limit $${baseParams.length + 1} offset $${baseParams.length + 2}
+      )
+      select
+        d.day::text as day,
+        d.count,
+        coalesce(x.photos, '[]'::json) as photos
+      from days d
+      left join lateral (
+        select json_agg(
+          json_build_object(
+            'id', p2.id,
+            'title', p2.title,
+            'thumbUrl', nullif(p2.image_variants->>'thumb', ''),
+            'createdAt', p2.created_at
+          )
+          order by p2.created_at desc
+        ) as photos
+        from (
+          select p2.*
+          from photos p2
+          where p2.owner_user_id = $1
+            and date_trunc('day', p2.created_at)::date = d.day
+            and p2.created_at >= $2::date
+            and p2.created_at < ($3::date + interval '1 day')
+            ${hasKeyword ? `and (p2.title ilike $4 or p2.description ilike $4 or array_to_string(p2.tags, ',') ilike $4)` : ''}
+          order by p2.created_at desc
+          limit 6
+        ) p2
+      ) x on true
+      order by d.day desc
+    `;
+
+    const itemsRes = await pool.query(daysSql, paramsWithPaging);
+
+    const totalDaysSql = `
+      select count(*)::int as total
+      from (
+        select 1
+        from photos p
+        where ${baseWhere}
+        group by date_trunc('day', p.created_at)::date
+      ) x
+    `;
+    const totalRes = await pool.query(totalDaysSql, baseParams);
+    const totalDays = Number(totalRes.rows?.[0]?.total || 0);
+
+    return {
+      from,
+      to,
+      keyword,
+      limitDays: dayLimit,
+      offsetDays: dayOffset,
+      totalDays,
+      items: (itemsRes.rows || []).map((r) => ({
+        day: String(r.day),
+        count: Number(r.count || 0),
+        photos: r.photos || [],
+      })),
     };
   });
 };

@@ -135,7 +135,9 @@ export const Header: React.FC = () => {
 
             <button 
                 onClick={toggleTheme}
-                className="p-2 text-gray-600 dark:text-gray-300 hover:text-primary hover:bg-gray-100 dark:hover:bg-surface-dark rounded-full transition-colors"
+                type="button"
+                aria-label="切换主题"
+                className="p-2 text-gray-600 dark:text-gray-300 hover:text-primary hover:bg-gray-100 dark:hover:bg-surface-dark rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-[#111a22]"
                 title={`当前模式：${theme === 'system' ? '跟随系统' : theme === 'light' ? '浅色' : '深色'}`}
             >
                 <ThemeIcon />
@@ -246,7 +248,9 @@ export const Header: React.FC = () => {
             )}
 
             <button 
-                className="md:hidden text-gray-600 dark:text-gray-300"
+                type="button"
+                aria-label={isMenuOpen ? '关闭菜单' : '打开菜单'}
+                className="md:hidden text-gray-600 dark:text-gray-300 rounded-lg p-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-[#111a22]"
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
             >
               {isMenuOpen ? <X /> : <Menu />}

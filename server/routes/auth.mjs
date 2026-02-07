@@ -78,7 +78,7 @@ export const registerAuthRoutes = async (app) => {
 
       const r = await pool.query(
         `
-          select id, name, role, coalesce(avatar_url, '/media/avatars/' || id) as avatar, password_hash
+          select id, name, role, coalesce(avatar_url, '/media/avatars/' || id) as avatar, password_hash, disabled_at
           from users
           where email = $1
           limit 1
@@ -88,6 +88,7 @@ export const registerAuthRoutes = async (app) => {
       if (!r.rowCount) throw unauthorized('INVALID_CREDENTIALS', '账号或密码错误');
 
       const u = r.rows[0];
+      if (u.disabled_at) throw unauthorized('ACCOUNT_DISABLED', '账号已禁用');
       if (!verifyPassword(password, u.password_hash)) throw unauthorized('INVALID_CREDENTIALS', '账号或密码错误');
 
       const role = normalizeRole(u.role);

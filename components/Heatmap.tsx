@@ -44,7 +44,12 @@ const getFirstDayOfMonth = (year: number, month: number) => {
   return new Date(year, month, 1).getDay();
 };
 
-export const Heatmap: React.FC<HeatmapProps> = ({ data, year, onYearChange }) => {
+export const Heatmap: React.FC<HeatmapProps & { variant?: 'scroll' | 'grid' }> = ({ 
+  data, 
+  year, 
+  onYearChange,
+  variant = 'scroll'
+}) => {
   const currentYear = new Date().getFullYear();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -81,9 +86,9 @@ export const Heatmap: React.FC<HeatmapProps> = ({ data, year, onYearChange }) =>
     });
   }, [year, data]);
 
-  // Auto-scroll to current month
+  // Auto-scroll to current month (only for scroll variant)
   React.useEffect(() => {
-    if (scrollContainerRef.current) {
+    if (variant === 'scroll' && scrollContainerRef.current) {
       if (year === currentYear) {
         const currentMonth = new Date().getMonth();
         const cardWidth = 160; // w-40
@@ -94,10 +99,11 @@ export const Heatmap: React.FC<HeatmapProps> = ({ data, year, onYearChange }) =>
         scrollContainerRef.current.scrollLeft = 0;
       }
     }
-  }, [year, currentYear]);
+  }, [year, currentYear, variant]);
 
   // Drag to scroll logic
   const handleMouseDown = (e: React.MouseEvent) => {
+    if (variant === 'grid') return;
     setIsDragging(true);
     setStartX(e.pageX - (scrollContainerRef.current?.offsetLeft || 0));
     setScrollLeft(scrollContainerRef.current?.scrollLeft || 0);
@@ -112,7 +118,7 @@ export const Heatmap: React.FC<HeatmapProps> = ({ data, year, onYearChange }) =>
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging) return;
+    if (!isDragging || variant === 'grid') return;
     e.preventDefault();
     const x = e.pageX - (scrollContainerRef.current?.offsetLeft || 0);
     const walk = (x - startX) * 2; // Scroll speed multiplier
@@ -158,26 +164,32 @@ export const Heatmap: React.FC<HeatmapProps> = ({ data, year, onYearChange }) =>
       {/* Heatmap Container */}
       <div 
         ref={scrollContainerRef}
-        className="w-full overflow-x-auto cursor-grab active:cursor-grabbing no-scrollbar select-none"
+        className={variant === 'scroll' 
+          ? "w-full overflow-x-auto cursor-grab active:cursor-grabbing no-scrollbar select-none"
+          : "w-full"
+        }
         onMouseDown={handleMouseDown}
         onMouseLeave={handleMouseLeave}
         onMouseUp={handleMouseUp}
         onMouseMove={handleMouseMove}
       >
-        <div className="flex gap-2 pb-2 min-w-max">
+        <div className={variant === 'scroll' 
+          ? "flex gap-2 pb-2 min-w-max"
+          : "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+        }>
           {months.map((month) => (
             <div 
               key={month.name}
-              className="w-40 bg-white dark:bg-surface-dark rounded-lg border border-gray-200 dark:border-surface-border p-2 flex-shrink-0"
+              className={`${variant === 'scroll' ? 'w-40' : 'w-full'} bg-white dark:bg-surface-dark rounded-lg border border-gray-200 dark:border-surface-border p-3 flex-shrink-0`}
             >
               <h4 className="text-xs font-bold text-gray-900 dark:text-white mb-2">
                 {month.fullDate}
               </h4>
               
-              <div className="grid grid-cols-7 gap-0.5">
+              <div className="grid grid-cols-7 gap-1">
                 {/* Day Headers */}
                 {dayNames.map(d => (
-                  <div key={d} className="text-[8px] text-gray-400 text-center mb-0.5">
+                  <div key={d} className="text-[10px] text-gray-400 text-center mb-1">
                     {d}
                   </div>
                 ))}
@@ -187,7 +199,7 @@ export const Heatmap: React.FC<HeatmapProps> = ({ data, year, onYearChange }) =>
                   <div key={idx} className="aspect-square">
                     {day ? (
                       <div
-                        className={`w-full h-full rounded-[1px] transition-transform hover:scale-110 ${getColor(day.level)}`}
+                        className={`w-full h-full rounded-[2px] transition-transform hover:scale-110 ${getColor(day.level)}`}
                         title={`${day.date}: ${day.count} 张照片`}
                       />
                     ) : (
@@ -207,7 +219,7 @@ export const Heatmap: React.FC<HeatmapProps> = ({ data, year, onYearChange }) =>
         {[0, 1, 2, 3, 4].map((level) => (
           <div
             key={level}
-            className={`w-2 h-2 rounded-[1px] ${getColor(level as HeatmapLevel)}`}
+            className={`w-3 h-3 rounded-[1px] ${getColor(level as HeatmapLevel)}`}
           />
         ))}
         <span>多</span>

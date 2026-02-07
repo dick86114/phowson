@@ -76,13 +76,20 @@ export const useAuth = () => {
     setUser({ ...nextUser, avatar });
   }, []);
 
+  const updateUser = useCallback((nextUser: AuthUser) => {
+    const avatar = String((nextUser as any)?.avatar ?? '').trim() || `/media/avatars/${nextUser.id}`;
+    writeUser({ ...nextUser, avatar });
+    setUser({ ...nextUser, avatar });
+  }, []);
+
   return useMemo(
     () => ({
       user,
       loginAsAdmin,
       setSession,
+      updateUser,
       logout,
     }),
-    [user, loginAsAdmin, setSession, logout],
+    [user, loginAsAdmin, setSession, updateUser, logout],
   );
 };

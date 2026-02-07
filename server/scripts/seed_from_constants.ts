@@ -7,6 +7,9 @@ loadEnvIfNeeded();
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) throw new Error('缺少 DATABASE_URL');
 
+const args = process.argv.slice(2);
+const seedOnThisDay2 = args.includes('--on-this-day-2');
+
 const normalizeExif = (raw: any) => {
   const source = raw && typeof raw === 'object' ? raw : {};
   const camera = source.camera ?? source.Model ?? '';
@@ -158,6 +161,68 @@ const main = async () => {
               content = excluded.content
           `,
           [String(c?.id ?? `${p.id}-${userId}-${Math.random()}`), String(p.id), userId, content],
+        );
+      }
+    }
+
+    if (seedOnThisDay2) {
+      const now = new Date();
+      const yyyy = now.getFullYear();
+      const mm = String(now.getMonth() + 1).padStart(2, '0');
+      const dd = String(now.getDate()).padStart(2, '0');
+      const url1 = String((MOCK_PHOTOS as any[])?.[0]?.url || '');
+      const url2 = String((MOCK_PHOTOS as any[])?.[1]?.url || url1);
+
+      const samples = [
+        {
+          id: `on-this-day-${mm}${dd}-${yyyy - 1}-a`,
+          createdAt: new Date(yyyy - 1, now.getMonth(), now.getDate(), 12, 0, 0),
+          title: `那年今天示例（${yyyy - 1}年）`,
+          url: url1,
+        },
+        {
+          id: `on-this-day-${mm}${dd}-${yyyy - 2}-b`,
+          createdAt: new Date(yyyy - 2, now.getMonth(), now.getDate(), 12, 0, 0),
+          title: `那年今天示例（${yyyy - 2}年）`,
+          url: url2,
+        },
+      ];
+
+      for (const s of samples) {
+        const exif = normalizeExif({ camera: '种子相机' });
+        await client.query(
+          `
+            insert into photos(
+              id, owner_user_id, title, description, category, tags, exif, image_url, views_count, likes_count, created_at, updated_at, lat, lng
+            )
+            values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$11,$12,$13)
+            on conflict (id) do update set
+              owner_user_id = excluded.owner_user_id,
+              title = excluded.title,
+              description = excluded.description,
+              category = excluded.category,
+              tags = excluded.tags,
+              exif = excluded.exif,
+              image_url = coalesce(photos.image_url, excluded.image_url),
+              created_at = excluded.created_at,
+              lat = excluded.lat,
+              lng = excluded.lng
+          `,
+          [
+            s.id,
+            CURRENT_USER.id,
+            s.title,
+            '用于在“我的相册/那年今天”查看效果的示例照片',
+            'uncategorized',
+            ['那年今天', '示例'],
+            exif,
+            s.url,
+            0,
+            0,
+            s.createdAt,
+            exif.lat,
+            exif.lng,
+          ],
         );
       }
     }

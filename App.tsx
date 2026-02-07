@@ -89,7 +89,7 @@ const ThemedApp = () => {
                             <Route path="/photo/:id" element={<PhotoDetail />} />
                             <Route path="/map" element={<MapPage />} />
                             <Route path="/login" element={<Login />} />
-                            <Route path="/admin" element={<Admin />} />
+                            <Route path="/admin/*" element={<Admin />} />
                             <Route path="/upload" element={<Upload />} />
                             <Route path="/edit/:id" element={<Upload />} />
                             <Route path="/gamification" element={<Gamification />} />
