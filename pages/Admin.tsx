@@ -1921,10 +1921,10 @@ export const Admin: React.FC = () => {
                                                                 
                                                                 return (
                                                                     <div key={idx} className="flex-1 flex flex-col items-center gap-2 group">
-                                                                        <div className="text-xs font-bold text-gray-900 dark:text-white mb-1 opacity-0 group-hover:opacity-100 transition-opacity">{count}</div>
+                                                                        <div className="text-xs font-bold text-gray-900 dark:text-white mb-1">{count}</div>
                                                                         <div className="w-full bg-gray-100 dark:bg-surface-border rounded-t-lg relative overflow-hidden" style={{ height: '80px' }}>
                                                                             <div 
-                                                                                className="absolute bottom-0 left-0 right-0 bg-primary/80 group-hover:bg-primary transition-colors rounded-t-lg"
+                                                                                className="absolute bottom-0 left-0 right-0 bg-primary group-hover:brightness-110 transition-all rounded-t-lg"
                                                                                 style={{ height: `${height}%` }}
                                                                             />
                                                                         </div>
