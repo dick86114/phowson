@@ -14,6 +14,7 @@ import { registerAuthRoutes } from './routes/auth.mjs';
 import { registerAiRoutes } from './routes/ai.mjs';
 import { registerActivityRoutes } from './routes/activity.mjs';
 import { registerGamificationRoutes } from './routes/gamification.mjs';
+import { registerGeocodeRoutes } from './routes/geocode.mjs';
 
 const isAllowedOrigin = (origin) => {
   if (!origin) return true;
@@ -64,6 +65,7 @@ export const createApp = () => {
   app.register(registerAiRoutes);
   app.register(registerActivityRoutes);
   app.register(registerGamificationRoutes);
+  app.register(registerGeocodeRoutes);
 
   return app;
 };

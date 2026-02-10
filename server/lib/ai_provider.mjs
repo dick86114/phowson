@@ -61,7 +61,11 @@ const postJson = async (url, { headers, body }) => {
   return json;
 };
 
-const makePrompt = () => {
+const makePrompt = (locationHint) => {
+  const locInstruction = locationHint 
+    ? `- Photo was taken at: "${locationHint}". Use this EXACTLY for locationHint field.`
+    : `- locationHint 用中文给一个“地点参考”，尽量具体但不要硬编；不确定就输出场景类型（如：城市街区/山野/海边/室内/夜景等）。`;
+
   return `
 Analyze this photo and return STRICT JSON with these keys:
 {
@@ -75,11 +79,11 @@ Analyze this photo and return STRICT JSON with these keys:
 Rules:
 - Output JSON only. No markdown. No extra text.
 - Use Chinese for title/description/tags.
- - locationHint 用中文给一个“地点参考”，尽量具体但不要硬编；不确定就输出场景类型（如：城市街区/山野/海边/室内/夜景等）。
+${locInstruction}
   `.trim();
 };
 
-const geminiFill = async ({ apiKey, model, imageBase64, mimeType }) => {
+const geminiFill = async ({ apiKey, model, imageBase64, mimeType, locationHint }) => {
   const ai = new GoogleGenAI({ apiKey });
   const m = ai.getGenerativeModel({ model });
 
@@ -88,7 +92,7 @@ const geminiFill = async ({ apiKey, model, imageBase64, mimeType }) => {
       {
         role: 'user',
         parts: [
-          { text: makePrompt() },
+          { text: makePrompt(locationHint) },
           { inlineData: { mimeType: String(mimeType || 'image/jpeg'), data: imageBase64 } },
         ],
       },
@@ -101,7 +105,7 @@ const geminiFill = async ({ apiKey, model, imageBase64, mimeType }) => {
   return data;
 };
 
-const openAiCompatibleFill = async ({ apiKey, baseUrl, model, imageBase64, mimeType, extraHeaders }) => {
+const openAiCompatibleFill = async ({ apiKey, baseUrl, model, imageBase64, mimeType, extraHeaders, locationHint }) => {
   const url = `${String(baseUrl).replace(/\/+$/, '')}/chat/completions`;
   const dataUrl = `data:${String(mimeType || 'image/jpeg')};base64,${imageBase64}`;
 
@@ -116,7 +120,7 @@ const openAiCompatibleFill = async ({ apiKey, baseUrl, model, imageBase64, mimeT
         {
           role: 'user',
           content: [
-            { type: 'text', text: makePrompt() },
+            { type: 'text', text: makePrompt(locationHint) },
             { type: 'image_url', image_url: { url: dataUrl } },
           ],
         },
@@ -131,7 +135,7 @@ const openAiCompatibleFill = async ({ apiKey, baseUrl, model, imageBase64, mimeT
   return parsed;
 };
 
-const anthropicFill = async ({ apiKey, model, imageBase64, mimeType }) => {
+const anthropicFill = async ({ apiKey, model, imageBase64, mimeType, locationHint }) => {
   const url = 'https://api.anthropic.com/v1/messages';
   const json = await postJson(url, {
     headers: {
@@ -146,7 +150,7 @@ const anthropicFill = async ({ apiKey, model, imageBase64, mimeType }) => {
           role: 'user',
           content: [
             { type: 'image', source: { type: 'base64', media_type: String(mimeType || 'image/jpeg'), data: imageBase64 } },
-            { type: 'text', text: makePrompt() },
+            { type: 'text', text: makePrompt(locationHint) },
           ],
         },
       ],
@@ -215,19 +219,19 @@ export const resolveAiConfig = () => {
   };
 };
 
-export const fillFromImage = async ({ imageBase64, mimeType }) => {
+export const fillFromImage = async ({ imageBase64, mimeType, locationHint }) => {
   const cfg = resolveAiConfig();
   const provider = String(cfg.provider || '').toLowerCase();
 
   if (provider === 'gemini') {
     if (!cfg.gemini.apiKey) throw new HttpError(501, 'AI_NOT_CONFIGURED', '未配置 GEMINI_API_KEY/GOOGLE_API_KEY');
-    return geminiFill({ apiKey: cfg.gemini.apiKey, model: cfg.gemini.model, imageBase64, mimeType });
+    return geminiFill({ apiKey: cfg.gemini.apiKey, model: cfg.gemini.model, imageBase64, mimeType, locationHint });
   }
 
   if (provider === 'openai') {
     if (!cfg.openai.apiKey) throw new HttpError(501, 'AI_NOT_CONFIGURED', '未配置 OPENAI_API_KEY');
     if (!cfg.openai.model) throw new HttpError(501, 'AI_NOT_CONFIGURED', '未配置 OPENAI_MODEL 或 AI_MODEL');
-    return openAiCompatibleFill({ apiKey: cfg.openai.apiKey, baseUrl: cfg.openai.baseUrl, model: cfg.openai.model, imageBase64, mimeType });
+    return openAiCompatibleFill({ apiKey: cfg.openai.apiKey, baseUrl: cfg.openai.baseUrl, model: cfg.openai.model, imageBase64, mimeType, locationHint });
   }
 
   if (provider === 'openai_compatible') {
@@ -240,6 +244,7 @@ export const fillFromImage = async ({ imageBase64, mimeType }) => {
       model: cfg.openai_compatible.model,
       imageBase64,
       mimeType,
+      locationHint,
     });
   }
 
@@ -252,6 +257,7 @@ export const fillFromImage = async ({ imageBase64, mimeType }) => {
       model: cfg.openrouter.model,
       imageBase64,
       mimeType,
+      locationHint,
       extraHeaders: {
         'http-referer': pick(process.env.OPENROUTER_SITE_URL),
         'x-title': pick(process.env.OPENROUTER_APP_NAME),
@@ -263,13 +269,13 @@ export const fillFromImage = async ({ imageBase64, mimeType }) => {
     if (!cfg.vercelai_gateway.apiKey) throw new HttpError(501, 'AI_NOT_CONFIGURED', '未配置 AI_GATEWAY_API_KEY');
     if (!cfg.vercelai_gateway.baseUrl) throw new HttpError(501, 'AI_NOT_CONFIGURED', '未配置 AI_GATEWAY_BASE_URL');
     if (!cfg.vercelai_gateway.model) throw new HttpError(501, 'AI_NOT_CONFIGURED', '未配置 AI_GATEWAY_MODEL 或 AI_MODEL');
-    return openAiCompatibleFill({ apiKey: cfg.vercelai_gateway.apiKey, baseUrl: cfg.vercelai_gateway.baseUrl, model: cfg.vercelai_gateway.model, imageBase64, mimeType });
+    return openAiCompatibleFill({ apiKey: cfg.vercelai_gateway.apiKey, baseUrl: cfg.vercelai_gateway.baseUrl, model: cfg.vercelai_gateway.model, imageBase64, mimeType, locationHint });
   }
 
   if (provider === 'anthropic') {
     if (!cfg.anthropic.apiKey) throw new HttpError(501, 'AI_NOT_CONFIGURED', '未配置 ANTHROPIC_API_KEY');
     if (!cfg.anthropic.model) throw new HttpError(501, 'AI_NOT_CONFIGURED', '未配置 ANTHROPIC_MODEL 或 AI_MODEL');
-    return anthropicFill({ apiKey: cfg.anthropic.apiKey, model: cfg.anthropic.model, imageBase64, mimeType });
+    return anthropicFill({ apiKey: cfg.anthropic.apiKey, model: cfg.anthropic.model, imageBase64, mimeType, locationHint });
   }
 
   throw new HttpError(501, 'AI_NOT_CONFIGURED', '未配置 AI_PROVIDER 或任一大模型 Key');

@@ -2,6 +2,7 @@ import { pool } from '../db.mjs';
 import { upsertUser } from '../db/users.mjs';
 import { photoSelectSql } from '../db/photos_sql.mjs';
 import { normalizeExif } from '../lib/exif.mjs';
+import { reverseGeocode } from '../lib/geocoding.mjs';
 import exifr from 'exifr';
 import { parseTags, safeJsonParse } from '../lib/parsers.mjs';
 import { HttpError, badRequest, notFound } from '../lib/http_errors.mjs';
@@ -423,6 +424,15 @@ export const registerPhotoRoutes = async (app) => {
       }
     }
 
+    // Reverse Geocoding if location is missing but GPS is available
+    if ((!exif.location || exif.location === '') && exif.lat != null && exif.lng != null) {
+      const locationName = await reverseGeocode(exif.lat, exif.lng);
+      if (locationName) {
+        exif.location = locationName;
+        req.log.info({ photoId: id, location: locationName }, 'Geocoded location');
+      }
+    }
+
     let imageUrl = null;
     let imageBytes = imageBuffer;
     let imageVariants = {};
@@ -566,6 +576,14 @@ export const registerPhotoRoutes = async (app) => {
       const category = fields.category != null ? String(fields.category).trim() : null;
       const tags = fields.tags != null ? parseTags(fields.tags) : null;
       const exif = fields.exif != null ? normalizeExif(safeJsonParse(fields.exif, {})) : null;
+      
+      if (exif && (!exif.location || exif.location === '') && exif.lat != null && exif.lng != null) {
+        const locationName = await reverseGeocode(exif.lat, exif.lng);
+        if (locationName) {
+          exif.location = locationName;
+        }
+      }
+
       const createdAt = fields.created_at != null ? String(fields.created_at).trim() : null;
 
       const imageBuffer = file ? file.buffer : null;

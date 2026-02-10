@@ -1,6 +1,8 @@
 import { badRequest } from '../lib/http_errors.mjs';
 import { requireAdmin } from '../plugins/rbac.mjs';
 import { fillFromImage, resolveAiConfig } from '../lib/ai_provider.mjs';
+import exifr from 'exifr';
+import { reverseGeocode } from '../lib/geocoding.mjs';
 
 export const registerAiRoutes = (app) => {
   app.post('/ai/fill', {
@@ -16,15 +18,30 @@ export const registerAiRoutes = (app) => {
         properties: {
           imageBase64: { type: 'string', minLength: 10 },
           mimeType: { type: 'string' },
+          locationHint: { type: 'string' },
         },
       },
     },
     handler: async (req) => {
-      const { imageBase64, mimeType } = req.body;
+      const { imageBase64, mimeType, locationHint } = req.body;
       const base64 = String(imageBase64 || '').trim();
       if (!base64) throw badRequest('AI_IMAGE_REQUIRED', '缺少图片数据');
 
-      return fillFromImage({ imageBase64: base64, mimeType: String(mimeType || 'image/jpeg') });
+      let finalHint = locationHint;
+      if (!finalHint) {
+        try {
+           const buf = Buffer.from(base64, 'base64');
+           const exif = await exifr.parse(buf);
+           if (exif && typeof exif.latitude === 'number' && typeof exif.longitude === 'number') {
+              const loc = await reverseGeocode(exif.latitude, exif.longitude);
+              if (loc) finalHint = loc;
+           }
+        } catch (e) {
+           req.log.warn({ err: e }, 'Failed to extract/geocode gps from AI image');
+        }
+      }
+
+      return fillFromImage({ imageBase64: base64, mimeType: String(mimeType || 'image/jpeg'), locationHint: finalHint });
     },
   });
 

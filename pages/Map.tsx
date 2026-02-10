@@ -1,5 +1,6 @@
-import React, { useMemo } from 'react';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import React, { useMemo, useEffect } from 'react';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { useSearchParams } from 'react-router-dom';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useQuery } from '@tanstack/react-query';
@@ -30,6 +31,40 @@ type ApiPhoto = {
 };
 
 import { getPhotoUrl } from '../utils/helpers';
+
+const MapController = ({ photos }: { photos: ApiPhoto[] }) => {
+    const map = useMap();
+    const [searchParams] = useSearchParams();
+    const targetLat = searchParams.get('lat');
+    const targetLng = searchParams.get('lng');
+    const targetId = searchParams.get('id');
+
+    useEffect(() => {
+        if (photos.length === 0) return;
+
+        if (targetLat && targetLng) {
+            const lat = parseFloat(targetLat);
+            const lng = parseFloat(targetLng);
+            if (!isNaN(lat) && !isNaN(lng)) {
+                map.flyTo([lat, lng], 16, { duration: 1.5 });
+            }
+        } else {
+            // Auto fit bounds
+            const bounds = L.latLngBounds(photos.map(p => [p.lat!, p.lng!]));
+            if (bounds.isValid()) {
+                map.fitBounds(bounds, { padding: [50, 50] });
+            }
+        }
+    }, [map, photos, targetLat, targetLng]);
+
+    useEffect(() => {
+        if (targetId && photos.length > 0) {
+             // 打开对应的 popup 需要 ref，这里稍微复杂，暂时先只定位
+        }
+    }, [targetId, photos]);
+
+    return null;
+};
 
 export const MapPage: React.FC = () => {
     const { data: photos = [], isLoading } = useQuery({

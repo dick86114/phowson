@@ -24,6 +24,7 @@ export default defineConfig(({ mode }) => {
           '/site-settings': { target: 'http://127.0.0.1:3001', changeOrigin: true },
           '/ai': { target: 'http://127.0.0.1:3001', changeOrigin: true },
           '/activity': { target: 'http://127.0.0.1:3001', changeOrigin: true },
+          '/geocode': { target: 'http://127.0.0.1:3001', changeOrigin: true },
           '/health': { target: 'http://127.0.0.1:3001', changeOrigin: true },
           '/gamification': { target: 'http://127.0.0.1:3001', changeOrigin: true },
           '/uploads': { target: 'http://127.0.0.1:3001', changeOrigin: true },

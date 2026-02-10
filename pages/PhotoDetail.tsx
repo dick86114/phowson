@@ -324,11 +324,34 @@ export const PhotoDetail: React.FC = () => {
                                             label="相机" 
                                             value={exif.camera || '未知'} 
                                         />
-                                        <PhotoExifBadge 
-                                            icon={<MapPin className="w-4 h-4"/>} 
-                                            label="拍摄地点" 
-                                            value={exif.location || '未知'} 
-                                        />
+                                        {photo.lat != null && photo.lng != null ? (
+                                            <Link 
+                                                to={`/map?lat=${photo.lat}&lng=${photo.lng}&id=${photo.id}`}
+                                                className="block rounded-lg transition-all hover:bg-gray-50 dark:hover:bg-white/5"
+                                                title="在地图上查看"
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <div className="p-2 rounded-lg bg-gray-100 dark:bg-surface-dark text-primary border border-gray-200 dark:border-surface-border">
+                                                        <MapPin className="w-4 h-4"/>
+                                                    </div>
+                                                    <div className="flex flex-col">
+                                                        <span className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                                                            拍摄地点
+                                                            <span className="text-[10px] bg-primary/10 text-primary px-1 rounded">MAP</span>
+                                                        </span>
+                                                        <span className="text-sm font-semibold text-gray-900 dark:text-white truncate max-w-[120px] sm:max-w-[180px]">
+                                                            {exif.location || `${photo.lat.toFixed(4)}, ${photo.lng.toFixed(4)}`}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </Link>
+                                        ) : (
+                                            <PhotoExifBadge 
+                                                icon={<MapPin className="w-4 h-4"/>} 
+                                                label="拍摄地点" 
+                                                value={exif.location || '未知'} 
+                                            />
+                                        )}
                                     </div>
 
                                     {/* Row 2: Lens, Shutter, Aperture, ISO */}

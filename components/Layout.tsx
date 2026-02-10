@@ -89,8 +89,8 @@ export const Header: React.FC = () => {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-gray-200 dark:border-surface-border bg-white/90 dark:bg-[#111a22]/90 backdrop-blur-md transition-colors duration-300">
       <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex h-16 items-center justify-between">
-          <div className="flex items-center gap-2">
+        <div className="flex h-16 items-center">
+          <div className="flex-1 flex items-center gap-2">
             <Link to="/" className="flex items-center gap-2 text-gray-900 dark:text-white hover:text-primary transition-colors">
               {settings.siteLogo ? (
                   <img src={toMediaUrl(settings.siteLogo)} alt="Logo" className="w-8 h-8 object-contain" />
@@ -104,14 +104,14 @@ export const Header: React.FC = () => {
           </div>
 
           {/* Desktop Nav */}
-          <nav className="hidden md:flex items-center gap-8">
+          <nav className="hidden md:flex items-center gap-8 justify-center">
             <Link to="/" className={`text-sm font-medium transition-colors ${isActive('/') ? 'text-primary' : 'text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white'}`}>画廊</Link>
             <Link to="/map" className={`text-sm font-medium transition-colors ${isActive('/map') ? 'text-primary' : 'text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white'}`}>地图</Link>
             <Link to="/stories" className={`text-sm font-medium transition-colors ${isActive('/stories') ? 'text-primary' : 'text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white'}`}>故事</Link>
             <Link to="/about" className={`text-sm font-medium transition-colors ${isActive('/about') ? 'text-primary' : 'text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white'}`}>关于</Link>
           </nav>
 
-          <div className="flex items-center gap-4">
+          <div className="flex-1 flex items-center justify-end gap-4">
             <div className="hidden lg:flex relative w-64">
               <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
                 <Search className="w-4 h-4" />

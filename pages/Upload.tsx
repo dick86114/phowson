@@ -72,6 +72,16 @@ const getImageDimensions = (src: string) => {
     });
 };
 
+const fetchGeocode = async (lat: number, lng: number) => {
+    try {
+        const res = await api.get<{ location: string }>(`/geocode?lat=${lat}&lng=${lng}`);
+        return res.data?.location || '';
+    } catch (err) {
+        console.warn('Geocoding failed:', err);
+        return '';
+    }
+};
+
 export const Upload: React.FC = () => {
     const navigate = useNavigate();
     const { id } = useParams<{ id: string }>(); 
@@ -225,8 +235,13 @@ export const Upload: React.FC = () => {
             
             // Parse EXIF for batch items
             exifr.parse(it.file)
-                .then(exifData => {
+                .then(async (exifData) => {
                     if (exifData) {
+                        let loc = '';
+                        if (typeof exifData.latitude === 'number' && typeof exifData.longitude === 'number') {
+                             loc = await fetchGeocode(exifData.latitude, exifData.longitude);
+                        }
+
                         const parsedExif = {
                             camera: exifData.Model || '',
                             lens: exifData.LensModel || '',
@@ -236,6 +251,7 @@ export const Upload: React.FC = () => {
                             focalLength: exifData.FocalLength ? `${exifData.FocalLength}mm` : '',
                             lat: typeof exifData.latitude === 'number' ? exifData.latitude : null,
                             lng: typeof exifData.longitude === 'number' ? exifData.longitude : null,
+                            location: loc, // Store location in exif for batch
                             date: exifData.DateTimeOriginal ? new Date(exifData.DateTimeOriginal).toISOString().split('T')[0] : ''
                         };
                         setUploadItems(prev => prev.map(p => (p.id === it.id ? { ...p, exif: parsedExif } : p)));
@@ -282,6 +298,9 @@ export const Upload: React.FC = () => {
         try {
             const exifData = await exifr.parse(file);
             if (exifData) {
+                const lat = typeof exifData.latitude === 'number' ? exifData.latitude : null;
+                const lng = typeof exifData.longitude === 'number' ? exifData.longitude : null;
+
                 setExif({
                     camera: exifData.Model || '',
                     lens: exifData.LensModel || '',
@@ -289,9 +308,15 @@ export const Upload: React.FC = () => {
                     shutterSpeed: exifData.ExposureTime ? `1/${Math.round(1/exifData.ExposureTime)}s` : '',
                     iso: exifData.ISO?.toString() || '',
                     focalLength: exifData.FocalLength ? `${exifData.FocalLength}mm` : '',
-                    lat: typeof exifData.latitude === 'number' ? exifData.latitude : null,
-                    lng: typeof exifData.longitude === 'number' ? exifData.longitude : null
+                    lat,
+                    lng
                 });
+                
+                if (lat != null && lng != null) {
+                    const loc = await fetchGeocode(lat, lng);
+                    if (loc) setLocation(loc);
+                }
+
                 if (exifData.DateTimeOriginal) {
                     setDate(new Date(exifData.DateTimeOriginal).toISOString().split('T')[0]);
                 }
@@ -386,6 +411,14 @@ export const Upload: React.FC = () => {
 
     const startQueueUpload = async () => {
         if (!isQueueMode) return;
+        
+        // Validation for queue
+        const missingInfo = uploadItems.some(it => !it.title.trim() || !it.description.trim());
+        if (missingInfo) {
+            alert('无法上传: 队列中存在未填写标题或故事（描述）的照片，请补充完整后再上传。');
+            return;
+        }
+
         setIsUploadingQueue(true);
     };
 
@@ -494,6 +527,7 @@ export const Upload: React.FC = () => {
                 res = await api.post<any>('/ai/fill', {
                     imageBase64: base64,
                     mimeType,
+                    locationHint: location, // Pass current location (e.g. from GPS) as hint
                 });
             } else if (isEditMode && id) {
                 let proceed = false;
@@ -559,6 +593,15 @@ export const Upload: React.FC = () => {
         }
         if (!selectedFile && !isEditMode) return;
         
+        if (!title.trim()) {
+            alert('参数错误: 请输入照片标题');
+            return;
+        }
+        if (!description.trim()) {
+            alert('参数错误: 请输入照片故事（描述）');
+            return;
+        }
+
         setIsLoading(true);
         const formData = new FormData();
         if (selectedFile) {
@@ -681,8 +724,17 @@ export const Upload: React.FC = () => {
                                                         <input
                                                             type="text"
                                                             value={it.title}
+                                                            placeholder="照片标题"
                                                             disabled={it.status === 'uploading' || it.status === 'success' || isUploadingQueue}
                                                             onChange={(e) => setUploadItems(prev => prev.map(p => (p.id === it.id ? { ...p, title: e.target.value } : p)))}
+                                                            className="w-full bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-primary truncate disabled:opacity-70"
+                                                        />
+                                                        <input
+                                                            type="text"
+                                                            value={it.description}
+                                                            placeholder="照片故事（描述）"
+                                                            disabled={it.status === 'uploading' || it.status === 'success' || isUploadingQueue}
+                                                            onChange={(e) => setUploadItems(prev => prev.map(p => (p.id === it.id ? { ...p, description: e.target.value } : p)))}
                                                             className="w-full bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-primary truncate disabled:opacity-70"
                                                         />
                                                         <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
