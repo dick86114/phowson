@@ -2,6 +2,7 @@ import { pool } from '../db.mjs';
 import { upsertUser } from '../db/users.mjs';
 import { photoSelectSql } from '../db/photos_sql.mjs';
 import { normalizeExif } from '../lib/exif.mjs';
+import exifr from 'exifr';
 import { parseTags, safeJsonParse } from '../lib/parsers.mjs';
 import { HttpError, badRequest, notFound } from '../lib/http_errors.mjs';
 import { requireAdmin, requireMember } from '../plugins/rbac.mjs';
@@ -12,9 +13,12 @@ import { getPhotoImage } from '../lib/photo_image.mjs';
 import { critiqueFromImage, fillFromImage } from '../lib/ai_provider.mjs';
 import sharp from 'sharp';
 import { bumpUploadActivity } from '../db/activity_logs.mjs';
+import { checkChallengesOnUpload } from '../db/challenges.mjs';
 import { generateEmbedding, buildSemanticText } from '../lib/embedding.mjs';
 import { verifyCaptcha } from '../lib/captcha.mjs';
 import { buildMePhotosWhere, parseListParam } from '../lib/me_photos.mjs';
+import fs from 'node:fs';
+import path from 'node:path';
 
 const localDayIso = () => {
   const d = new Date();
@@ -72,7 +76,8 @@ export const registerPhotoRoutes = async (app) => {
     const q = req.query || {};
     const limitRaw = q.limit ?? q.pageSize ?? 50;
     const offsetRaw = q.offset ?? 0;
-    const limit = Math.max(1, Math.min(200, Number.parseInt(String(limitRaw), 10) || 50));
+    // Allow larger limit for export (max 10000), default 50
+    const limit = Math.max(1, Math.min(10000, Number.parseInt(String(limitRaw), 10) || 50));
     const offset = Math.max(0, Number.parseInt(String(offsetRaw), 10) || 0);
 
     const monthRaw = q.month;
@@ -216,6 +221,7 @@ export const registerPhotoRoutes = async (app) => {
 
   app.get('/me/photos/page', { preHandler: requireMember() }, async (req) => {
     const user = req.authUser;
+    req.log.info({ user_id: user.id, query: req.query }, 'Debugging /me/photos/page request');
     const q = req.query || {};
     const limitRaw = q.limit ?? q.pageSize ?? 24;
     const offsetRaw = q.offset ?? 0;
@@ -251,6 +257,8 @@ export const registerPhotoRoutes = async (app) => {
       tags,
       camera: camera || null,
     });
+
+    req.log.info({ whereSql, params, userId: user.id }, 'Executing MePhotos query');
 
     const itemsSql = `${photoSelectSql(false)}${whereSql} order by p.created_at desc limit $${params.length + 1} offset $${params.length + 2}`;
     const itemsRes = await pool.query(itemsSql, [...params, limit, offset]);
@@ -378,7 +386,7 @@ export const registerPhotoRoutes = async (app) => {
     const description = String(fields.description ?? '');
     const category = String(fields.category ?? 'uncategorized').trim() || 'uncategorized';
     const tags = parseTags(fields.tags);
-    const exif = normalizeExif(safeJsonParse(fields.exif, {}));
+    let exif = normalizeExif(safeJsonParse(fields.exif, {}));
 
     const imageBuffer = file.buffer;
     const imageMime = file.mimetype || null;
@@ -400,6 +408,20 @@ export const registerPhotoRoutes = async (app) => {
     }
 
     const id = crypto.randomUUID();
+
+    // Try to extract GPS from buffer if not provided by frontend
+    if (exif.lat == null || exif.lng == null) {
+      try {
+        const bufferExif = await exifr.parse(imageBuffer);
+        if (bufferExif && typeof bufferExif.latitude === 'number' && typeof bufferExif.longitude === 'number') {
+          exif.lat = bufferExif.latitude;
+          exif.lng = bufferExif.longitude;
+          req.log.info({ photoId: id, lat: exif.lat, lng: exif.lng }, 'GPS extracted from buffer');
+        }
+      } catch (err) {
+        req.log.warn({ err }, 'Failed to parse EXIF from buffer');
+      }
+    }
 
     let imageUrl = null;
     let imageBytes = imageBuffer;
@@ -462,8 +484,15 @@ export const registerPhotoRoutes = async (app) => {
     req.log.info({ createdId }, 'Photo inserted successfully');
 
     try {
-      await bumpUploadActivity({ userId: user.id, day: localDayIso() });
+      const newCount = await bumpUploadActivity({ userId: user.id, day: localDayIso() });
       req.log.info('Activity log updated');
+
+      // Update gamification challenges
+      try {
+        await checkChallengesOnUpload(user.id, category, newCount === 1);
+      } catch (ce) {
+        req.log.error({ err: ce }, 'Failed to update challenges');
+      }
     } catch (err) {
       req.log.error({ err }, 'Failed to update activity log');
     }
@@ -537,6 +566,7 @@ export const registerPhotoRoutes = async (app) => {
       const category = fields.category != null ? String(fields.category).trim() : null;
       const tags = fields.tags != null ? parseTags(fields.tags) : null;
       const exif = fields.exif != null ? normalizeExif(safeJsonParse(fields.exif, {})) : null;
+      const createdAt = fields.created_at != null ? String(fields.created_at).trim() : null;
 
       const imageBuffer = file ? file.buffer : null;
       const imageMime = file?.mimetype || null;
@@ -605,10 +635,11 @@ export const registerPhotoRoutes = async (app) => {
             lng = coalesce($12, lng),
             image_width = coalesce($13, image_width),
             image_height = coalesce($14, image_height),
-            image_size_bytes = coalesce($15, image_size_bytes)
+            image_size_bytes = coalesce($15, image_size_bytes),
+            created_at = coalesce($16, created_at)
           where id = $1
         `,
-        [id, title, description, category, tags, exif, imageMime, imageBytes, imageUrl, imageVariants, exif?.lat ?? null, exif?.lng ?? null, imageWidth, imageHeight, imageSizeBytes],
+        [id, title, description, category, tags, exif, imageMime, imageBytes, imageUrl, imageVariants, exif?.lat ?? null, exif?.lng ?? null, imageWidth, imageHeight, imageSizeBytes, createdAt],
       );
 
       const detail = await pool.query(`${photoSelectSql(true)} where p.id = $1`, [id]);
@@ -707,7 +738,7 @@ export const registerPhotoRoutes = async (app) => {
     },
   });
 
-  app.post('/photos/batch-delete', {
+  app.post('/admin/photos/batch-delete', {
     schema: {
       body: {
         type: 'object',
@@ -755,7 +786,7 @@ export const registerPhotoRoutes = async (app) => {
     },
   });
 
-  app.post('/photos/batch-update', {
+  app.post('/admin/photos/batch-category', {
     schema: {
       body: {
         type: 'object',
@@ -889,6 +920,12 @@ export const registerPhotoRoutes = async (app) => {
       const content = String(req.body?.content ?? '').trim();
       if (!content) throw badRequest('CONTENT_REQUIRED', '评论内容不能为空');
 
+      // Auto-detect spam
+      const spamKeywords = ['http://', 'https://', 'www.', '.com', '.cn', '.net', '.org', '关注我', '互粉', '加微信', '加qq', '加Q', '代开', '发票'];
+      const isSpam = spamKeywords.some(k => content.toLowerCase().includes(k.toLowerCase()));
+      const initialStatus = isSpam ? 'rejected' : 'pending';
+      const reviewReason = isSpam ? 'System auto-flagged: contains link/keywords' : null;
+
       if (!user) {
         const guestId = String(req.body?.guestId || '').trim() || null;
         const nickname = String(req.body?.nickname || '').trim();
@@ -907,11 +944,11 @@ export const registerPhotoRoutes = async (app) => {
         const ip = String(req.ip || '');
         const userAgent = String(req.headers?.['user-agent'] || '').slice(0, 1000);
         await pool.query(
-          'insert into photo_comments(photo_id, guest_nickname, guest_email, guest_id, content, status, client_ip, user_agent) values ($1,$2,$3,$4,$5,$6,$7,$8)',
-          [id, nickname, email, guestId, content, 'pending', ip, userAgent],
+          'insert into photo_comments(photo_id, guest_nickname, guest_email, guest_id, content, status, review_reason, client_ip, user_agent) values ($1,$2,$3,$4,$5,$6,$7,$8,$9)',
+          [id, nickname, email, guestId, content, initialStatus, reviewReason, ip, userAgent],
         );
       } else {
-        await pool.query('insert into photo_comments(photo_id, user_id, content, status) values ($1,$2,$3,$4)', [id, user.id, content, 'approved']);
+        await pool.query('insert into photo_comments(photo_id, user_id, content, status, review_reason) values ($1,$2,$3,$4,$5)', [id, user.id, content, initialStatus, reviewReason]);
       }
 
       const detail = await pool.query(`${photoSelectSql(true)} where p.id = $1`, [id]);

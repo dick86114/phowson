@@ -43,11 +43,9 @@ export const API_BASE_URL = (() => {
   const env = (import.meta as any)?.env;
   const configured = env?.VITE_API_BASE_URL;
   if (configured) return String(configured).replace(/\/$/, '');
-  if (typeof window !== 'undefined' && window?.location?.hostname) {
-    const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
-    return `${protocol}//${window.location.hostname}:3001`;
-  }
-  return 'http://localhost:3001';
+  
+  // Default to relative path to support reverse proxy and vite proxy
+  return '';
 })();
 
 const request = async <T,>(method: HttpMethod, url: string, body?: unknown): Promise<ApiResponse<T>> => {

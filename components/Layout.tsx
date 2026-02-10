@@ -4,7 +4,8 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { API_BASE_URL } from '../api';
 import { useTheme } from '../ThemeContext';
-import { useSiteSettings, toMediaUrl as toSiteMediaUrl } from '../SiteSettingsContext';
+import { useSiteSettings } from '../SiteSettingsContext';
+import { getAvatarUrl, getPhotoUrl, toMediaUrl } from '../utils/helpers';
 
 export const Header: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -19,14 +20,7 @@ export const Header: React.FC = () => {
   const userMenuRef = useRef<HTMLDivElement | null>(null);
   const userMenuId = useId();
   
-  const toMediaUrl = (url: string | null | undefined) => {
-    const u = String(url || '').trim();
-    if (!u) return '';
-    if (/^https?:\/\//i.test(u)) return u;
-    return `${API_BASE_URL}${u}`;
-  };
-  
-  const avatarUrl = currentUser?.avatar ? toMediaUrl(currentUser.avatar) : '/default-avatar.png';
+  const avatarUrl = getAvatarUrl(currentUser);
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -99,7 +93,7 @@ export const Header: React.FC = () => {
           <div className="flex items-center gap-2">
             <Link to="/" className="flex items-center gap-2 text-gray-900 dark:text-white hover:text-primary transition-colors">
               {settings.siteLogo ? (
-                  <img src={toSiteMediaUrl(settings.siteLogo)} alt="Logo" className="w-8 h-8 object-contain" />
+                  <img src={toMediaUrl(settings.siteLogo)} alt="Logo" className="w-8 h-8 object-contain" />
               ) : (
                   <div className="size-8 flex items-center justify-center text-primary bg-primary/10 rounded-lg">
                     <Camera className="w-5 h-5" />
@@ -114,7 +108,6 @@ export const Header: React.FC = () => {
             <Link to="/" className={`text-sm font-medium transition-colors ${isActive('/') ? 'text-primary' : 'text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white'}`}>画廊</Link>
             <Link to="/map" className={`text-sm font-medium transition-colors ${isActive('/map') ? 'text-primary' : 'text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white'}`}>地图</Link>
             <Link to="/stories" className={`text-sm font-medium transition-colors ${isActive('/stories') ? 'text-primary' : 'text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white'}`}>故事</Link>
-            <Link to="/gear" className={`text-sm font-medium transition-colors ${isActive('/gear') ? 'text-primary' : 'text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white'}`}>器材</Link>
             <Link to="/about" className={`text-sm font-medium transition-colors ${isActive('/about') ? 'text-primary' : 'text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white'}`}>关于</Link>
           </nav>
 
@@ -274,7 +267,6 @@ export const Header: React.FC = () => {
             <Link to="/" onClick={() => setIsMenuOpen(false)} className="block py-2 text-base font-medium text-gray-900 dark:text-white">画廊</Link>
             <Link to="/map" onClick={() => setIsMenuOpen(false)} className="block py-2 text-base font-medium text-gray-600 dark:text-gray-300">地图</Link>
             <Link to="/stories" onClick={() => setIsMenuOpen(false)} className="block py-2 text-base font-medium text-gray-600 dark:text-gray-300">故事</Link>
-            <Link to="/gear" onClick={() => setIsMenuOpen(false)} className="block py-2 text-base font-medium text-gray-600 dark:text-gray-300">器材</Link>
             <Link to="/about" onClick={() => setIsMenuOpen(false)} className="block py-2 text-base font-medium text-gray-600 dark:text-gray-300">关于</Link>
             {currentUser ? (
               <>
@@ -312,7 +304,7 @@ export const Footer: React.FC = () => {
                     <div className="col-span-1 md:col-span-1 space-y-4">
                         <Link to="/" className="flex items-center gap-2 text-gray-900 dark:text-white hover:text-primary transition-colors">
                             {settings.siteLogo ? (
-                                <img src={toSiteMediaUrl(settings.siteLogo)} alt="Logo" className="w-8 h-8 object-contain" />
+                                <img src={toMediaUrl(settings.siteLogo)} alt="Logo" className="w-8 h-8 object-contain" />
                             ) : (
                                 <div className="size-8 flex items-center justify-center text-primary bg-primary/10 rounded-lg">
                                     <Camera className="w-5 h-5" />
@@ -331,7 +323,6 @@ export const Footer: React.FC = () => {
                         <ul className="space-y-3">
                             <li><Link to="/" className="text-sm text-gray-500 dark:text-gray-400 hover:text-primary transition-colors">最新画廊</Link></li>
                             <li><Link to="/stories" className="text-sm text-gray-500 dark:text-gray-400 hover:text-primary transition-colors">光影故事</Link></li>
-                            <li><Link to="/gear" className="text-sm text-gray-500 dark:text-gray-400 hover:text-primary transition-colors">摄影器材</Link></li>
                         </ul>
                     </div>
 

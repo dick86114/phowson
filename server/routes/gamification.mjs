@@ -1,7 +1,7 @@
 import { pool } from '../db.mjs';
 import { requireMember } from '../plugins/rbac.mjs';
 import { getAllBadges, getUserBadges, checkAndAwardBadges, seedBadges } from '../db/badges.mjs';
-import { getActiveChallenges, getUserChallenges, joinChallenge, checkChallengeCompletion, seedWeeklyChallenges } from '../db/challenges.mjs';
+import { getActiveChallenges, getUserChallenges, getUserChallengesWithProgress, joinChallenge, checkChallengeCompletion, seedWeeklyChallenges, recalculateChallengeProgress } from '../db/challenges.mjs';
 
 export const registerGamificationRoutes = async (app) => {
   app.addHook('onReady', async () => {
@@ -31,7 +31,7 @@ export const registerGamificationRoutes = async (app) => {
   });
 
   app.get('/gamification/challenges/my', { preHandler: requireMember() }, async (req) => {
-    return await getUserChallenges(req.authUser.id);
+    return await getUserChallengesWithProgress(req.authUser.id);
   });
 
   app.post('/gamification/challenges/:challengeId/join', {
@@ -46,6 +46,7 @@ export const registerGamificationRoutes = async (app) => {
     handler: async (req) => {
       const challengeId = String(req.params.challengeId);
       await joinChallenge(req.authUser.id, challengeId);
+      await recalculateChallengeProgress(req.authUser.id, challengeId);
       return { success: true };
     },
   });

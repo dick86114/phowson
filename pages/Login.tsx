@@ -77,7 +77,7 @@ export const Login: React.FC = () => {
                                         required
                                         value={email}
                                         onChange={(e) => setEmail(e.target.value)}
-                                        className="w-full bg-gray-50 dark:bg-[#111a22] border border-gray-200 dark:border-surface-border rounded-lg py-2.5 pl-10 pr-4 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
+                                        className="w-full bg-gray-50 dark:bg-[#111a22] border border-gray-200 dark:border-surface-border rounded-lg py-2.5 pl-10 pr-4 text-base text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
                                         placeholder="admin@photologs.com"
                                     />
                                 </div>
@@ -103,7 +103,7 @@ export const Login: React.FC = () => {
                                         required
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
-                                        className="w-full bg-gray-50 dark:bg-[#111a22] border border-gray-200 dark:border-surface-border rounded-lg py-2.5 pl-10 pr-4 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
+                                        className="w-full bg-gray-50 dark:bg-[#111a22] border border-gray-200 dark:border-surface-border rounded-lg py-2.5 pl-10 pr-4 text-base text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
                                         placeholder="••••••••"
                                     />
                                 </div>

@@ -90,7 +90,7 @@ export const checkChallengeCompletion = async (userId, challengeId) => {
   if (!challenge || !challenge.is_active) return { completed: false, xpReward: 0 };
 
   const progress = await getChallengeProgress(userId, challengeId);
-  const allCompleted = progress.every((p) => p.current_value >= p.target_value);
+  const allCompleted = progress.length > 0 && progress.every((p) => p.current_value >= p.target_value);
 
   if (allCompleted) {
     await completeChallenge(userId, challengeId);
@@ -99,6 +99,95 @@ export const checkChallengeCompletion = async (userId, challengeId) => {
 
   return { completed: false, xpReward: 0 };
 };
+
+export const getUserChallengesWithProgress = async (userId) => {
+  const r = await pool.query(
+    `
+      select c.*, uc.joined_at, uc.completed_at,
+             coalesce(cp.current_value, 0) as current_value,
+             coalesce(cp.target_value, 
+               case 
+                 when c.challenge_type = 'upload_category' then (c.config->>'min_photos')::int
+                 when c.challenge_type = 'daily_upload' then (c.config->>'min_days')::int
+                 else 100 
+               end
+             ) as target_value
+      from challenges c
+      inner join user_challenges uc on c.id = uc.challenge_id
+      left join challenge_progress cp on cp.user_id = uc.user_id and cp.challenge_id = c.id
+      where uc.user_id = $1
+      order by uc.joined_at desc
+    `,
+    [userId],
+  );
+  return r.rows;
+};
+
+export const recalculateChallengeProgress = async (userId, challengeId) => {
+  const challenge = await getChallengeById(challengeId);
+  if (!challenge || !challenge.is_active) return;
+
+  const { start_date, end_date, config, challenge_type } = challenge;
+  let current = 0;
+  let target = 0;
+  let progressType = 'count';
+
+  if (challenge_type === 'upload_category') {
+    target = config.min_photos;
+    const r = await pool.query(
+      `select count(1)::int as count from photos 
+       where owner_user_id=$1 
+         and created_at::date >= $2 
+         and created_at::date <= $3
+         and category = $4`,
+      [userId, start_date, end_date, config.category]
+    );
+    current = r.rows[0].count;
+  } else if (challenge_type === 'daily_upload') {
+    target = config.min_days;
+    const r = await pool.query(
+      `select count(distinct created_at::date)::int as count from photos 
+       where owner_user_id=$1 
+         and created_at::date >= $2 
+         and created_at::date <= $3`,
+      [userId, start_date, end_date]
+    );
+    current = r.rows[0].count;
+  }
+
+  if (current > 0) {
+    await updateChallengeProgress(userId, challengeId, progressType, current, target);
+    await checkChallengeCompletion(userId, challengeId);
+  }
+};
+
+export const checkChallengesOnUpload = async (userId, category, isFirstUploadToday) => {
+  // 1. Auto-join all currently active challenges
+  // This ensures that users don't miss out on progress just because they forgot to click "join"
+  const activeChallenges = await getActiveChallenges();
+  for (const challenge of activeChallenges) {
+    await joinChallenge(userId, challenge.id);
+  }
+
+  // 2. Get active user challenges that are not completed
+  const r = await pool.query(
+    `
+      select c.id
+      from challenges c
+      inner join user_challenges uc on c.id = uc.challenge_id
+      where uc.user_id = $1
+        and c.is_active = true
+        and uc.completed_at is null
+    `,
+    [userId]
+  );
+
+  // 3. Recalculate progress for each challenge based on actual data in DB
+  for (const challenge of r.rows) {
+    await recalculateChallengeProgress(userId, challenge.id);
+  }
+};
+
 
 export const seedWeeklyChallenges = async () => {
   const weekStart = getWeekStart(new Date());

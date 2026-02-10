@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { Calendar, MapPin, Camera, Grid, Image as ImageIcon, User, Plane, Flame, Heart, MessageCircle, ChevronDown, X, Search } from 'lucide-react';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import api, { API_BASE_URL } from '../api';
+import { getPhotoUrl } from '../utils/helpers';
 import { MasonryVirtual } from '../components/MasonryVirtual';
 import { Heatmap } from '../components/Heatmap';
 import { useAuth } from '../hooks/useAuth';
@@ -64,13 +65,6 @@ const toTags = (raw: string | undefined) => {
         .split(',')
         .map(s => s.trim())
         .filter(Boolean);
-};
-
-const toMediaUrl = (url: string | null | undefined) => {
-    const u = String(url || '').trim();
-    if (!u) return '';
-    if (/^https?:\/\//i.test(u)) return u;
-    return `${API_BASE_URL}${u}`;
 };
 
 export const Home: React.FC = () => {
@@ -200,11 +194,11 @@ export const Home: React.FC = () => {
         <main className="flex-grow">
             {/* Hero Section - Only show if NO search query */}
             {!urlSearchQuery && featuredPhoto && (
-                <section className="relative w-full h-[600px] lg:h-[700px] overflow-hidden group">
+                <section className="relative w-full h-[500px] md:h-[600px] lg:h-[700px] overflow-hidden group">
                     <div 
                         className="absolute inset-0 w-full h-full bg-cover bg-center transition-transform duration-700 group-hover:scale-105"
                         style={{ 
-                            backgroundImage: `linear-gradient(to bottom, rgba(17,26,34,0.3) 0%, rgba(17,26,34,0.9) 100%), url('${toMediaUrl(featuredPhoto.mediumUrl || featuredPhoto.url)}')`
+                            backgroundImage: `linear-gradient(to bottom, rgba(17,26,34,0.3) 0%, rgba(17,26,34,0.9) 100%), url('${getPhotoUrl(featuredPhoto, 'medium')}')`
                         }}
                     />
                     <div className="absolute inset-0 flex flex-col justify-end p-8 lg:p-16 max-w-[1920px] mx-auto w-full">
@@ -404,7 +398,7 @@ export const Home: React.FC = () => {
                     items={sortedPhotos.map(photo => ({
                         id: photo.id,
                         data: photo,
-                        imageUrl: toMediaUrl(photo.thumbUrl || photo.url),
+                        imageUrl: getPhotoUrl(photo, 'thumb'),
                         imageAlt: photo.title,
                         to: `/photo/${photo.id}`,
                         renderOverlay: (p) => (

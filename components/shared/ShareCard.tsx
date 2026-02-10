@@ -104,12 +104,6 @@ export const ShareCard: React.FC<{
   };
 
   const exif = JSON.parse(photo.exif || '{}');
-  const toMediaUrl = (url: string | null | undefined) => {
-    const u = String(url || '').trim();
-    if (!u) return '';
-    if (/^https?:\/\//i.test(u)) return u;
-    return `${API_BASE_URL}${u}`;
-  };
 
   // Helper to strip "ISO" prefix if present and display cleaner value
   const isoValue = exif.iso ? String(exif.iso).replace(/^ISO\s*/i, '') : '';
@@ -138,20 +132,13 @@ export const ShareCard: React.FC<{
               style={{ fontFamily: 'Inter, sans-serif' }}
             >
               {/* Photo */}
-              <div className="aspect-[4/5] w-full overflow-hidden rounded-sm bg-gray-900 relative">
-                {/* Background image for fill (Thumb) */}
-                <img 
-                  src={posterThumbUrl} 
-                  alt={photo.title}
-                  crossOrigin="anonymous"
-                  className="absolute inset-0 w-full h-full object-cover blur-2xl opacity-50"
-                />
+              <div className="aspect-[4/5] w-full overflow-hidden rounded-sm bg-gray-900 relative flex items-center justify-center">
                 {/* Main image (Medium) */}
                 <img 
                   src={posterMainUrl} 
                   alt={photo.title}
                   crossOrigin="anonymous"
-                  className="relative z-10 w-full h-full object-contain"
+                  className="relative z-10 max-w-full max-h-full w-auto h-auto shadow-sm"
                 />
               </div>
 
@@ -167,11 +154,11 @@ export const ShareCard: React.FC<{
 
                 {/* Footer Area: Params/Logo (Left) + QR (Right) */}
                 <div className="relative mt-auto">
-                   <div className="flex items-end justify-between">
-                     {/* Left Column: Params, Location, Logo */}
-                     <div className="flex-1 min-w-0 pr-4 pb-1">
+                   <div className="flex items-start justify-between">
+                     {/* Left Column: Params */}
+                     <div className="flex-1 min-w-0 pr-4">
                         {/* Dynamic Grid for Parameters */}
-                        <div className={`grid ${longContent ? 'grid-cols-1' : 'grid-cols-2'} gap-x-4 gap-y-3 text-[10px] text-gray-300 mb-4`}>
+                        <div className={`grid ${longContent ? 'grid-cols-1' : 'grid-cols-2'} gap-x-4 gap-y-3 text-[10px] text-gray-300`}>
                           <div className="flex flex-col">
                             <span className="text-gray-500 uppercase text-[8px] mb-0.5">相机</span>
                             <span className="break-words leading-tight">{exif.camera || exif.Model || 'Unknown'}</span>
@@ -193,23 +180,6 @@ export const ShareCard: React.FC<{
                             <span className="break-words leading-tight">{exif.date || 'Unknown'}</span>
                           </div>
                         </div>
-
-                        {/* Location & Logo Container - using block/margin instead of flex gap for html2canvas stability */}
-                        <div className="flex flex-col">
-                           {/* Location */}
-                           {exif.location && (
-                             <div className="flex items-center text-[9px] text-primary/80 mb-2">
-                               <MapPin className="w-2.5 h-2.5 flex-shrink-0 mr-1" />
-                               <span className="truncate">{exif.location}</span>
-                             </div>
-                           )}
-
-                           {/* Logo */}
-                           <div className="flex items-center text-primary">
-                             <Camera className="w-3 h-3 mr-1.5" />
-                             <span className="text-[9px] font-black tracking-widest uppercase">Phowson</span>
-                           </div>
-                        </div>
                      </div>
 
                      {/* Right Column: QR Code + Text */}
@@ -226,6 +196,12 @@ export const ShareCard: React.FC<{
                      </div>
                    </div>
                 </div>
+              </div>
+
+              {/* Branding Footer */}
+              <div className="flex items-center justify-center pt-1">
+                <Camera className="w-3.5 h-3.5 mr-2 text-white/90" />
+                <span className="text-[10px] font-black tracking-[0.25em] uppercase text-white/90">Phowson</span>
               </div>
             </div>
             

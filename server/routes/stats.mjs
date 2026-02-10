@@ -1,7 +1,8 @@
 import { pool } from '../db.mjs';
 import { badRequest } from '../lib/http_errors.mjs';
-import { requireMember } from '../plugins/rbac.mjs';
+import { requireMember, requireAdmin } from '../plugins/rbac.mjs';
 import { upsertUser } from '../db/users.mjs';
+import os from 'node:os';
 
 const toIntOrNull = (v) => {
   if (v === undefined || v === null) return null;
@@ -28,17 +29,141 @@ const toMonthRange = (yearRaw, monthRaw) => {
 };
 
 export const registerStatsRoutes = async (app) => {
-  app.get('/stats/summary', async () => {
-    // 基础汇总
-    const summary = await pool.query(`
-      SELECT 
-        (SELECT COUNT(*)::int FROM photos) as total_photos,
-        (SELECT COUNT(*)::int FROM users) as total_users,
-        (SELECT COALESCE(SUM(likes_count), 0)::int FROM photos) as total_likes,
-        (SELECT COUNT(*)::int FROM activity_logs) as total_activities
-    `);
+  app.get('/stats/platform', { preHandler: requireAdmin() }, async () => {
+    const totalRes = await pool.query('select count(*)::int as c from users');
+    const totalUsers = totalRes.rows[0].c;
 
-    // 分类分布
+    const activeRes = await pool.query("select count(*)::int as c from users where last_login_at > now() - interval '24 hours'");
+    const activeToday = activeRes.rows[0].c;
+
+    const load = os.loadavg();
+    const systemLoad = Math.round(load[0] * 100) / 100;
+
+    return {
+        totalUsers,
+        activeToday,
+        systemLoad
+    };
+  });
+
+  app.get('/stats/summary', async (req) => {
+    const { days = 30 } = req.query;
+    const daysNum = parseInt(days) || 30;
+
+    // 1. 基础汇总 (Summary Cards)
+    // Dynamic Trend Calculation based on 'days' parameter
+    const summary = await pool.query(`
+      WITH params AS (
+        SELECT $1::int as days
+      ),
+      dates AS (
+        SELECT 
+          NOW() as curr_end,
+          NOW() - (p.days || ' days')::interval as curr_start,
+          NOW() - (p.days || ' days')::interval as prev_end,
+          NOW() - (2 * p.days || ' days')::interval as prev_start
+        FROM params p
+      ),
+      -- 1. Total Counts (Snapshots)
+      totals AS (
+        SELECT 
+          (SELECT COUNT(*) FROM photos) as total_photos,
+          (SELECT COUNT(*) FROM users) as total_users
+      ),
+      -- 2. Period New Counts (For "Total" Trends: Momentum)
+      period_counts AS (
+        SELECT 
+          (SELECT COUNT(*) FROM users WHERE created_at >= (select curr_start from dates) AND created_at < (select curr_end from dates)) as users_new_curr,
+          (SELECT COUNT(*) FROM users WHERE created_at >= (select prev_start from dates) AND created_at < (select prev_end from dates)) as users_new_prev,
+          (SELECT COUNT(*) FROM photos WHERE created_at >= (select curr_start from dates) AND created_at < (select curr_end from dates)) as photos_new_curr,
+          (SELECT COUNT(*) FROM photos WHERE created_at >= (select prev_start from dates) AND created_at < (select prev_end from dates)) as photos_new_prev
+      ),
+      -- 3. DAU (Current Snapshot & Period Averages)
+      dau_calc AS (
+        SELECT 
+          -- Current Snapshot (Last 24h)
+          (SELECT COUNT(DISTINCT owner_user_id) FROM photos WHERE created_at > NOW() - INTERVAL '24 hours') as dau_now,
+          
+          -- Avg DAU Current Period
+          (
+            SELECT COALESCE(AVG(daily_cnt), 0)
+            FROM (
+              SELECT COUNT(DISTINCT owner_user_id) as daily_cnt 
+              FROM photos 
+              WHERE created_at >= (select curr_start from dates) AND created_at < (select curr_end from dates)
+              GROUP BY date_trunc('day', created_at)
+            ) t1
+          ) as dau_avg_curr,
+          
+          -- Avg DAU Previous Period
+          (
+            SELECT COALESCE(AVG(daily_cnt), 0)
+            FROM (
+              SELECT COUNT(DISTINCT owner_user_id) as daily_cnt 
+              FROM photos 
+              WHERE created_at >= (select prev_start from dates) AND created_at < (select prev_end from dates)
+              GROUP BY date_trunc('day', created_at)
+            ) t2
+          ) as dau_avg_prev
+      ),
+      -- 4. Growth Rate (Snapshot at Now vs Snapshot at Prev_End)
+      growth_rates AS (
+        -- Rate Now (Last 7 days from Now)
+        SELECT 
+          (
+            SELECT CASE WHEN base = 0 THEN 0 ELSE (added::float / base) * 100 END
+            FROM (
+              SELECT 
+                (SELECT COUNT(*) FROM users WHERE created_at > NOW() - INTERVAL '7 days') as added,
+                (SELECT COUNT(*) FROM users WHERE created_at <= NOW() - INTERVAL '7 days') as base
+            ) t
+          ) as rate_now,
+          
+          -- Rate Prev (Last 7 days from Prev_End / Curr_Start)
+          (
+            SELECT CASE WHEN base = 0 THEN 0 ELSE (added::float / base) * 100 END
+            FROM (
+              SELECT 
+                (SELECT COUNT(*) FROM users WHERE created_at > (select curr_start from dates) - INTERVAL '7 days' AND created_at <= (select curr_start from dates)) as added,
+                (SELECT COUNT(*) FROM users WHERE created_at <= (select curr_start from dates) - INTERVAL '7 days') as base
+            ) t
+          ) as rate_prev
+      )
+      SELECT 
+        t.total_photos::int,
+        t.total_users::int,
+        d.dau_now::int as dau,
+        g.rate_now as avg_weekly_growth,
+        
+        -- Trends (Percentage Change)
+        -- Users Trend (Momentum: New Users Comparison)
+        CASE WHEN pc.users_new_prev = 0 THEN 
+             CASE WHEN pc.users_new_curr > 0 THEN 100 ELSE 0 END
+             ELSE ROUND(((pc.users_new_curr - pc.users_new_prev)::numeric / pc.users_new_prev::numeric) * 100, 1)
+        END::float as users_trend,
+        
+        -- Photos Trend (Momentum: New Photos Comparison)
+        CASE WHEN pc.photos_new_prev = 0 THEN 
+             CASE WHEN pc.photos_new_curr > 0 THEN 100 ELSE 0 END
+             ELSE ROUND(((pc.photos_new_curr - pc.photos_new_prev)::numeric / pc.photos_new_prev::numeric) * 100, 1)
+        END::float as photos_trend,
+        
+        -- DAU Trend (Avg vs Avg)
+        CASE WHEN d.dau_avg_prev = 0 THEN 
+             CASE WHEN d.dau_avg_curr > 0 THEN 100 ELSE 0 END
+             ELSE ROUND(((d.dau_avg_curr - d.dau_avg_prev)::numeric / d.dau_avg_prev::numeric) * 100, 1)
+        END::float as dau_trend,
+        
+        -- Growth Rate Trend (Rate vs Rate)
+        CASE WHEN g.rate_prev = 0 THEN 
+             CASE WHEN g.rate_now > 0 THEN 100 ELSE 0 END
+             ELSE ROUND(((g.rate_now - g.rate_prev)::numeric / g.rate_prev::numeric) * 100, 1)
+        END::float as growth_rate_trend
+        
+      FROM totals t, period_counts pc, dau_calc d, growth_rates g
+    `, [daysNum]);
+
+    // 2. 分类分布 (Category Distribution) - Top 5 + Others
     const dist = await pool.query(`
       SELECT category, COUNT(*)::int as count 
       FROM photos 
@@ -46,34 +171,67 @@ export const registerStatsRoutes = async (app) => {
       ORDER BY count DESC
     `);
 
-    // 最近30天上传趋势
-    const trend = await pool.query(`
+    // 3. 上传趋势 (Upload Trends) - This Period vs Last Period
+    const trendCurrent = await pool.query(`
       SELECT 
         TO_CHAR(date_trunc('day', created_at), 'YYYY-MM-DD') as date,
         COUNT(*)::int as count
       FROM photos
-      WHERE created_at > NOW() - INTERVAL '30 days'
+      WHERE created_at > NOW() - INTERVAL '${daysNum} days'
       GROUP BY 1
       ORDER BY 1 ASC
     `);
 
-    // 相机型号分布 (TOP 5)
-    const cameras = await pool.query(`
+    const trendPrevious = await pool.query(`
       SELECT 
-        JSONB_EXTRACT_PATH_TEXT(exif, 'camera') as camera,
+        TO_CHAR(date_trunc('day', created_at) + INTERVAL '${daysNum} days', 'YYYY-MM-DD') as date,
         COUNT(*)::int as count
       FROM photos
-      WHERE exif IS NOT NULL AND jsonb_typeof(exif) = 'object'
+      WHERE created_at <= NOW() - INTERVAL '${daysNum} days'
+        AND created_at > NOW() - INTERVAL '${daysNum * 2} days'
       GROUP BY 1
-      ORDER BY 2 DESC
-      LIMIT 5
+      ORDER BY 1 ASC
+    `);
+
+    // Merge trends
+    const trendMap = new Map();
+    // Initialize map with all dates in range to ensure continuity (optional, but good for charts)
+    // For simplicity, we just merge the query results.
+    trendCurrent.rows.forEach(r => {
+        trendMap.set(r.date, { date: r.date, current: r.count, previous: 0 });
+    });
+    trendPrevious.rows.forEach(r => {
+        if (trendMap.has(r.date)) {
+            trendMap.get(r.date).previous = r.count;
+        } else {
+             // If current period has no data for this day, we still might want to record previous? 
+             // Ideally we want to show the 'current' date axis.
+             // If a date exists in previous (shifted) but not current, it means we align by relative day.
+             // But simpler is to only show dates that exist in 'current' or fill gaps.
+             // For now, let's just stick to dates present in current or previous if within range.
+             // Actually, simplest is to use current range dates.
+             trendMap.set(r.date, { date: r.date, current: 0, previous: r.count });
+        }
+    });
+    
+    const uploadTrend = Array.from(trendMap.values()).sort((a, b) => a.date.localeCompare(b.date));
+
+    // 4. 全站热力图 (Global Heatmap) - Last 365 Days
+    const heatmap = await pool.query(`
+      SELECT 
+        TO_CHAR(date_trunc('day', created_at), 'YYYY-MM-DD') as date,
+        COUNT(*)::int as count
+      FROM photos
+      WHERE created_at > NOW() - INTERVAL '1 year'
+      GROUP BY 1
+      ORDER BY 1 ASC
     `);
 
     return {
       summary: summary.rows[0],
       categoryDistribution: dist.rows,
-      uploadTrend: trend.rows,
-      cameraStats: cameras.rows.filter(c => c.camera),
+      uploadTrend,
+      heatmap: heatmap.rows,
     };
   });
 

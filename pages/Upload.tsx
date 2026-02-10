@@ -8,6 +8,7 @@ import {
 import exifr from 'exifr';
 import { useQuery } from '@tanstack/react-query';
 import api, { API_BASE_URL } from '../api';
+import { getPhotoUrl } from '../utils/helpers';
 import { useModal } from '../components/Modal';
 
 type ApiCategory = {
@@ -30,6 +31,7 @@ type UploadItem = {
     bytes?: number | null;
     error?: string;
     photoId?: string;
+    exif?: any;
 };
 
 const filenameToTitle = (name: string) => {
@@ -50,13 +52,6 @@ const statusClassName = (s: UploadStatus) => {
     if (s === 'uploading') return 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-200';
     if (s === 'success') return 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-200';
     return 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-200';
-};
-
-const toMediaUrl = (url: string | null | undefined) => {
-    const u = String(url || '').trim();
-    if (!u) return '';
-    if (/^https?:\/\//i.test(u)) return u;
-    return `${API_BASE_URL}${u}`;
 };
 
 const formatBytes = (bytes: number) => {
@@ -129,7 +124,9 @@ export const Upload: React.FC = () => {
         aperture: '',
         shutterSpeed: '',
         iso: '',
-        focalLength: ''
+        focalLength: '',
+        lat: null as number | null,
+        lng: null as number | null
     });
 
     // Load data if edit mode
@@ -139,7 +136,7 @@ export const Upload: React.FC = () => {
                 try {
                     const res = await api.get(`/photos/${id}`);
                     const photo = res.data;
-                    setPreviewUrl(toMediaUrl(photo.mediumUrl || photo.url));
+                    setPreviewUrl(getPhotoUrl(photo, 'medium'));
                     setTitle(photo.title);
                     setDescription(photo.description);
                     setCategory(photo.category);
@@ -225,6 +222,26 @@ export const Upload: React.FC = () => {
                 .catch(() => {
                     setUploadItems(prev => prev.map(p => (p.id === it.id ? { ...p, width: null, height: null } : p)));
                 });
+            
+            // Parse EXIF for batch items
+            exifr.parse(it.file)
+                .then(exifData => {
+                    if (exifData) {
+                        const parsedExif = {
+                            camera: exifData.Model || '',
+                            lens: exifData.LensModel || '',
+                            aperture: exifData.FNumber ? `f/${exifData.FNumber}` : '',
+                            shutterSpeed: exifData.ExposureTime ? `1/${Math.round(1/exifData.ExposureTime)}s` : '',
+                            iso: exifData.ISO?.toString() || '',
+                            focalLength: exifData.FocalLength ? `${exifData.FocalLength}mm` : '',
+                            lat: typeof exifData.latitude === 'number' ? exifData.latitude : null,
+                            lng: typeof exifData.longitude === 'number' ? exifData.longitude : null,
+                            date: exifData.DateTimeOriginal ? new Date(exifData.DateTimeOriginal).toISOString().split('T')[0] : ''
+                        };
+                        setUploadItems(prev => prev.map(p => (p.id === it.id ? { ...p, exif: parsedExif } : p)));
+                    }
+                })
+                .catch(err => console.error('Batch EXIF parsing failed:', err));
         }
     };
 
@@ -271,7 +288,9 @@ export const Upload: React.FC = () => {
                     aperture: exifData.FNumber ? `f/${exifData.FNumber}` : '',
                     shutterSpeed: exifData.ExposureTime ? `1/${Math.round(1/exifData.ExposureTime)}s` : '',
                     iso: exifData.ISO?.toString() || '',
-                    focalLength: exifData.FocalLength ? `${exifData.FocalLength}mm` : ''
+                    focalLength: exifData.FocalLength ? `${exifData.FocalLength}mm` : '',
+                    lat: typeof exifData.latitude === 'number' ? exifData.latitude : null,
+                    lng: typeof exifData.longitude === 'number' ? exifData.longitude : null
                 });
                 if (exifData.DateTimeOriginal) {
                     setDate(new Date(exifData.DateTimeOriginal).toISOString().split('T')[0]);
@@ -310,7 +329,15 @@ export const Upload: React.FC = () => {
         formData.append('description', current.description);
         formData.append('category', category);
         formData.append('tags', tags.join(','));
-        formData.append('exif', JSON.stringify({ location }));
+        
+        const finalExif = {
+            ...(current.exif || {}),
+            location
+        };
+        formData.append('exif', JSON.stringify(finalExif));
+        if (current.exif?.date) {
+            formData.append('created_at', current.exif.date);
+        }
 
         try {
             const res = await api.post<any>('/photos', formData);
@@ -541,6 +568,7 @@ export const Upload: React.FC = () => {
         formData.append('description', description);
         formData.append('category', category);
         formData.append('tags', tags.join(','));
+        formData.append('created_at', date);
         formData.append('exif', JSON.stringify({ ...exif, location, date }));
 
         try {

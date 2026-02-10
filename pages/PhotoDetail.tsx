@@ -1,21 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Share2, Heart, MessageCircle, MoreHorizontal, Send, Bookmark, Maximize2, X, ZoomIn, ZoomOut, Download, RefreshCcw, Sparkles, Loader2, Monitor, HardDrive, RefreshCw, LogIn, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowLeft, Share2, Heart, MessageCircle, MoreHorizontal, Send, Bookmark, Maximize2, X, ZoomIn, ZoomOut, Download, RefreshCcw, Sparkles, Loader2, Monitor, HardDrive, RefreshCw, LogIn, ChevronDown, ChevronUp, MapPin, Camera, Disc, Timer, Aperture, Zap } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { TransformWrapper, TransformComponent, useControls, useTransformComponent } from "react-zoom-pan-pinch";
 import api, { API_BASE_URL } from '../api';
 import { useAuth } from '../hooks/useAuth';
 import { useModal } from '../components/Modal';
-import { ExifGrid, PhotoExifBadge } from '../components/PhotoComponents';
+import { PhotoExifBadge } from '../components/PhotoComponents';
 import { ShareCard } from '../components/shared/ShareCard';
 import { ProgressiveImage } from '../components/ProgressiveImage';
-
-const toMediaUrl = (url: string | null | undefined) => {
-    const u = String(url || '').trim();
-    if (!u) return '';
-    if (/^https?:\/\//i.test(u)) return u;
-    return `${API_BASE_URL}${u}`;
-};
+import { getPhotoUrl, getAvatarUrl, generateFallbackAvatar } from '../utils/helpers';
 
 const formatBytes = (bytes: number) => {
     if (!Number.isFinite(bytes) || bytes <= 0) return '0B';
@@ -53,7 +47,6 @@ export const PhotoDetail: React.FC = () => {
     const queryClient = useQueryClient();
     const { user: currentUser } = useAuth();
     const modal = useModal();
-    const [inlineAspectRatio, setInlineAspectRatio] = useState<number>(4 / 3);
     const [guestId, setGuestId] = useState('');
     
     // Guest Comment State
@@ -131,16 +124,16 @@ export const PhotoDetail: React.FC = () => {
             queryClient.invalidateQueries({ queryKey: ['photo', id] });
             setCommentText('');
             if (currentUser) {
-                modal.alert({ title: '成功', content: '评论发表成功' });
+                window.alert('评论已提交，等待管理员审核后展示');
             } else {
                 setCaptchaInput('');
                 refreshCaptcha();
-                modal.alert({ title: '提示', content: '评论已提交，等待审核后展示' });
+                window.alert('评论已提交，等待审核后展示');
             }
         },
         onError: (err: any) => {
              if (!currentUser) refreshCaptcha();
-             modal.alert({ title: '评论失败', content: String(err?.response?.data?.message || '评论失败') });
+             window.alert(String(err?.response?.data?.message || '评论失败'));
         }
     });
 
@@ -197,7 +190,7 @@ export const PhotoDetail: React.FC = () => {
              <div className="sticky top-16 z-30 bg-white/90 dark:bg-[#111a22]/90 backdrop-blur-md border-b border-gray-200 dark:border-surface-border px-4 py-3 flex items-center justify-between">
                 <button 
                     onClick={() => navigate(-1)}
-                    className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors"
+                    className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors py-2 active:scale-95"
                 >
                     <ArrowLeft className="w-4 h-4" />
                     返回画廊
@@ -207,9 +200,9 @@ export const PhotoDetail: React.FC = () => {
                         onClick={() => setShowShareCard(true)}
                         type="button"
                         aria-label="分享"
-                        className="p-2 text-gray-600 dark:text-gray-300 hover:text-primary transition-colors hover:bg-gray-100 dark:hover:bg-surface-dark rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-background-dark"
+                        className="p-3 text-gray-600 dark:text-gray-300 hover:text-primary transition-colors hover:bg-gray-100 dark:hover:bg-surface-dark rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-background-dark active:scale-95"
                     >
-                        <Share2 className="w-4 h-4" />
+                        <Share2 className="w-5 h-5" />
                     </button>
                 </div>
             </div>
@@ -217,27 +210,18 @@ export const PhotoDetail: React.FC = () => {
             <div className="max-w-[1920px] mx-auto">
                 <div className="flex flex-col xl:flex-row h-full">
                     {/* Image Viewer (Inline) */}
-                    <div className="xl:flex-1 bg-gray-100 dark:bg-black flex items-center justify-center p-4 xl:p-8 min-h-[60vh] xl:min-h-[calc(100vh-8rem)] relative group overflow-hidden transition-colors">
-                        <div className="relative w-full mx-auto" style={{ 
-                            aspectRatio: `${inlineAspectRatio}`,
-                            maxHeight: 'calc(100vh - 10rem)',
-                            maxWidth: `calc((100vh - 10rem) * ${inlineAspectRatio})`
-                        }}>
-                            <ProgressiveImage
-                                src={toMediaUrl(photo.mediumUrl || photo.url)}
-                                placeholderSrc={toMediaUrl(photo.thumbUrl || '')}
+                    <div className="xl:flex-1 bg-gray-100 dark:bg-black flex items-center justify-center p-4 xl:p-8 min-h-[60vh] xl:h-[calc(100vh-8rem)] xl:sticky xl:top-32 relative group overflow-hidden transition-colors">
+                        <div className="relative w-full h-full flex items-center justify-center">
+                        <ProgressiveImage
+                                src={getPhotoUrl(photo, 'medium')}
+                                placeholderSrc={getPhotoUrl(photo, 'thumb')}
                                 alt={photo.title}
                                 className="w-full h-full"
-                                imgClassName="object-contain shadow-2xl rounded-sm cursor-zoom-in"
+                                imgClassName="shadow-2xl rounded-sm cursor-zoom-in"
+                                fit="contain"
                                 loading="eager"
                                 decoding="async"
                                 maxRetries={3}
-                                onImageLoad={(img) => {
-                                    const w = img.naturalWidth || 0;
-                                    const h = img.naturalHeight || 0;
-                                    if (!w || !h) return;
-                                    setInlineAspectRatio(w / h);
-                                }}
                             />
                             <button
                                 onClick={() => setIsFullScreen(true)}
@@ -267,7 +251,7 @@ export const PhotoDetail: React.FC = () => {
                                     <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{photo.title}</h1>
                                 </div>
                                 <div className="flex items-center gap-4">
-                                    <img src={toMediaUrl(photo.user.avatar) || `https://ui-avatars.com/api/?name=${photo.user.name}`} alt={photo.user.name} className="w-10 h-10 rounded-full border border-gray-200 dark:border-surface-border" />
+                                    <img src={getAvatarUrl(photo.user)} alt={photo.user.name} className="w-10 h-10 rounded-full border border-gray-200 dark:border-surface-border" />
                                     <div>
                                         <p className="text-sm font-medium text-gray-900 dark:text-white">{photo.user.name}</p>
                                         <p className="text-xs text-gray-500">发布于 {new Date(photo.createdAt).toLocaleDateString()}</p>
@@ -287,7 +271,7 @@ export const PhotoDetail: React.FC = () => {
                                     </button>
                                 </div>
                                 {currentUser && (
-                                    <a href={toMediaUrl(photo.originalUrl || photo.url)} download target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-surface-dark px-3 py-1.5 rounded-lg transition-colors">
+                                    <a href={getPhotoUrl(photo, 'original')} download target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-surface-dark px-3 py-1.5 rounded-lg transition-colors">
                                         <Download className="w-4 h-4" />
                                         下载原图
                                     </a>
@@ -332,36 +316,82 @@ export const PhotoDetail: React.FC = () => {
 
                             <div className="space-y-3 border-t border-gray-200 dark:border-surface-border pt-6">
                                 <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">拍摄参数</h3>
-                                <ExifGrid exif={exif} />
-                                <div className="grid grid-cols-2 gap-4 mt-4">
-                                    <PhotoExifBadge 
-                                        icon={<Monitor className="w-4 h-4"/>} 
-                                        label="分辨率" 
-                                        value={photo.imageWidth && photo.imageHeight ? `${photo.imageWidth} × ${photo.imageHeight}` : '未知'} 
-                                    />
-                                    <PhotoExifBadge 
-                                        icon={<HardDrive className="w-4 h-4"/>} 
-                                        label="文件大小" 
-                                        value={photo.imageSizeBytes ? formatBytes(photo.imageSizeBytes) : '未知'} 
-                                    />
+                                <div className="space-y-4">
+                                    {/* Row 1: Camera & Location */}
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <PhotoExifBadge 
+                                            icon={<Camera className="w-4 h-4"/>} 
+                                            label="相机" 
+                                            value={exif.camera || '未知'} 
+                                        />
+                                        <PhotoExifBadge 
+                                            icon={<MapPin className="w-4 h-4"/>} 
+                                            label="拍摄地点" 
+                                            value={exif.location || '未知'} 
+                                        />
+                                    </div>
+
+                                    {/* Row 2: Lens, Shutter, Aperture, ISO */}
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                                        <PhotoExifBadge 
+                                            icon={<Disc className="w-4 h-4"/>} 
+                                            label="镜头" 
+                                            value={exif.lens || '未知'} 
+                                        />
+                                        <PhotoExifBadge 
+                                            icon={<Timer className="w-4 h-4"/>} 
+                                            label="快门" 
+                                            value={exif.shutterSpeed || '未知'} 
+                                        />
+                                        <PhotoExifBadge 
+                                            icon={<Aperture className="w-4 h-4"/>} 
+                                            label="光圈" 
+                                            value={exif.aperture || '未知'} 
+                                        />
+                                        <PhotoExifBadge 
+                                            icon={<Zap className="w-4 h-4"/>} 
+                                            label="感光度" 
+                                            value={exif.iso || '未知'} 
+                                        />
+                                    </div>
+
+                                    {/* Row 3: Resolution & File Size */}
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <PhotoExifBadge 
+                                            icon={<Monitor className="w-4 h-4"/>} 
+                                            label="分辨率" 
+                                            value={photo.imageWidth && photo.imageHeight ? `${photo.imageWidth} × ${photo.imageHeight}` : '未知'} 
+                                        />
+                                        <PhotoExifBadge 
+                                            icon={<HardDrive className="w-4 h-4"/>} 
+                                            label="文件大小" 
+                                            value={photo.imageSizeBytes ? formatBytes(photo.imageSizeBytes) : '未知'} 
+                                        />
+                                    </div>
                                 </div>
                             </div>
 
                             <div className="space-y-4 border-t border-gray-200 dark:border-surface-border pt-6">
                                 <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">评论 ({photo.comments?.length || 0})</h3>
                                 <div className="space-y-4">
-                                    {photo.comments?.map((comment: any) => (
+                                    {photo.comments?.map((comment: any) => {
+                                        const userAvatar = comment.user 
+                                            ? getAvatarUrl(comment.user) 
+                                            : generateFallbackAvatar(comment.guestNickname || '游客');
+                                        const userName = comment.user?.name || comment.guestNickname || '游客';
+                                        
+                                        return (
                                         <div key={comment.id} className="flex gap-3">
-                                            <img src={toMediaUrl(comment.user.avatar) || `https://ui-avatars.com/api/?name=${comment.user.name}`} alt={comment.user.name} className="w-8 h-8 rounded-full" />
+                                            <img src={userAvatar} alt={userName} className="w-8 h-8 rounded-full" />
                                             <div className="flex-1">
                                                 <div className="flex items-baseline justify-between">
-                                                    <span className="text-sm font-medium text-gray-900 dark:text-white">{comment.user.name}</span>
+                                                    <span className="text-sm font-medium text-gray-900 dark:text-white">{userName}</span>
                                                     <span className="text-xs text-gray-500">{new Date(comment.createdAt).toLocaleDateString()}</span>
                                                 </div>
                                                 <p className="text-sm text-gray-700 dark:text-gray-300 mt-1">{comment.content}</p>
                                             </div>
                                         </div>
-                                    ))}
+                                    )})}
                                 </div>
                                 <form onSubmit={handleCommentSubmit} className="relative mt-4 space-y-3">
                                     {!currentUser && (
@@ -482,8 +512,8 @@ export const PhotoDetail: React.FC = () => {
                                 contentClass="!w-full !h-full flex items-center justify-center"
                             >
                                 <ProgressiveImage
-                                src={toMediaUrl(photo.originalUrl || photo.mediumUrl || photo.url)}
-                                placeholderSrc={toMediaUrl(photo.thumbUrl || '')}
+                                src={getPhotoUrl(photo, 'medium')}
+                                placeholderSrc={getPhotoUrl(photo, 'thumb')}
                                 alt={photo.title}
                                 className="w-full h-full"
                                 imgClassName="w-full h-full"

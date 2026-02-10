@@ -3,8 +3,8 @@ import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useQuery } from '@tanstack/react-query';
-import api, { API_BASE_URL } from '../api';
-import { Map as MapIcon, Image as ImageIcon, Camera } from 'lucide-react';
+import api from '../api';
+import { Map as MapIcon } from 'lucide-react';
 
 // Fix Leaflet marker icons
 const markerIcon2xUrl = new URL('leaflet/dist/images/marker-icon-2x.png', import.meta.url).toString();
@@ -29,12 +29,7 @@ type ApiPhoto = {
     exif: string;
 };
 
-const toMediaUrl = (url: string | null | undefined) => {
-    const u = String(url || '').trim();
-    if (!u) return '';
-    if (/^https?:\/\//i.test(u)) return u;
-    return `${API_BASE_URL}${u}`;
-};
+import { getPhotoUrl } from '../utils/helpers';
 
 export const MapPage: React.FC = () => {
     const { data: photos = [], isLoading } = useQuery({
@@ -88,7 +83,7 @@ export const MapPage: React.FC = () => {
                             <div className="w-64 space-y-3 p-1">
                                 <div className="aspect-[3/2] rounded-lg overflow-hidden bg-gray-100 dark:bg-surface-dark">
                                     <img 
-                                        src={toMediaUrl(photo.thumbUrl || photo.url)} 
+                                        src={getPhotoUrl(photo, 'thumb')} 
                                         alt={photo.title}
                                         className="w-full h-full object-cover"
                                     />

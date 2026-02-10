@@ -8,6 +8,17 @@ import { requireAdmin, requireMember } from '../plugins/rbac.mjs';
 import { deleteSessionsByUserId } from '../db/sessions.mjs';
 import crypto from 'node:crypto';
 
+const logOperation = async (operatorId, targetUserId, action, details) => {
+  try {
+    await pool.query(
+      `insert into operation_logs(operator_id, target_user_id, action, details) values ($1, $2, $3, $4)`,
+      [operatorId, targetUserId, action, JSON.stringify(details)]
+    );
+  } catch (e) {
+    console.error('Failed to log operation:', e);
+  }
+};
+
 const normalizeEmail = (email) => {
   const e = String(email ?? '').trim().toLowerCase();
   if (!e) return null;
@@ -34,6 +45,7 @@ export const registerUserRoutes = async (app) => {
           q: { type: 'string' },
           role: { type: 'string', enum: ['admin', 'family', 'all'] },
           status: { type: 'string', enum: ['enabled', 'disabled', 'all'] },
+          sort: { type: 'string', enum: ['newest', 'oldest', 'active'] },
           limit: { type: 'integer', minimum: 1, maximum: 200 },
           offset: { type: 'integer', minimum: 0 },
         },
@@ -43,6 +55,7 @@ export const registerUserRoutes = async (app) => {
       const q = String(req.query?.q ?? '').trim() || null;
       const role = String(req.query?.role ?? 'all').trim() || 'all';
       const status = String(req.query?.status ?? 'all').trim() || 'all';
+      const sort = String(req.query?.sort ?? 'newest').trim();
       const limit = Math.max(1, Math.min(200, Number(req.query?.limit ?? 50) || 50));
       const offset = Math.max(0, Number(req.query?.offset ?? 0) || 0);
 
@@ -81,6 +94,10 @@ export const registerUserRoutes = async (app) => {
       );
       const total = Number(totalRes.rows?.[0]?.total ?? 0) || 0;
 
+      let orderBy = 'created_at desc';
+      if (sort === 'oldest') orderBy = 'created_at asc';
+      else if (sort === 'active') orderBy = 'last_login_at desc nulls last';
+
       const itemsRes = await pool.query(
         `
           select
@@ -90,16 +107,48 @@ export const registerUserRoutes = async (app) => {
             coalesce(avatar_url, '/media/avatars/' || id) as avatar,
             email,
             disabled_at as "disabledAt",
-            created_at as "createdAt"
+            created_at as "createdAt",
+            last_login_at as "lastLoginAt"
           from users
           ${whereSql}
-          order by created_at desc
+          order by ${orderBy}
           limit $${i} offset $${i + 1}
         `,
         [...args, limit, offset],
       );
 
       return { items: itemsRes.rows || [], total, limit, offset };
+    },
+  });
+
+  app.get('/users/:id/logs', {
+    preHandler: requireAdmin(),
+    schema: {
+      params: {
+        type: 'object',
+        required: ['id'],
+        properties: { id: { type: 'string', minLength: 1 } },
+      },
+    },
+    handler: async (req) => {
+      const id = String(req.params.id);
+      const r = await pool.query(
+        `
+          select
+            l.id,
+            l.action,
+            l.details,
+            l.created_at as "createdAt",
+            u.name as "operatorName"
+          from operation_logs l
+          left join users u on u.id = l.operator_id
+          where l.target_user_id = $1
+          order by l.created_at desc
+          limit 100
+        `,
+        [id]
+      );
+      return r.rows;
     },
   });
 
@@ -264,6 +313,8 @@ export const registerUserRoutes = async (app) => {
         } catch {}
       }
 
+      await logOperation(acting.id, id, disabled ? 'disable_user' : 'enable_user', { prevRole });
+
       return r.rows[0];
     },
   });
@@ -303,6 +354,9 @@ export const registerUserRoutes = async (app) => {
         `,
         [id, name, role, email, passwordHash],
       );
+      
+      await logOperation(req.authUser.id, id, 'create_user', { name, email, role });
+
       return reply.code(201).send(r.rows[0]);
     },
   });
@@ -351,6 +405,13 @@ export const registerUserRoutes = async (app) => {
         `,
         [id, name, email, role],
       );
+      
+      await logOperation(req.authUser.id, id, 'update_user', { 
+        name: name || undefined, 
+        email: email || undefined, 
+        role: role || undefined 
+      });
+
       return r.rows[0];
     },
   });
@@ -380,6 +441,9 @@ export const registerUserRoutes = async (app) => {
       if (!exists.rowCount) throw notFound('USER_NOT_FOUND', '用户不存在');
 
       await pool.query('update users set password_hash=$2 where id=$1', [id, hashPassword(password)]);
+      
+      await logOperation(req.authUser.id, id, 'reset_password', {});
+
       return { ok: true };
     },
   });
@@ -404,7 +468,47 @@ export const registerUserRoutes = async (app) => {
       if (prevRole === 'admin') await assertAtLeastOneAdmin(id);
 
       await pool.query('delete from users where id=$1', [id]);
+      
+      await logOperation(acting.id, id, 'delete_user', { prevRole });
+
       return { ok: true };
+    },
+  });
+
+  app.post('/users/:id/avatar', {
+    preHandler: requireAdmin(),
+    handler: async (req) => {
+      if (!req.isMultipart()) throw badRequest('INVALID_CONTENT_TYPE', '需要 multipart/form-data');
+      const id = String(req.params.id);
+      
+      const exists = await pool.query('select 1 from users where id=$1', [id]);
+      if (!exists.rowCount) throw notFound('USER_NOT_FOUND', '用户不存在');
+
+      let avatarFile = null;
+      for await (const part of req.parts()) {
+        if (part.type === 'file' && part.fieldname === 'avatar') {
+          const buffer = await part.toBuffer();
+          avatarFile = {
+            buffer,
+            mimetype: part.mimetype,
+            filename: part.filename,
+          };
+        } else if (part.type === 'file') {
+          await part.toBuffer();
+        }
+      }
+
+      if (!avatarFile) throw badRequest('AVATAR_REQUIRED', '缺少头像文件');
+
+      const buffer = avatarFile.buffer;
+      const mime = avatarFile.mimetype || null;
+      const url = `/media/avatars/${id}`;
+      
+      await pool.query('update users set avatar_mime=$2, avatar_bytes=$3, avatar_url=$4 where id=$1', [id, mime, buffer, url]);
+      
+      await logOperation(req.authUser.id, id, 'update_user_avatar', {});
+
+      return { avatar: url };
     },
   });
 

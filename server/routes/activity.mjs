@@ -52,12 +52,23 @@ export const registerActivityRoutes = async (app) => {
     );
 
     let currentStreak = 0;
-    let cursor = today;
-    for (const r of rows.rows) {
-      const day = String(r.day);
-      if (day !== cursor) break;
-      currentStreak += 1;
-      cursor = addDaysIso(cursor, -1);
+    
+    // Check if we have any activity
+    if (rows.rows.length > 0) {
+      const lastActiveDay = String(rows.rows[0].day);
+      const yesterday = addDaysIso(today, -1);
+      
+      // Streak is valid if last active day is today or yesterday
+      // If last active day is before yesterday, streak is broken (0)
+      if (lastActiveDay === today || lastActiveDay === yesterday) {
+        let cursor = lastActiveDay;
+        for (const r of rows.rows) {
+          const day = String(r.day);
+          if (day !== cursor) break;
+          currentStreak += 1;
+          cursor = addDaysIso(cursor, -1);
+        }
+      }
     }
 
     const longest = await pool.query(

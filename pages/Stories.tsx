@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Calendar, User, ArrowRight } from 'lucide-react';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import api, { API_BASE_URL } from '../api';
+import { getPhotoUrl } from '../utils/helpers';
 import { ProgressiveImage } from '../components/ProgressiveImage';
 
 type ApiPhoto = {
@@ -27,13 +28,6 @@ type PageResponse<T> = {
     total: number;
     hasMore: boolean;
     nextOffset: number;
-};
-
-const toMediaUrl = (url: string | null | undefined) => {
-    const u = String(url || '').trim();
-    if (!u) return '';
-    if (/^https?:\/\//i.test(u)) return u;
-    return `${API_BASE_URL}${u}`;
 };
 
 const parseExif = (raw: string): Record<string, any> => {
@@ -115,7 +109,7 @@ export const Stories: React.FC = () => {
                         <article key={photo.id} className="flex flex-col md:flex-row gap-8 items-start bg-white dark:bg-surface-dark/50 border border-gray-200 dark:border-surface-border rounded-2xl overflow-hidden hover:bg-gray-50 dark:hover:bg-surface-dark transition-colors p-6 shadow-sm hover:shadow-md">
                             <div className="w-full md:w-1/3 aspect-[4/3] rounded-lg overflow-hidden shrink-0">
                                 <ProgressiveImage
-                                    src={toMediaUrl(photo.thumbUrl || photo.url)}
+                                    src={getPhotoUrl(photo, 'thumb')}
                                     alt={photo.title}
                                     className="w-full h-full"
                                     imgClassName="object-cover transition-transform hover:scale-105 duration-500"

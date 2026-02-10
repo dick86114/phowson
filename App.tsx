@@ -1,16 +1,24 @@
 import React, { useEffect } from 'react';
-import { HashRouter, Routes, Route, useLocation, useNavigationType } from 'react-router-dom';
+import { HashRouter, Routes, Route, useLocation, useNavigationType, Navigate } from 'react-router-dom';
 import { Header, Footer } from './components/Layout';
 import { Home } from './pages/Home';
 import { PhotoDetail } from './pages/PhotoDetail';
 import { Admin } from './pages/Admin';
+import { AdminLayout } from './layouts/AdminLayout';
+import { ManagePhotos } from './pages/admin/manage/Photos';
+import { Comments as ManageComments } from './pages/admin/manage/Comments';
+import { UsersPage as ManageUsers } from './pages/admin/manage/Users';
+import { SettingsPage as ManageSettings } from './pages/admin/manage/Settings';
+import { AboutSettings as ManageAbout } from './pages/admin/manage/AboutSettings';
+import { AnalyticsPage as ManageAnalytics } from './pages/admin/manage/Analytics';
 import { Stories } from './pages/Stories';
-import { Gear } from './pages/Gear';
 import { About } from './pages/About';
 import { Login } from './pages/Login';
 import { Upload } from './pages/Upload';
 import { MapPage } from './pages/Map';
 import { Gamification } from './pages/Gamification';
+import { ChallengesPage } from './pages/Challenges';
+import { GamificationHistory } from './pages/GamificationHistory';
 import { ThemeProvider } from './ThemeContext';
 import { ModalProvider } from './components/Modal';
 import { useModal } from './components/Modal';
@@ -84,15 +92,30 @@ const ThemedApp = () => {
                         <Routes>
                             <Route path="/" element={<Home />} />
                             <Route path="/stories" element={<Stories />} />
-                            <Route path="/gear" element={<Gear />} />
                             <Route path="/about" element={<About />} />
                             <Route path="/photo/:id" element={<PhotoDetail />} />
                             <Route path="/map" element={<MapPage />} />
                             <Route path="/login" element={<Login />} />
-                            <Route path="/admin/*" element={<Admin />} />
+                            
+                            <Route path="/admin" element={<AdminLayout />}>
+                                <Route index element={<Navigate to="me/albums" replace />} />
+                                <Route path="me/albums" element={<Admin hideLayout />} />
+                                <Route path="me/analytics" element={<Admin hideLayout />} />
+                                <Route path="me/uploads" element={<Admin hideLayout />} />
+                                <Route path="me/profile" element={<Admin hideLayout />} />
+                                <Route path="manage/photos" element={<ManagePhotos />} />
+                                <Route path="manage/comments" element={<ManageComments />} />
+                                <Route path="manage/users" element={<ManageUsers />} />
+                                <Route path="manage/settings" element={<ManageSettings />} />
+                                <Route path="manage/about" element={<ManageAbout />} />
+                                <Route path="manage/analytics" element={<ManageAnalytics />} />
+                            </Route>
+
                             <Route path="/upload" element={<Upload />} />
                             <Route path="/edit/:id" element={<Upload />} />
                             <Route path="/gamification" element={<Gamification />} />
+                            <Route path="/challenges" element={<ChallengesPage />} />
+                            <Route path="/gamification/history" element={<GamificationHistory />} />
                         </Routes>
                     </AppLayout>
                 </HashRouter>

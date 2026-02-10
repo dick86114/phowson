@@ -16,13 +16,16 @@ export const registerCategoryRoutes = async (app) => {
     const r = await pool.query(
       `
         select
-          value,
-          label,
-          sort_order as "sortOrder",
-          created_at as "createdAt",
-          updated_at as "updatedAt"
-        from categories
-        order by sort_order asc, created_at asc
+          c.value,
+          c.label,
+          c.sort_order as "sortOrder",
+          c.created_at as "createdAt",
+          c.updated_at as "updatedAt",
+          count(p.id)::int as "photoCount"
+        from categories c
+        left join photos p on p.category = c.value
+        group by c.value
+        order by c.sort_order asc, c.created_at asc
       `,
     );
     return r.rows;

@@ -96,6 +96,9 @@ export const registerAuthRoutes = async (app) => {
 
       const token = generateToken();
       await createSession(hashToken(token), String(u.id), process.env.SESSION_TTL_DAYS);
+      
+      // Update last_login_at
+      await pool.query('update users set last_login_at = now() where id = $1', [u.id]);
 
       return {
         token,

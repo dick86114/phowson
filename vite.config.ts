@@ -9,6 +9,34 @@ export default defineConfig(({ mode }) => {
       server: {
         port: 3000,
         host: '0.0.0.0',
+        allowedHosts: true,
+        proxy: {
+          '/media': {
+            target: 'http://127.0.0.1:3001',
+            changeOrigin: true,
+          },
+          '/auth': { target: 'http://127.0.0.1:3001', changeOrigin: true },
+          '/me': { target: 'http://127.0.0.1:3001', changeOrigin: true },
+          '/categories': { target: 'http://127.0.0.1:3001', changeOrigin: true },
+          '/photos': { target: 'http://127.0.0.1:3001', changeOrigin: true },
+          '/stats': { target: 'http://127.0.0.1:3001', changeOrigin: true },
+          '/users': { target: 'http://127.0.0.1:3001', changeOrigin: true },
+          '/site-settings': { target: 'http://127.0.0.1:3001', changeOrigin: true },
+          '/ai': { target: 'http://127.0.0.1:3001', changeOrigin: true },
+          '/activity': { target: 'http://127.0.0.1:3001', changeOrigin: true },
+          '/health': { target: 'http://127.0.0.1:3001', changeOrigin: true },
+          '/gamification': { target: 'http://127.0.0.1:3001', changeOrigin: true },
+          '/uploads': { target: 'http://127.0.0.1:3001', changeOrigin: true },
+          '/admin': {
+            target: 'http://127.0.0.1:3001',
+            changeOrigin: true,
+            bypass: (req) => {
+              if (req.headers.accept && req.headers.accept.includes('text/html')) {
+                return false;
+              }
+            }
+          }
+        }
       },
       plugins: [
         react(),
@@ -42,6 +70,7 @@ export default defineConfig(({ mode }) => {
             ]
           },
           workbox: {
+            maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
             globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
             cleanupOutdatedCaches: true,
             clientsClaim: true,
@@ -79,6 +108,18 @@ export default defineConfig(({ mode }) => {
       resolve: {
         alias: {
           '@': path.resolve(__dirname, '.'),
+        }
+      },
+      build: {
+        rollupOptions: {
+            output: {
+                manualChunks: {
+                    'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+                    'vendor-ui': ['lucide-react', 'react-hot-toast', 'react-hook-form', 'react-zoom-pan-pinch'],
+                    'vendor-maps': ['leaflet', 'react-leaflet'],
+                    'vendor-utils': ['@tanstack/react-query', 'html2canvas', 'jspdf', 'qrcode.react']
+                }
+            }
         }
       }
     };

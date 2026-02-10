@@ -1,0 +1,620 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Navigate } from 'react-router-dom';
+import { Settings, Save, Download, Upload, X, Loader2, ImageIcon, Sun, Moon, Monitor, Tag, Trash2, Plus } from 'lucide-react';
+
+type ApiCategory = {
+    value: string;
+    label: string;
+    sortOrder: number;
+    photoCount: number;
+};
+
+import api from '../../../api';
+import { useAuth } from '../../../hooks/useAuth';
+import { useToast } from '../../../components/Toast';
+import { useModal, Modal } from '../../../components/Modal';
+import { toMediaUrl } from '../../../utils/helpers';
+import { downloadJson } from '../../../utils/exporters';
+
+type SiteSettings = {
+    siteName?: string;
+    siteLogo?: string;
+    documentTitle?: string;
+    favicon?: string;
+    defaultTheme?: 'light' | 'dark' | 'system';
+};
+
+const normalizeSiteSettings = (raw: any): SiteSettings => {
+    if (!raw || typeof raw !== 'object') throw new Error('配置文件格式不正确');
+    const payload: SiteSettings = {};
+    if (raw.siteName != null) payload.siteName = String(raw.siteName);
+    if (raw.siteLogo != null) payload.siteLogo = String(raw.siteLogo);
+    if (raw.documentTitle != null) payload.documentTitle = String(raw.documentTitle);
+    if (raw.favicon != null) payload.favicon = String(raw.favicon);
+    if (raw.defaultTheme != null && ['light', 'dark', 'system'].includes(raw.defaultTheme)) {
+        payload.defaultTheme = raw.defaultTheme;
+    }
+    return payload;
+};
+
+export const SettingsPage: React.FC = () => {
+    const { user } = useAuth();
+    const queryClient = useQueryClient();
+    const { success, error } = useToast();
+    const { confirm } = useModal();
+    const siteSettingsImportInputRef = useRef<HTMLInputElement>(null);
+
+    if (user?.role !== 'admin') return <Navigate to="/admin/me/albums" replace />;
+
+    const [siteSettingsForm, setSiteSettingsForm] = useState<SiteSettings>({
+        siteName: '',
+        siteLogo: '',
+        documentTitle: '',
+        favicon: '',
+        defaultTheme: 'system',
+    });
+
+    const { data: siteSettingsData } = useQuery({
+        queryKey: ['site-settings'],
+        queryFn: async () => {
+            const res = await api.get('/admin/site-settings');
+            return res.data;
+        },
+    });
+
+    useEffect(() => {
+        if (siteSettingsData) {
+            setSiteSettingsForm({
+                siteName: siteSettingsData.siteName || '',
+                siteLogo: siteSettingsData.siteLogo || '',
+                documentTitle: siteSettingsData.documentTitle || '',
+                favicon: siteSettingsData.favicon || '',
+                defaultTheme: siteSettingsData.defaultTheme || 'system',
+            });
+        }
+    }, [siteSettingsData]);
+
+    const updateSiteSettingsMutation = useMutation({
+        mutationFn: (data: SiteSettings) => api.post('/admin/site-settings', data),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['site-settings'] });
+            queryClient.invalidateQueries({ queryKey: ['global-site-settings'] });
+            success('网站设置已保存');
+        },
+        onError: (err: any) => {
+            error(String(err?.data?.message || err?.message || '保存失败'));
+        },
+    });
+
+    const uploadFileMutation = useMutation({
+        mutationFn: async (file: File) => {
+            const formData = new FormData();
+            formData.append('file', file);
+            const res = await api.post('/admin/upload', formData);
+            return res.data.url;
+        },
+        onError: (err: any) => {
+            error(String(err?.data?.message || err?.message || '上传失败'));
+        },
+    });
+
+    const todayIso = new Date().toISOString().split('T')[0];
+
+    // Category Management Logic
+    const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+    const [editingCategory, setEditingCategory] = useState<ApiCategory | null>(null);
+    const [categoryForm, setCategoryForm] = useState({ value: '', label: '', sortOrder: 0 });
+
+    useEffect(() => {
+        if (editingCategory) {
+            setCategoryForm({
+                value: editingCategory.value,
+                label: editingCategory.label,
+                sortOrder: editingCategory.sortOrder
+            });
+        } else {
+            setCategoryForm({ value: '', label: '', sortOrder: 0 });
+        }
+    }, [editingCategory, isCategoryModalOpen]);
+
+    const { data: categories = [], isLoading: categoriesLoading } = useQuery({
+        queryKey: ['categories'],
+        queryFn: async () => {
+            const res = await api.get<ApiCategory[]>('/categories');
+            return res.data;
+        },
+    });
+
+    const createCategoryMutation = useMutation({
+        mutationFn: (body: { value: string; label: string; sortOrder: number }) => api.post('/categories', body),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['categories'] });
+            setIsCategoryModalOpen(false);
+            success('分类已添加');
+        },
+        onError: (err: any) => {
+            error(String(err?.data?.message || err?.message || '添加分类失败'));
+        }
+    });
+
+    const updateCategoryMutation = useMutation({
+        mutationFn: (data: { value: string; label: string; sortOrder: number }) => 
+            api.patch(`/categories/${data.value}`, { label: data.label, sortOrder: data.sortOrder }),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['categories'] });
+            setIsCategoryModalOpen(false);
+            success('分类已更新');
+        },
+        onError: (err: any) => {
+            error(String(err?.data?.message || err?.message || '更新分类失败'));
+        }
+    });
+
+    const deleteCategoryMutation = useMutation({
+        mutationFn: (value: string) => api.delete(`/categories/${value}`),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['categories'] });
+            success('分类已删除');
+        },
+        onError: (err: any) => {
+            error(String(err?.data?.message || err?.message || '删除分类失败'));
+        }
+    });
+
+    const handleSubmitCategory = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!categoryForm.value || !categoryForm.label) return;
+        
+        if (editingCategory) {
+            updateCategoryMutation.mutate(categoryForm);
+        } else {
+            createCategoryMutation.mutate(categoryForm);
+        }
+    };
+
+    const handleDeleteCategory = (value: string) => {
+        confirm({
+            title: '确认删除分类',
+            content: `确定要删除分类 "${value}" 吗？此操作不可恢复。`,
+            onConfirm: () => deleteCategoryMutation.mutate(value)
+        });
+    };
+
+    const openCreateModal = () => {
+        setEditingCategory(null);
+        setIsCategoryModalOpen(true);
+    };
+
+    const openEditModal = (cat: ApiCategory) => {
+        setEditingCategory(cat);
+        setIsCategoryModalOpen(true);
+    };
+
+    return (
+        <div className="space-y-8 animate-in fade-in duration-300">
+            <div>
+                <h2 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight flex items-center gap-3">
+                    <Settings className="w-8 h-8 text-primary" /> 系统设置
+                </h2>
+                <p className="text-gray-500 dark:text-gray-400 mt-2 text-sm">
+                    管理网站全局配置与备份恢复
+                </p>
+            </div>
+
+            {/* Site Settings */}
+            <div className="bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-xl p-6 shadow-sm">
+                <h3 className="font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+                    <Settings className="w-5 h-5 text-primary" />
+                    网站设置
+                </h3>
+                <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label className="text-xs text-gray-500 dark:text-gray-400 uppercase font-medium">网站名称</label>
+                            <input 
+                                type="text" 
+                                value={siteSettingsForm.siteName || ''}
+                                onChange={(e) => setSiteSettingsForm({...siteSettingsForm, siteName: e.target.value})}
+                                placeholder="显示在Header和Footer的名称"
+                                className="w-full mt-2 bg-gray-50 dark:bg-[#111a22] border border-gray-200 dark:border-surface-border rounded-lg p-3 text-gray-900 dark:text-white text-base focus:outline-none focus:border-primary"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-xs text-gray-500 dark:text-gray-400 uppercase font-medium">浏览器标题</label>
+                            <input 
+                                type="text" 
+                                value={siteSettingsForm.documentTitle || ''}
+                                onChange={(e) => setSiteSettingsForm({...siteSettingsForm, documentTitle: e.target.value})}
+                                placeholder="浏览器标签页标题"
+                                className="w-full mt-2 bg-gray-50 dark:bg-[#111a22] border border-gray-200 dark:border-surface-border rounded-lg p-3 text-gray-900 dark:text-white text-base focus:outline-none focus:border-primary"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Logo Upload */}
+                        <div>
+                            <label className="text-xs text-gray-500 dark:text-gray-400 uppercase font-medium mb-2 block">网站 Logo</label>
+                            <div className="flex items-center gap-4">
+                                {siteSettingsForm.siteLogo ? (
+                                    <div className="relative w-16 h-16 bg-gray-100 dark:bg-[#111a22] rounded-lg border border-gray-200 dark:border-surface-border flex items-center justify-center overflow-hidden">
+                                        <img src={toMediaUrl(siteSettingsForm.siteLogo)} alt="Logo" className="max-w-full max-h-full object-contain" />
+                                        <button 
+                                            type="button"
+                                            aria-label="移除网站 Logo"
+                                            onClick={() => setSiteSettingsForm({...siteSettingsForm, siteLogo: ''})}
+                                            className="absolute top-0 right-0 bg-red-500 text-white p-0.5 rounded-bl shadow-sm hover:bg-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:ring-offset-2 focus-visible:ring-offset-red-500"
+                                        >
+                                            <X className="w-3 h-3" />
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="w-16 h-16 bg-gray-50 dark:bg-[#111a22] rounded-lg border border-dashed border-gray-300 dark:border-surface-border flex items-center justify-center text-gray-400">
+                                        <ImageIcon className="w-6 h-6" />
+                                    </div>
+                                )}
+                                <div>
+                                    <label className="cursor-pointer bg-white dark:bg-surface-border text-gray-700 dark:text-gray-200 px-3 py-2 rounded-lg text-sm border border-gray-200 dark:border-surface-border hover:bg-gray-50 dark:hover:bg-[#2a4055] transition-colors inline-flex items-center gap-2">
+                                        <Upload className="w-3 h-3" />
+                                        上传图片
+                                        <input 
+                                            type="file" 
+                                            className="hidden" 
+                                            accept="image/*"
+                                            onChange={async (e) => {
+                                                if (e.target.files?.[0]) {
+                                                    try {
+                                                        const url = await uploadFileMutation.mutateAsync(e.target.files[0]);
+                                                        setSiteSettingsForm(prev => ({ ...prev, siteLogo: url }));
+                                                    } catch {}
+                                                }
+                                            }}
+                                        />
+                                    </label>
+                                    <p className="text-xs text-gray-500 mt-1">建议尺寸 64x64 或更高</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Favicon Upload */}
+                        <div>
+                            <label className="text-xs text-gray-500 dark:text-gray-400 uppercase font-medium mb-2 block">网站 Favicon</label>
+                            <div className="flex items-center gap-4">
+                                {siteSettingsForm.favicon ? (
+                                    <div className="relative w-16 h-16 bg-gray-100 dark:bg-[#111a22] rounded-lg border border-gray-200 dark:border-surface-border flex items-center justify-center overflow-hidden">
+                                        <img src={toMediaUrl(siteSettingsForm.favicon)} alt="Favicon" className="w-8 h-8 object-contain" />
+                                        <button 
+                                            type="button"
+                                            aria-label="移除网站 Favicon"
+                                            onClick={() => setSiteSettingsForm({...siteSettingsForm, favicon: ''})}
+                                            className="absolute top-0 right-0 bg-red-500 text-white p-0.5 rounded-bl shadow-sm hover:bg-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:ring-offset-2 focus-visible:ring-offset-red-500"
+                                        >
+                                            <X className="w-3 h-3" />
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="w-16 h-16 bg-gray-50 dark:bg-[#111a22] rounded-lg border border-dashed border-gray-300 dark:border-surface-border flex items-center justify-center text-gray-400">
+                                        <Settings className="w-6 h-6" />
+                                    </div>
+                                )}
+                                <div>
+                                    <label className="cursor-pointer bg-white dark:bg-surface-border text-gray-700 dark:text-gray-200 px-3 py-2 rounded-lg text-sm border border-gray-200 dark:border-surface-border hover:bg-gray-50 dark:hover:bg-[#2a4055] transition-colors inline-flex items-center gap-2">
+                                        <Upload className="w-3 h-3" />
+                                        上传图片
+                                        <input 
+                                            type="file" 
+                                            className="hidden" 
+                                            accept="image/png,image/x-icon,image/vnd.microsoft.icon,image/jpeg"
+                                            onChange={async (e) => {
+                                                if (e.target.files?.[0]) {
+                                                    try {
+                                                        const url = await uploadFileMutation.mutateAsync(e.target.files[0]);
+                                                        setSiteSettingsForm(prev => ({ ...prev, favicon: url }));
+                                                    } catch {}
+                                                }
+                                            }}
+                                        />
+                                    </label>
+                                    <p className="text-xs text-gray-500 mt-1">建议 .ico 或 .png 格式</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="text-xs text-gray-500 dark:text-gray-400 uppercase font-medium">默认主题模式</label>
+                        <div className="grid grid-cols-3 gap-2 mt-2">
+                            {[
+                                { val: 'light', label: '浅色模式', icon: Sun },
+                                { val: 'dark', label: '深色模式', icon: Moon },
+                                { val: 'system', label: '跟随系统', icon: Monitor },
+                            ].map((opt) => (
+                                <button
+                                    key={opt.val}
+                                    onClick={() => setSiteSettingsForm({...siteSettingsForm, defaultTheme: opt.val as any})}
+                                    className={`flex flex-col items-center justify-center gap-1.5 p-2 rounded-lg border transition-all ${
+                                        siteSettingsForm.defaultTheme === opt.val
+                                        ? 'bg-primary/5 border-primary text-primary ring-1 ring-primary'
+                                        : 'bg-gray-50 dark:bg-[#111a22] border-gray-200 dark:border-surface-border text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-surface-border'
+                                    }`}
+                                >
+                                    <opt.icon className="w-4 h-4" />
+                                    <span className="text-xs font-medium">{opt.label}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="pt-4 border-t border-gray-100 dark:border-surface-border flex flex-col sm:flex-row justify-end">
+                        <button
+                            onClick={() => updateSiteSettingsMutation.mutate(siteSettingsForm)}
+                            disabled={updateSiteSettingsMutation.isPending}
+                            className="w-full sm:w-auto justify-center bg-primary hover:bg-primary/90 text-white px-6 py-2.5 rounded-lg font-medium transition-all shadow-lg shadow-primary/20 flex items-center gap-2 disabled:opacity-70"
+                        >
+                            {updateSiteSettingsMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                            保存全局设置
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {/* Category Management */}
+            <div className="bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-xl p-6 shadow-sm">
+                <div className="mb-6 flex items-center justify-between">
+                    <div>
+                        <h3 className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                            <Tag className="w-5 h-5 text-primary" />
+                            分类管理
+                        </h3>
+                        <p className="text-sm text-gray-500 mt-1">定义照片的分类体系</p>
+                    </div>
+                    <button
+                        onClick={openCreateModal}
+                        className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors shadow-sm"
+                    >
+                        <Plus className="w-4 h-4" />
+                        添加分类
+                    </button>
+                </div>
+
+                <div className="overflow-x-auto">
+                    {categoriesLoading ? (
+                        <div className="text-center py-10 text-gray-500 dark:text-gray-400">
+                            <Loader2 className="inline-block w-5 h-5 animate-spin" />
+                        </div>
+                    ) : (
+                        <>
+                            {/* Desktop Table View */}
+                            <table className="hidden md:table w-full text-left text-sm">
+                                <thead className="bg-gray-50 dark:bg-[#111a22] text-gray-500 dark:text-gray-400 font-medium">
+                                    <tr>
+                                        <th className="px-4 py-3 rounded-l-lg">显示名称 (Label)</th>
+                                        <th className="px-4 py-3">系统值 (Value)</th>
+                                        <th className="px-4 py-3">排序 (Sort)</th>
+                                        <th className="px-4 py-3">照片数</th>
+                                        <th className="px-4 py-3 text-right rounded-r-lg">操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100 dark:divide-surface-border">
+                                    {categories.map((cat) => (
+                                        <tr key={cat.value} className="group hover:bg-gray-50 dark:hover:bg-[#111a22] transition-colors">
+                                            <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">
+                                                {cat.label}
+                                            </td>
+                                            <td className="px-4 py-3 font-mono text-xs text-gray-500">
+                                                {cat.value}
+                                            </td>
+                                            <td className="px-4 py-3 text-gray-500">
+                                                {cat.sortOrder}
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                                                    {cat.photoCount || 0}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-3 text-right">
+                                                <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <button
+                                                        onClick={() => openEditModal(cat)}
+                                                        className="p-1.5 text-gray-400 hover:text-primary hover:bg-primary/10 rounded-md transition-colors"
+                                                        title="编辑"
+                                                    >
+                                                        <Settings className="w-4 h-4" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDeleteCategory(cat.value)}
+                                                        disabled={cat.value === 'uncategorized'}
+                                                        className={`p-1.5 rounded-md transition-colors ${
+                                                            cat.value === 'uncategorized'
+                                                            ? 'text-gray-300 cursor-not-allowed'
+                                                            : 'text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10'
+                                                        }`}
+                                                        title="删除"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+
+                            {/* Mobile Card View */}
+                            <div className="md:hidden space-y-4">
+                                {categories.map((cat) => (
+                                    <div key={cat.value} className="bg-white dark:bg-surface-dark p-4 rounded-xl border border-gray-200 dark:border-surface-border shadow-sm">
+                                        <div className="flex justify-between items-start mb-3">
+                                            <div>
+                                                <h4 className="font-bold text-gray-900 dark:text-white">{cat.label}</h4>
+                                                <div className="text-xs font-mono text-gray-500 mt-1">{cat.value}</div>
+                                            </div>
+                                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                                                {cat.photoCount || 0} 张
+                                            </span>
+                                        </div>
+                                        
+                                        <div className="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-surface-border">
+                                            <div className="text-xs text-gray-500">
+                                                排序权重: {cat.sortOrder}
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <button
+                                                    onClick={() => openEditModal(cat)}
+                                                    className="p-2 text-gray-500 hover:text-primary bg-gray-50 dark:bg-surface-border/50 rounded-lg transition-colors"
+                                                    title="编辑"
+                                                >
+                                                    <Settings className="w-4 h-4" />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDeleteCategory(cat.value)}
+                                                    disabled={cat.value === 'uncategorized'}
+                                                    className={`p-2 rounded-lg transition-colors ${
+                                                        cat.value === 'uncategorized'
+                                                        ? 'text-gray-300 bg-gray-50 dark:bg-surface-border/50 cursor-not-allowed'
+                                                        : 'text-gray-500 hover:text-red-500 bg-gray-50 dark:bg-surface-border/50 hover:bg-red-50 dark:hover:bg-red-500/10'
+                                                    }`}
+                                                    title="删除"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </>
+                    )}
+                </div>
+            </div>
+
+            <Modal
+                isOpen={isCategoryModalOpen}
+                onClose={() => setIsCategoryModalOpen(false)}
+                title={editingCategory ? '编辑分类' : '添加分类'}
+            >
+                <form onSubmit={handleSubmitCategory} className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            显示名称 (Label)
+                        </label>
+                        <input
+                            type="text"
+                            value={categoryForm.label}
+                            onChange={(e) => setCategoryForm({ ...categoryForm, label: e.target.value })}
+                            className="w-full px-3 py-2 bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                            placeholder="例如：黑白摄影"
+                            required
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            系统值 (Value)
+                        </label>
+                        <input
+                            type="text"
+                            value={categoryForm.value}
+                            onChange={(e) => setCategoryForm({ ...categoryForm, value: e.target.value })}
+                            disabled={!!editingCategory}
+                            className={`w-full px-3 py-2 bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-mono ${
+                                editingCategory ? 'opacity-50 cursor-not-allowed bg-gray-100 dark:bg-surface-border' : ''
+                            }`}
+                            placeholder="例如：bnw (仅支持小写字母、数字、短横线)"
+                            pattern="[a-z0-9][a-z0-9_-]*"
+                            required
+                        />
+                        {editingCategory && <p className="text-xs text-gray-500 mt-1">系统值创建后不可修改</p>}
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            排序权重 (Sort Order)
+                        </label>
+                        <input
+                            type="number"
+                            value={categoryForm.sortOrder}
+                            onChange={(e) => setCategoryForm({ ...categoryForm, sortOrder: parseInt(e.target.value) || 0 })}
+                            className="w-full px-3 py-2 bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                            placeholder="0"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">数字越小越靠前</p>
+                    </div>
+                    
+                    <div className="pt-4 flex justify-end gap-3">
+                        <button
+                            type="button"
+                            onClick={() => setIsCategoryModalOpen(false)}
+                            className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-surface-border rounded-lg transition-colors"
+                        >
+                            取消
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={createCategoryMutation.isPending || updateCategoryMutation.isPending}
+                            className="px-4 py-2 text-sm font-medium bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors shadow-sm disabled:opacity-70 flex items-center gap-2"
+                        >
+                            {(createCategoryMutation.isPending || updateCategoryMutation.isPending) && (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                            )}
+                            {editingCategory ? '保存修改' : '立即创建'}
+                        </button>
+                    </div>
+                </form>
+            </Modal>
+
+            {/* Config Backup/Restore */}
+            <div className="bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-xl p-6 shadow-sm">
+                <h3 className="font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+                    <Download className="w-5 h-5 text-primary" />
+                    配置备份与恢复
+                </h3>
+                <div className="flex items-start md:items-center justify-between gap-4 flex-col md:flex-row">
+                    <div className="text-sm text-gray-600 dark:text-gray-300">
+                        导出为 JSON 备份；导入将覆盖当前全局配置。
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={() => downloadJson(siteSettingsForm, `站点配置-${todayIso}.json`)}
+                            className="px-3 py-2 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-surface-border transition-colors flex items-center gap-2"
+                        >
+                            <Download className="w-4 h-4" />
+                            导出 JSON
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => siteSettingsImportInputRef.current?.click()}
+                            className="px-3 py-2 rounded-lg text-sm font-medium bg-primary text-white hover:bg-primary/90 transition-colors flex items-center gap-2"
+                        >
+                            <Upload className="w-4 h-4" />
+                            导入并应用
+                        </button>
+                        <input
+                            ref={siteSettingsImportInputRef}
+                            type="file"
+                            accept="application/json,.json"
+                            className="hidden"
+                            onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                e.target.value = '';
+                                if (!file) return;
+                                try {
+                                    const text = await file.text();
+                                    const raw = JSON.parse(text);
+                                    const payload = normalizeSiteSettings(raw);
+                                    confirm({
+                                        title: '确认导入配置',
+                                        content: '导入后将覆盖当前网站全局配置，是否继续？',
+                                        onConfirm: () => updateSiteSettingsMutation.mutate({ ...siteSettingsForm, ...payload }),
+                                    });
+                                } catch (err: any) {
+                                    error(String(err?.message || '配置导入失败'));
+                                }
+                            }}
+                        />
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};

@@ -36,7 +36,7 @@ export const isObjectStorageEnabled = () => {
   return hasAll(requiredEnv);
 };
 
-const getS3Client = () => {
+export const getS3Client = () => {
   if (!isObjectStorageEnabled()) return null;
   const region = String(process.env.S3_REGION || 'auto');
   const endpoint = String(process.env.S3_ENDPOINT || '').trim() || undefined;

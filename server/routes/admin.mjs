@@ -73,6 +73,29 @@ export const registerAdminRoutes = async (app) => {
           documentTitle: { type: 'string' },
           favicon: { type: 'string' },
           defaultTheme: { type: 'string' },
+          about: { 
+            type: 'object',
+            properties: {
+              title: { type: 'string' },
+              subtitle: { type: 'string' },
+              intro: { type: 'string' },
+              profileTitle: { type: 'string' },
+              profileSubtitle: { type: 'string' },
+              profileBio: { type: 'string' },
+              sections: { 
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    title: { type: 'string' },
+                    content: { type: 'string' },
+                    icon: { type: 'string' }
+                  }
+                }
+              },
+              contactEmail: { type: 'string' }
+            }
+          }
         },
       },
     },
@@ -83,8 +106,8 @@ export const registerAdminRoutes = async (app) => {
         `insert into site_settings (id, data, updated_by, updated_at)
          values ('global', $1, $2, now())
          on conflict (id) do update set
-           data = $1,
-           updated_by = $2,
+           data = site_settings.data || EXCLUDED.data,
+           updated_by = EXCLUDED.updated_by,
            updated_at = now()`,
         [data, user?.id || null]
       );
@@ -107,8 +130,8 @@ export const registerAdminRoutes = async (app) => {
       
       if (isObjectStorageEnabled()) {
         const key = `uploads/${crypto.randomBytes(8).toString('hex')}.${ext}`;
-        const res = await putPhotoObject({ key, buffer, mime });
-        return { url: res.url };
+        await putPhotoObject({ key, buffer, mime });
+        return { url: `/media/s3/${key}` };
       } else {
         const id = crypto.randomBytes(8).toString('hex');
         await pool.query(
@@ -126,13 +149,54 @@ export const registerAdminRoutes = async (app) => {
       const r = await pool.query(
         `
           select
-            count(*) filter (where pc.status = 'pending' and pc.user_id is null) as "pendingGuestCount"
-          from photo_comments pc
+            count(*) as "total",
+            count(*) filter (where created_at >= current_date) as "today",
+            count(*) filter (where status = 'pending') as "pending",
+            count(*) filter (where status = 'rejected' and (review_reason is null or review_reason not ilike 'System auto-flagged%')) as "spam",
+            count(*) filter (where status = 'rejected' and review_reason ilike 'System auto-flagged%') as "suspected",
+            count(*) filter (where status = 'approved') as "approved"
+          from photo_comments
         `,
       );
+      const row = r.rows?.[0] || {};
       return {
-        pendingGuestCount: Number(r.rows?.[0]?.pendingGuestCount ?? 0) || 0,
+        total: Number(row.total || 0),
+        today: Number(row.today || 0),
+        pending: Number(row.pending || 0),
+        spam: Number(row.spam || 0),
+        suspected: Number(row.suspected || 0),
+        approved: Number(row.approved || 0),
       };
+    },
+  });
+
+  app.post('/admin/comments/actions/approve-all-pending', {
+    preHandler: requireAdmin(),
+    handler: async (req) => {
+      const user = req.authUser;
+      const r = await pool.query(
+        `
+          update photo_comments
+          set
+            status = 'approved',
+            reviewed_by = $1,
+            reviewed_at = now(),
+            review_reason = 'Batch approve all pending'
+          where status = 'pending'
+        `,
+        [user?.id || null]
+      );
+      return { ok: true, updated: r.rowCount };
+    },
+  });
+
+  app.post('/admin/comments/actions/clear-spam', {
+    preHandler: requireAdmin(),
+    handler: async () => {
+      const r = await pool.query(
+        `delete from photo_comments where status = 'rejected' and (review_reason is null or review_reason not ilike 'System auto-flagged%')`
+      );
+      return { ok: true, deleted: r.rowCount };
     },
   });
 
@@ -156,7 +220,7 @@ export const registerAdminRoutes = async (app) => {
     },
     handler: async (req) => {
       const status = String(req.query?.status ?? 'pending').trim() || 'pending';
-      const onlyGuest = parseBool(req.query?.onlyGuest, true);
+      const onlyGuest = parseBool(req.query?.onlyGuest, false);
       const photoId = String(req.query?.photoId ?? '').trim() || null;
       const userId = String(req.query?.userId ?? '').trim() || null;
       const q = String(req.query?.q ?? '').trim() || null;
@@ -165,17 +229,24 @@ export const registerAdminRoutes = async (app) => {
       const limit = Math.max(1, Math.min(200, Number(req.query?.limit ?? 50) || 50));
       const offset = Math.max(0, Number(req.query?.offset ?? 0) || 0);
 
-      const allowedStatus = new Set(['pending', 'approved', 'rejected', 'all']);
+      const allowedStatus = new Set(['pending', 'approved', 'rejected', 'suspected', 'all']);
       if (!allowedStatus.has(status)) throw badRequest('STATUS_INVALID', 'status 不合法');
 
       const where = [];
       const args = [];
       let i = 1;
 
-      if (status !== 'all') {
+      if (status === 'suspected') {
+        where.push(`pc.status = 'rejected'`);
+        where.push(`pc.review_reason ilike 'System auto-flagged%'`);
+      } else if (status === 'rejected') {
+        where.push(`pc.status = 'rejected'`);
+        where.push(`(pc.review_reason is null or pc.review_reason not ilike 'System auto-flagged%')`);
+      } else if (status !== 'all') {
         where.push(`pc.status = $${i++}`);
         args.push(status);
       }
+      
       if (onlyGuest) {
         where.push(`pc.user_id is null`);
       }
@@ -223,6 +294,10 @@ export const registerAdminRoutes = async (app) => {
             pc.id,
             pc.photo_id as "photoId",
             p.title as "photoTitle",
+            p.image_url as "photoUrl",
+            p.image_variants as "photoVariants",
+            p.created_at as "photoCreatedAt",
+            pu.name as "photoOwnerName",
             pc.content,
             pc.created_at as "createdAt",
             pc.user_id as "userId",
@@ -237,6 +312,7 @@ export const registerAdminRoutes = async (app) => {
             pc.user_agent as "userAgent"
           from photo_comments pc
           join photos p on p.id = pc.photo_id
+          left join users pu on pu.id = p.owner_user_id
           ${whereSql}
           order by pc.created_at desc
           limit $${i} offset $${i + 1}

@@ -1,6 +1,45 @@
 import { pool } from '../db.mjs';
+import { GetObjectCommand } from '@aws-sdk/client-s3';
+import { getS3Client, isObjectStorageEnabled } from '../lib/object_storage.mjs';
 
 export const registerMediaRoutes = async (app) => {
+  app.get('/media/s3/*', {
+    handler: async (req, reply) => {
+      if (!isObjectStorageEnabled()) return reply.code(404).send();
+      
+      const s3 = getS3Client();
+      if (!s3) return reply.code(404).send();
+
+      // Extract key from URL
+      // req.params['*'] is available if using wildcards properly, but let's parse req.url to be safe
+      // Fastify wildcard route matching puts the wildcard part in params['*']
+      const key = req.params['*'];
+      if (!key) return reply.code(400).send();
+
+      try {
+        const Bucket = String(process.env.S3_BUCKET);
+        const command = new GetObjectCommand({
+          Bucket,
+          Key: key,
+        });
+        const response = await s3.send(command);
+
+        if (response.ContentType) {
+          reply.type(response.ContentType);
+        }
+        
+        // AWS SDK v3 Body is a stream
+            return reply.send(response.Body);
+          } catch (err) {
+            req.log.error({ err, key, bucket: process.env.S3_BUCKET }, 'S3 proxy error');
+            if (err.name === 'NoSuchKey') {
+                return reply.code(404).send({ error: 'NoSuchKey', key });
+            }
+            return reply.code(502).send({ error: err.message });
+          }
+        }
+      });
+
   app.get('/media/photos/:id', {
     schema: {
       params: {
@@ -36,7 +75,27 @@ export const registerMediaRoutes = async (app) => {
       if (variant === 'medium' && variants.medium) targetUrl = variants.medium;
       if (variant === 'thumb' && variants.thumb) targetUrl = variants.thumb;
 
+      // Fallback: if specific variant requested but missing, try to use original if available
+      if ((variant === 'thumb' || variant === 'medium') && !targetUrl) {
+         targetUrl = photo.image_url;
+      }
+
+      // Special case: if we have local bytes and no targetUrl (or we want to serve local bytes for original),
+      // we can serve bytes. But here we handle the case where we might need to proxy.
+      
+      // If we have no targetUrl, but we have bytes, we should serve bytes regardless of variant request
+      // (effectively falling back to original bytes)
+      if (!targetUrl && photo.image_bytes) {
+         const mime = photo.image_mime || 'application/octet-stream';
+         return reply.type(mime).send(photo.image_bytes);
+      }
+
       if (!targetUrl) return reply.code(404).send();
+
+      // Handle relative URLs (local files) by redirecting
+      if (!targetUrl.startsWith('http')) {
+        return reply.redirect(targetUrl);
+      }
 
       // Proxy the external URL to ensure CORS headers are handled by our server
       try {

@@ -18,14 +18,10 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
   const titleId = useId();
   const contentId = useId();
 
+  // Focus management and body scroll locking
   useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-
     if (isOpen) {
       restoreFocusRef.current = document.activeElement as HTMLElement | null;
-      document.addEventListener('keydown', handleEscape);
       document.body.style.overflow = 'hidden';
       window.setTimeout(() => {
         closeButtonRef.current?.focus();
@@ -33,11 +29,25 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
     }
 
     return () => {
-      document.removeEventListener('keydown', handleEscape);
       document.body.style.overflow = 'unset';
       window.setTimeout(() => {
         restoreFocusRef.current?.focus?.();
       }, 0);
+    };
+  }, [isOpen]);
+
+  // Keyboard event listener
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+
+    if (isOpen) {
+      document.addEventListener('keydown', handleEscape);
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleEscape);
     };
   }, [isOpen, onClose]);
 

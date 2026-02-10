@@ -1,0 +1,67 @@
+name: system-test
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch: {}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: phowson
+          POSTGRES_PASSWORD: phowson
+          POSTGRES_DB: phowson
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U phowson -d phowson"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      DATABASE_URL: postgresql://phowson:phowson@localhost:5432/phowson
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - name: 安装依赖
+        run: pnpm install
+      - name: 数据库迁移
+        run: pnpm db:migrate
+      - name: 启动后端
+        run: |
+          pnpm dev:server > backend.log 2>&1 &
+          for i in {1..20}; do
+            if curl -s http://localhost:3001/health | grep -q "ok"; then
+              echo "后端已就绪"
+              break
+            fi
+            if [ "$i" = "20" ]; then
+              echo "后端启动超时"
+              tail -200 backend.log || true
+              exit 1
+            fi
+            sleep 1
+          done
+      - name: 运行系统测试并生成报告
+        run: pnpm test:full
+      - name: 类型检查
+        run: pnpm typecheck
+      - name: 前端构建
+        run: pnpm build
+      - name: 上传测试报告
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: reports/test-report-*.md
