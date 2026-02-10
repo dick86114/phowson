@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { HashRouter, Routes, Route, useLocation, useNavigationType, Navigate } from 'react-router-dom';
-import { Header, Footer } from './components/Layout';
+import { Header, Footer, MobileBottomNav } from './components/Layout';
 import { Home } from './pages/Home';
 import { PhotoDetail } from './pages/PhotoDetail';
 import { Admin } from './pages/Admin';
@@ -77,6 +77,7 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 {!isStandalonePage && <Header />}
                 {children}
                 {!isStandalonePage && <Footer />}
+                {!isStandalonePage && <MobileBottomNav />}
             </div>
         </ToastProvider>
     );

@@ -44,7 +44,7 @@ const getFirstDayOfMonth = (year: number, month: number) => {
   return new Date(year, month, 1).getDay();
 };
 
-export const Heatmap: React.FC<HeatmapProps & { variant?: 'scroll' | 'grid' }> = ({ 
+export const Heatmap: React.FC<HeatmapProps & { variant?: 'scroll' | 'grid' | 'compact' }> = ({ 
   data, 
   year, 
   onYearChange,
@@ -103,7 +103,7 @@ export const Heatmap: React.FC<HeatmapProps & { variant?: 'scroll' | 'grid' }> =
 
   // Drag to scroll logic
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (variant === 'grid') return;
+    if (variant === 'grid' || variant === 'compact') return;
     setIsDragging(true);
     setStartX(e.pageX - (scrollContainerRef.current?.offsetLeft || 0));
     setScrollLeft(scrollContainerRef.current?.scrollLeft || 0);
@@ -118,7 +118,7 @@ export const Heatmap: React.FC<HeatmapProps & { variant?: 'scroll' | 'grid' }> =
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging || variant === 'grid') return;
+    if (!isDragging || variant === 'grid' || variant === 'compact') return;
     e.preventDefault();
     const x = e.pageX - (scrollContainerRef.current?.offsetLeft || 0);
     const walk = (x - startX) * 2; // Scroll speed multiplier
@@ -173,23 +173,28 @@ export const Heatmap: React.FC<HeatmapProps & { variant?: 'scroll' | 'grid' }> =
         onMouseUp={handleMouseUp}
         onMouseMove={handleMouseMove}
       >
-        <div className={variant === 'scroll' 
-          ? "flex gap-2 pb-2 min-w-max"
-          : "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+        <div className={
+          variant === 'scroll' ? "flex gap-2 pb-2 min-w-max" :
+          variant === 'compact' ? "grid grid-cols-3 gap-x-2 gap-y-4" :
+          "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
         }>
           {months.map((month) => (
             <div 
               key={month.name}
-              className={`${variant === 'scroll' ? 'w-40' : 'w-full'} bg-white dark:bg-surface-dark rounded-lg border border-gray-200 dark:border-surface-border p-3 flex-shrink-0`}
+              className={
+                variant === 'scroll' ? 'w-40 bg-white dark:bg-surface-dark rounded-lg border border-gray-200 dark:border-surface-border p-3 flex-shrink-0' :
+                variant === 'compact' ? 'w-full flex-shrink-0' :
+                'w-full bg-white dark:bg-surface-dark rounded-lg border border-gray-200 dark:border-surface-border p-3 flex-shrink-0'
+              }
             >
-              <h4 className="text-xs font-bold text-gray-900 dark:text-white mb-2">
-                {month.fullDate}
+              <h4 className={`font-bold text-gray-900 dark:text-white ${variant === 'compact' ? 'text-[10px] mb-1 text-center' : 'text-xs mb-2'}`}>
+                {variant === 'compact' ? month.name : month.fullDate}
               </h4>
               
               <div className="grid grid-cols-7 gap-1">
                 {/* Day Headers */}
                 {dayNames.map(d => (
-                  <div key={d} className="text-[10px] text-gray-400 text-center mb-1">
+                  <div key={d} className={`text-gray-400 text-center ${variant === 'compact' ? 'text-[8px] mb-0.5 scale-90' : 'text-[10px] mb-1'}`}>
                     {d}
                   </div>
                 ))}
@@ -199,7 +204,7 @@ export const Heatmap: React.FC<HeatmapProps & { variant?: 'scroll' | 'grid' }> =
                   <div key={idx} className="aspect-square">
                     {day ? (
                       <div
-                        className={`w-full h-full rounded-[2px] transition-transform hover:scale-110 ${getColor(day.level)}`}
+                        className={`w-full h-full rounded-[1px] transition-transform hover:scale-110 ${getColor(day.level)}`}
                         title={`${day.date}: ${day.count} 张照片`}
                       />
                     ) : (

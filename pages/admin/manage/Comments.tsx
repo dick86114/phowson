@@ -5,7 +5,7 @@ import {
     Search, Check, X, Trash2, AlertCircle, Languages, RotateCcw,
     MoreHorizontal, ShieldCheck, Zap, Settings,
     FileText, Calendar, User as UserIcon, Mail,
-    CheckCircle2, AlertOctagon, ImageIcon, Ban
+    CheckCircle2, AlertOctagon, ImageIcon, Ban, MessageSquare
 } from 'lucide-react';
 import { API_BASE_URL } from '../../../api';
 import api from '../../../api';
@@ -245,7 +245,10 @@ export const Comments = () => {
                 {/* Header */}
                 <div className="flex items-center justify-between mb-8">
                     <div>
-                        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">评论管理</h1>
+                        <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight flex items-center gap-3">
+                            <MessageSquare className="w-8 h-8 text-primary" />
+                            评论管理
+                        </h1>
                         <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">
                             处理来自全球创作者社区的反馈与交流
                         </p>

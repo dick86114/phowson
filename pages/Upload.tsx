@@ -561,12 +561,12 @@ export const Upload: React.FC = () => {
             if (data.exif && typeof data.exif === 'object') {
                 setExif(prev => ({
                     ...prev,
-                    camera: data.exif.camera ?? prev.camera,
-                    lens: data.exif.lens ?? prev.lens,
-                    aperture: data.exif.aperture ?? prev.aperture,
-                    shutterSpeed: data.exif.shutterSpeed ?? prev.shutterSpeed,
-                    iso: data.exif.iso ?? prev.iso,
-                    focalLength: data.exif.focalLength ?? prev.focalLength,
+                    camera: prev.camera || data.exif.camera,
+                    lens: prev.lens || data.exif.lens,
+                    aperture: prev.aperture || data.exif.aperture,
+                    shutterSpeed: prev.shutterSpeed || data.exif.shutterSpeed,
+                    iso: prev.iso || data.exif.iso,
+                    focalLength: prev.focalLength || data.exif.focalLength,
                 }));
             }
 
@@ -620,7 +620,7 @@ export const Upload: React.FC = () => {
             } else {
                 await api.post('/photos', formData);
             }
-            navigate('/admin');
+            navigate(-1);
         } catch (error) {
             console.error('Upload failed:', error);
             const err: any = error;
@@ -825,7 +825,7 @@ export const Upload: React.FC = () => {
                                         ) : (
                                             <Sparkles className="w-4 h-4" />
                                         )}
-                                        {isAnalyzing ? 'AI 识别中...' : (aiStatus?.enabled === false ? 'AI 未配置' : 'AI 智能填单')}
+                                        {isAnalyzing ? 'AI 识别中...' : (aiStatus?.enabled === false ? 'AI 未配置' : 'AI 智能识别')}
                                     </button>
                                 </div>
                             ) : (

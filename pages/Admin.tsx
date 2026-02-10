@@ -591,65 +591,59 @@ export const Admin: React.FC<{ hideLayout?: boolean }> = ({ hideLayout }) => {
                         </div>
                     </div>
 
-                    <div className="space-y-6 mb-10">
-                        <div className="flex items-center gap-2">
-                            <Sparkles className="w-5 h-5 text-red-500" />
-                            <h3 className="text-xl font-bold text-gray-900 dark:text-white">那年今日</h3>
-                            <span className="text-gray-400 dark:text-gray-500 text-sm font-medium ml-2">在那一年的今天...</span>
-                        </div>
-                        
-                        {meOnThisDayLoading ? (
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                {[1, 2, 3].map(i => (
-                                    <div key={i} className="aspect-video bg-gray-100 dark:bg-surface-border rounded-2xl animate-pulse" />
-                                ))}
+                        {!meOnThisDayLoading && !meOnThisDayError && (meOnThisDayPage?.items || []).length === 0 ? null : (
+                        <div className="space-y-6 mb-10">
+                            <div className="flex items-center gap-2">
+                                <Sparkles className="w-5 h-5 text-blue-500" />
+                                <h3 className="text-xl font-bold text-gray-900 dark:text-white">那年今日</h3>
+                                <span className="text-gray-400 dark:text-gray-500 text-sm font-medium ml-2">在那一年的今天...</span>
                             </div>
-                        ) : meOnThisDayError ? (
-                            <ErrorState onRetry={() => refetchMeOnThisDay()} />
-                        ) : (meOnThisDayPage?.items || []).length === 0 ? (
-                            <div className="bg-gray-50 dark:bg-surface-dark/50 border border-dashed border-gray-200 dark:border-surface-border rounded-2xl p-8 text-center">
-                                <div className="mx-auto w-12 h-12 bg-gray-100 dark:bg-surface-border rounded-full flex items-center justify-center mb-3">
-                                    <Calendar className="w-6 h-6 text-gray-400" />
+                            
+                            {meOnThisDayLoading ? (
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                    {[1, 2, 3].map(i => (
+                                        <div key={i} className="aspect-video bg-gray-100 dark:bg-surface-border rounded-2xl animate-pulse" />
+                                    ))}
                                 </div>
-                                <h3 className="text-sm font-medium text-gray-900 dark:text-white">今天暂无旧照</h3>
-                                <p className="text-xs text-gray-500 mt-1">上传更多照片，记录每一个今天。</p>
-                            </div>
-                        ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {(meOnThisDayPage?.items || []).slice(0, 3).map((p: any) => {
-                                    const date = new Date(p.createdAt);
-                                    const today = new Date();
-                                    const yearsAgo = today.getFullYear() - date.getFullYear();
-                                    
-                                    return (
-                                        <Link
-                                            key={p.id}
-                                            to={`/photo/${p.id}`}
-                                            className="group relative aspect-video bg-gray-900 rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 ring-1 ring-black/5"
-                                        >
-                                            <img
-                                                src={getPhotoUrl(p, 'medium')}
-                                                alt={p.title}
-                                                className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 opacity-90 group-hover:opacity-100"
-                                                loading="lazy"
-                                            />
-                                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-80" />
-                                            
-                                            <div className="absolute bottom-0 left-0 p-6 text-white">
-                                                <div className="text-xs font-medium text-white/80 mb-1 flex items-center gap-1.5">
-                                                    <span className="w-1.5 h-1.5 rounded-full bg-white/60"></span>
-                                                    {yearsAgo > 0 ? `${yearsAgo}年前的今天` : '那一年的今天'}
+                            ) : meOnThisDayError ? (
+                                <ErrorState onRetry={() => refetchMeOnThisDay()} />
+                            ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    {(meOnThisDayPage?.items || []).slice(0, 3).map((p: any) => {
+                                        const date = new Date(p.createdAt);
+                                        const today = new Date();
+                                        const yearsAgo = today.getFullYear() - date.getFullYear();
+                                        
+                                        return (
+                                            <Link
+                                                key={p.id}
+                                                to={`/photo/${p.id}`}
+                                                className="group relative aspect-video bg-gray-900 rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 ring-1 ring-black/5"
+                                            >
+                                                <img
+                                                    src={getPhotoUrl(p, 'medium')}
+                                                    alt={p.title}
+                                                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 opacity-90 group-hover:opacity-100"
+                                                    loading="lazy"
+                                                />
+                                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-80" />
+                                                
+                                                <div className="absolute bottom-0 left-0 p-6 text-white">
+                                                    <div className="text-xs font-medium text-white/80 mb-1 flex items-center gap-1.5">
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-white/60"></span>
+                                                        {yearsAgo > 0 ? `${yearsAgo}年前的今天` : '那一年的今天'}
+                                                    </div>
+                                                    <div className="text-xl font-bold tracking-tight">
+                                                        {date.getFullYear()}年{date.getMonth() + 1}月{date.getDate()}日
+                                                    </div>
                                                 </div>
-                                                <div className="text-xl font-bold tracking-tight">
-                                                    {date.getFullYear()}年{date.getMonth() + 1}月{date.getDate()}日
-                                                </div>
-                                            </div>
-                                        </Link>
-                                    );
-                                })}
-                            </div>
+                                            </Link>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
                         )}
-                    </div>
 
                     <div className="space-y-6">
                         <div className="flex items-center justify-between">
@@ -857,7 +851,7 @@ export const Admin: React.FC<{ hideLayout?: boolean }> = ({ hideLayout }) => {
                         <div>
                             <h2 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight flex items-center gap-3">
                                 <Activity className="w-8 h-8 text-primary" />
-                                历史上传
+                                我的历史
                             </h2>
                             <p className="text-gray-500 dark:text-gray-400 mt-2 text-sm">
                                 回顾您的上传历程与点滴。
@@ -964,11 +958,11 @@ export const Admin: React.FC<{ hideLayout?: boolean }> = ({ hideLayout }) => {
 
             {/* --- SETTINGS TAB (ME PROFILE) --- */}
             {activeTab === 'settings' && isMeProfileRoute && (
-                <div className="max-w-2xl mx-auto space-y-8 animate-in fade-in duration-300">
+                <div className="space-y-6 animate-in fade-in duration-300">
                      <div>
                         <h2 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight flex items-center gap-3">
                             <UserIcon className="w-8 h-8 text-primary" />
-                            个人资料
+                            我的资料
                         </h2>
                         <p className="text-gray-500 dark:text-gray-400 mt-2 text-sm">
                             管理您的个人信息与安全设置。

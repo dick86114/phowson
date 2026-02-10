@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Share2, Heart, MessageCircle, MoreHorizontal, Send, Bookmark, Maximize2, X, ZoomIn, ZoomOut, Download, RefreshCcw, Sparkles, Loader2, Monitor, HardDrive, RefreshCw, LogIn, ChevronDown, ChevronUp, MapPin, Camera, Disc, Timer, Aperture, Zap } from 'lucide-react';
+import { ArrowLeft, Share2, Heart, MessageCircle, MoreHorizontal, Send, Bookmark, Maximize2, X, ZoomIn, ZoomOut, Download, RefreshCcw, Sparkles, Loader2, Monitor, HardDrive, RefreshCw, LogIn, ChevronDown, ChevronUp, MapPin, Camera, Disc, Timer, Aperture, Zap, ImageIcon } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { TransformWrapper, TransformComponent, useControls, useTransformComponent } from "react-zoom-pan-pinch";
 import api, { API_BASE_URL } from '../api';
@@ -254,7 +254,30 @@ export const PhotoDetail: React.FC = () => {
                                     <img src={getAvatarUrl(photo.user)} alt={photo.user.name} className="w-10 h-10 rounded-full border border-gray-200 dark:border-surface-border" />
                                     <div>
                                         <p className="text-sm font-medium text-gray-900 dark:text-white">{photo.user.name}</p>
-                                        <p className="text-xs text-gray-500">发布于 {new Date(photo.createdAt).toLocaleDateString()}</p>
+                                        <div className="flex items-center gap-2 text-xs text-gray-500 mt-0.5">
+                                            <span>发布于 {new Date(photo.createdAt).toLocaleDateString()}</span>
+                                            
+                                            {/* Location Info */}
+                                            {((photo.lat != null && photo.lng != null) || exif.location) && (
+                                                <>
+                                                    <span className="w-0.5 h-0.5 rounded-full bg-gray-400"></span>
+                                                    <div className="flex items-center gap-1">
+                                                        <MapPin className="w-3 h-3" />
+                                                        {photo.lat != null && photo.lng != null ? (
+                                                            <Link 
+                                                                to={`/map?lat=${photo.lat}&lng=${photo.lng}&id=${photo.id}`}
+                                                                className="hover:text-primary transition-colors hover:underline truncate max-w-[150px]"
+                                                                title="在地图上查看"
+                                                            >
+                                                                 {exif.location || `${photo.lat.toFixed(4)}, ${photo.lng.toFixed(4)}`}
+                                                            </Link>
+                                                        ) : (
+                                                            <span className="truncate max-w-[150px]">{exif.location}</span>
+                                                        )}
+                                                    </div>
+                                                </>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -317,49 +340,26 @@ export const PhotoDetail: React.FC = () => {
                             <div className="space-y-3 border-t border-gray-200 dark:border-surface-border pt-6">
                                 <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">拍摄参数</h3>
                                 <div className="space-y-4">
-                                    {/* Row 1: Camera & Location */}
+                                    {/* Row 1: Camera & Lens */}
                                     <div className="grid grid-cols-2 gap-4">
                                         <PhotoExifBadge 
                                             icon={<Camera className="w-4 h-4"/>} 
                                             label="相机" 
                                             value={exif.camera || '未知'} 
                                         />
-                                        {photo.lat != null && photo.lng != null ? (
-                                            <Link 
-                                                to={`/map?lat=${photo.lat}&lng=${photo.lng}&id=${photo.id}`}
-                                                className="block rounded-lg transition-all hover:bg-gray-50 dark:hover:bg-white/5"
-                                                title="在地图上查看"
-                                            >
-                                                <div className="flex items-center gap-3">
-                                                    <div className="p-2 rounded-lg bg-gray-100 dark:bg-surface-dark text-primary border border-gray-200 dark:border-surface-border">
-                                                        <MapPin className="w-4 h-4"/>
-                                                    </div>
-                                                    <div className="flex flex-col">
-                                                        <span className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
-                                                            拍摄地点
-                                                            <span className="text-[10px] bg-primary/10 text-primary px-1 rounded">MAP</span>
-                                                        </span>
-                                                        <span className="text-sm font-semibold text-gray-900 dark:text-white truncate max-w-[120px] sm:max-w-[180px]">
-                                                            {exif.location || `${photo.lat.toFixed(4)}, ${photo.lng.toFixed(4)}`}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </Link>
-                                        ) : (
-                                            <PhotoExifBadge 
-                                                icon={<MapPin className="w-4 h-4"/>} 
-                                                label="拍摄地点" 
-                                                value={exif.location || '未知'} 
-                                            />
-                                        )}
-                                    </div>
-
-                                    {/* Row 2: Lens, Shutter, Aperture, ISO */}
-                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                                         <PhotoExifBadge 
                                             icon={<Disc className="w-4 h-4"/>} 
                                             label="镜头" 
                                             value={exif.lens || '未知'} 
+                                        />
+                                    </div>
+
+                                    {/* Row 2: Aperture, Shutter, ISO, Focal Length */}
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                                        <PhotoExifBadge 
+                                            icon={<Aperture className="w-4 h-4"/>} 
+                                            label="光圈" 
+                                            value={exif.aperture || '未知'} 
                                         />
                                         <PhotoExifBadge 
                                             icon={<Timer className="w-4 h-4"/>} 
@@ -367,14 +367,14 @@ export const PhotoDetail: React.FC = () => {
                                             value={exif.shutterSpeed || '未知'} 
                                         />
                                         <PhotoExifBadge 
-                                            icon={<Aperture className="w-4 h-4"/>} 
-                                            label="光圈" 
-                                            value={exif.aperture || '未知'} 
-                                        />
-                                        <PhotoExifBadge 
                                             icon={<Zap className="w-4 h-4"/>} 
                                             label="感光度" 
                                             value={exif.iso || '未知'} 
+                                        />
+                                        <PhotoExifBadge 
+                                            icon={<ImageIcon className="w-4 h-4"/>} 
+                                            label="焦段" 
+                                            value={exif.focalLength || '未知'} 
                                         />
                                     </div>
 

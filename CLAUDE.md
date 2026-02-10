@@ -8,3 +8,5 @@
 - 照片上传流程必须在选择文件时立即解析 GPS 并逆地理编码，不可推迟到发布时。
 - AI 填单逻辑必须优先使用 GPS 逆地理编码结果，仅在无 GPS 时才允许 AI 推断地点。
 - 前端 ModalContext 的 alert 方法仅接受字符串参数，禁止传入对象，以防止白屏崩溃。
+- Admin后台页面标题需统一风格：使用 text-3xl font-extrabold tracking-tight 并搭配 w-8 h-8 text-primary 图标，与个人菜单保持一致。
+- 编辑页面（如 Upload/Edit）保存后应使用 navigate(-1) 返回上一页，避免强制跳转到特定页面中断用户流程。

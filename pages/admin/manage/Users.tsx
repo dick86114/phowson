@@ -496,11 +496,14 @@ export const UsersPage: React.FC = () => {
     };
 
     return (
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 p-6">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 animate-in fade-in duration-300">
             {/* Main Content */}
             <div className="lg:col-span-3 space-y-6">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white">用户管理</h1>
+                    <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight flex items-center gap-3">
+                        <Users className="w-8 h-8 text-primary" />
+                        用户管理
+                    </h1>
                     <button
                         onClick={() => handleOpenUserModal()}
                         className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2 transition-colors shadow-sm"

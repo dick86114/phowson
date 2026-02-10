@@ -70,11 +70,11 @@ export const AdminLayout: React.FC = () => {
     ];
 
     const adminMenuItems = isAdmin ? [
-        { key: 'manage_photos', label: '全站照片', icon: ImageIcon, to: '/admin/manage/photos' },
-        { key: 'manage_analytics', label: '数据统计', icon: BarChart3, to: '/admin/manage/analytics' },
+        { key: 'manage_photos', label: '全站照片管理', icon: ImageIcon, to: '/admin/manage/photos' },
+        { key: 'manage_analytics', label: '全站数据统计', icon: BarChart3, to: '/admin/manage/analytics' },
         { key: 'manage_comments', label: '评论管理', icon: MessageSquare, to: '/admin/manage/comments', badge: commentSummary?.pending || 0 },
         { key: 'manage_users', label: '用户管理', icon: Users, to: '/admin/manage/users' },
-        { key: 'manage_about', label: '关于设置', icon: Info, to: '/admin/manage/about' },
+        { key: 'manage_about', label: '关于页面设置', icon: Info, to: '/admin/manage/about' },
         { key: 'manage_settings', label: '系统设置', icon: Settings, to: '/admin/manage/settings' },
     ] : [];
 

@@ -351,7 +351,10 @@ export const AnalyticsPage: React.FC = () => {
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white">全站数据统计</h2>
+                    <h2 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight flex items-center gap-3">
+                        <BarChart2 className="w-8 h-8 text-primary" />
+                        全站数据统计
+                    </h2>
                     <p className="text-gray-500 dark:text-gray-400 mt-1">实时监控平台增长与用户活跃状态</p>
                 </div>
                 <div className="flex items-center gap-3">

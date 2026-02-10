@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Save, Loader2, Plus, Trash2, Camera, Upload, X, ImageIcon } from 'lucide-react';
+import { Save, Loader2, Plus, Trash2, Camera, Upload, X, ImageIcon, Info } from 'lucide-react';
 import api from '../../../api';
 import { useSiteSettings } from '../../../SiteSettingsContext';
 import { useToast } from '../../../components/Toast';
@@ -125,9 +125,12 @@ export const AboutSettings: React.FC = () => {
     };
 
     return (
-        <div className="max-w-4xl mx-auto space-y-6">
+        <div className="space-y-6 animate-in fade-in duration-300">
             <div>
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">关于页面设置</h1>
+                <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight flex items-center gap-3">
+                    <Info className="w-8 h-8 text-primary" />
+                    关于页面设置
+                </h1>
                 <p className="text-gray-500 dark:text-gray-400 mt-1">管理关于页面的显示内容</p>
             </div>
 

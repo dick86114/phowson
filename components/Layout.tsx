@@ -1,5 +1,5 @@
 import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { Camera, Search, Menu, X, Instagram, Twitter, Mail, LogIn, Sun, Moon, Monitor, Heart, Trophy, LayoutDashboard, LogOut, ChevronDown } from 'lucide-react';
+import { Camera, Search, Menu, X, Instagram, Twitter, Mail, LogIn, Sun, Moon, Monitor, Heart, Trophy, LayoutDashboard, LogOut, ChevronDown, Image as ImageIcon, MapPin, BookOpen, Info } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { API_BASE_URL } from '../api';
@@ -11,6 +11,7 @@ export const Header: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
@@ -27,6 +28,7 @@ export const Header: React.FC = () => {
   const handleSearch = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       navigate(`/?q=${encodeURIComponent(searchQuery)}`);
+      setIsSearchOpen(false);
     }
   };
 
@@ -87,7 +89,14 @@ export const Header: React.FC = () => {
   }, [isUserMenuOpen]);
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-gray-200 dark:border-surface-border bg-white/90 dark:bg-[#111a22]/90 backdrop-blur-md transition-colors duration-300">
+    <header 
+        className="sticky top-0 z-50 w-full border-b border-gray-200 dark:border-surface-border bg-gradient-to-b from-white/95 via-white/70 to-transparent dark:from-[#111a22]/95 dark:via-[#111a22]/70 dark:to-transparent backdrop-blur-sm transition-colors duration-300"
+        onDoubleClick={() => {
+            if (window.innerWidth < 768) { // Only on mobile
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        }}
+    >
       <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center">
           <div className="flex-1 flex items-center gap-2">
@@ -130,10 +139,19 @@ export const Header: React.FC = () => {
                 onClick={toggleTheme}
                 type="button"
                 aria-label="切换主题"
-                className="p-2 text-gray-600 dark:text-gray-300 hover:text-primary hover:bg-gray-100 dark:hover:bg-surface-dark rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-[#111a22]"
+                className="hidden md:flex p-2 text-gray-600 dark:text-gray-300 hover:text-primary hover:bg-gray-100 dark:hover:bg-surface-dark rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-[#111a22]"
                 title={`当前模式：${theme === 'system' ? '跟随系统' : theme === 'light' ? '浅色' : '深色'}`}
             >
                 <ThemeIcon />
+            </button>
+
+            <button 
+                onClick={() => setIsSearchOpen(!isSearchOpen)}
+                type="button"
+                aria-label="搜索"
+                className="md:hidden p-2 text-gray-600 dark:text-gray-300 hover:text-primary hover:bg-gray-100 dark:hover:bg-surface-dark rounded-full transition-colors"
+            >
+                <Search className="w-5 h-5" />
             </button>
             
             {currentUser ? (
@@ -252,25 +270,39 @@ export const Header: React.FC = () => {
         </div>
       </div>
 
+      {/* Mobile Search Bar */}
+      {isSearchOpen && (
+        <div className="md:hidden border-b border-gray-200 dark:border-surface-border bg-white dark:bg-background-dark p-4 animate-in slide-in-from-top-2">
+            <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={handleSearch}
+                    autoFocus
+                    placeholder="搜索照片..."
+                    className="w-full rounded-lg border border-gray-200 dark:border-surface-border bg-gray-100 dark:bg-surface-dark py-2 pl-10 pr-4 text-sm text-gray-900 dark:text-white placeholder-gray-500 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+            </div>
+        </div>
+      )}
+
       {/* Mobile Menu */}
       {isMenuOpen && (
         <div className="md:hidden border-t border-gray-200 dark:border-surface-border bg-white dark:bg-background-dark">
           <div className="space-y-1 px-4 pb-3 pt-2">
-            <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={handleSearch}
-                placeholder="搜索照片..."
-                className="w-full rounded-lg border border-gray-200 dark:border-surface-border bg-gray-100 dark:bg-surface-dark py-2 px-4 text-sm text-gray-900 dark:text-white placeholder-gray-500 mb-3 focus:border-primary focus:outline-none"
-            />
-            <Link to="/" onClick={() => setIsMenuOpen(false)} className="block py-2 text-base font-medium text-gray-900 dark:text-white">画廊</Link>
-            <Link to="/map" onClick={() => setIsMenuOpen(false)} className="block py-2 text-base font-medium text-gray-600 dark:text-gray-300">地图</Link>
-            <Link to="/stories" onClick={() => setIsMenuOpen(false)} className="block py-2 text-base font-medium text-gray-600 dark:text-gray-300">故事</Link>
-            <Link to="/about" onClick={() => setIsMenuOpen(false)} className="block py-2 text-base font-medium text-gray-600 dark:text-gray-300">关于</Link>
+            <div className="flex items-center justify-between py-2 mb-2 border-b border-gray-100 dark:border-surface-border/60">
+                <span className="text-sm font-medium text-gray-500 dark:text-gray-400">主题模式</span>
+                <button 
+                    onClick={toggleTheme}
+                    className="p-2 bg-gray-100 dark:bg-surface-dark rounded-lg text-gray-600 dark:text-gray-300 hover:text-primary transition-colors"
+                >
+                    <ThemeIcon />
+                </button>
+            </div>
             {currentUser ? (
               <>
-                <div className="pt-2 mt-2 border-t border-gray-200 dark:border-surface-border" />
                 <Link to="/gamification" onClick={() => setIsMenuOpen(false)} className="block py-2 text-base font-medium text-gray-600 dark:text-gray-300">成就</Link>
                 <Link to="/admin" onClick={() => setIsMenuOpen(false)} className="block py-2 text-base font-medium text-gray-600 dark:text-gray-300">管理后台</Link>
                 <button
@@ -298,10 +330,10 @@ export const Header: React.FC = () => {
 export const Footer: React.FC = () => {
     const settings = useSiteSettings();
     return (
-        <footer className="bg-white dark:bg-[#111a22] border-t border-gray-200 dark:border-surface-border transition-colors duration-300">
-            <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <footer className="bg-white dark:bg-[#111a22] border-t border-gray-200 dark:border-surface-border transition-colors duration-300 pb-20 md:pb-0">
+            <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
-                    <div className="col-span-1 md:col-span-1 space-y-4">
+                    <div className="col-span-1 md:col-span-1 space-y-4 flex flex-col items-center md:items-start text-center md:text-left">
                         <Link to="/" className="flex items-center gap-2 text-gray-900 dark:text-white hover:text-primary transition-colors">
                             {settings.siteLogo ? (
                                 <img src={toMediaUrl(settings.siteLogo)} alt="Logo" className="w-8 h-8 object-contain" />
@@ -312,13 +344,13 @@ export const Footer: React.FC = () => {
                             )}
                             <span className="text-lg font-bold tracking-tight">{settings.siteName || 'Phowson'}</span>
                         </Link>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+                        <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed hidden md:block">
                             记录光影，讲述故事。<br/>
                             专注于高画质摄影作品展示与分享。
                         </p>
                     </div>
                     
-                    <div>
+                    <div className="hidden md:block">
                         <h3 className="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wider mb-4">探索</h3>
                         <ul className="space-y-3">
                             <li><Link to="/" className="text-sm text-gray-500 dark:text-gray-400 hover:text-primary transition-colors">最新画廊</Link></li>
@@ -326,7 +358,7 @@ export const Footer: React.FC = () => {
                         </ul>
                     </div>
 
-                    <div>
+                    <div className="hidden md:block">
                         <h3 className="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wider mb-4">关于</h3>
                         <ul className="space-y-3">
                             <li><Link to="/about" className="text-sm text-gray-500 dark:text-gray-400 hover:text-primary transition-colors">关于摄影师</Link></li>
@@ -335,7 +367,7 @@ export const Footer: React.FC = () => {
                         </ul>
                     </div>
 
-                    <div>
+                    <div className="hidden md:block">
                         <h3 className="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wider mb-4">关注</h3>
                         <div className="flex gap-4">
                             <a href="#" className="text-gray-400 hover:text-primary transition-colors"><Instagram className="w-5 h-5" /></a>
@@ -357,5 +389,38 @@ export const Footer: React.FC = () => {
                 </div>
             </div>
         </footer>
+    );
+};
+
+export const MobileBottomNav: React.FC = () => {
+    const location = useLocation();
+    const isActive = (path: string) => location.pathname === path;
+    
+    const navItems = [
+        { label: '画廊', path: '/', icon: ImageIcon },
+        { label: '地图', path: '/map', icon: MapPin },
+        { label: '故事', path: '/stories', icon: BookOpen },
+        { label: '关于', path: '/about', icon: Info },
+    ];
+    
+    return (
+        <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/90 dark:bg-[#111a22]/90 backdrop-blur-md border-t border-gray-200 dark:border-surface-border pb-safe">
+            <div className="flex items-center justify-around h-16">
+                {navItems.map(item => (
+                    <Link 
+                        key={item.path} 
+                        to={item.path}
+                        className={`flex flex-col items-center justify-center w-full h-full space-y-1 active:scale-95 transition-transform ${
+                            isActive(item.path) 
+                                ? 'text-primary' 
+                                : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                        }`}
+                    >
+                        <item.icon className="w-6 h-6" />
+                        <span className="text-[10px] font-medium">{item.label}</span>
+                    </Link>
+                ))}
+            </div>
+        </div>
     );
 };

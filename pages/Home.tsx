@@ -79,6 +79,11 @@ export const Home: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [isSearching, setIsSearching] = useState(false);
     
+    // Mobile Modal States
+    const [showMobileFilter, setShowMobileFilter] = useState(false);
+    const [showMobileSort, setShowMobileSort] = useState(false);
+    const [showMobileHeatmap, setShowMobileHeatmap] = useState(false);
+
     // Heatmap State
     const [heatmapYear, setHeatmapYear] = useState(new Date().getFullYear());
 
@@ -204,40 +209,59 @@ export const Home: React.FC = () => {
                     <div className="absolute inset-0 flex flex-col justify-end p-8 lg:p-16 max-w-[1920px] mx-auto w-full">
                         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
                             <div className="max-w-2xl space-y-4">
-                                <div className="inline-flex items-center gap-2 rounded-full bg-primary/20 backdrop-blur-sm border border-primary/30 px-3 py-1 text-xs font-semibold text-primary uppercase tracking-wider">
-                                    <Flame className="w-3 h-3" />
-                                    今日精选
+                                <div className="flex items-center gap-2">
+                                    <div className="inline-flex items-center gap-2 rounded-full bg-primary/20 backdrop-blur-sm border border-primary/30 px-3 py-1 text-xs font-semibold text-primary uppercase tracking-wider shrink-0">
+                                        <Flame className="w-3 h-3" />
+                                        今日精选
+                                    </div>
+                                    
+                                    {/* Streak Widget - Mobile Only */}
+                                    {activitySummary && (
+                                        <div className="md:hidden inline-flex items-center gap-1.5 rounded-full bg-black/40 backdrop-blur-md border border-white/10 px-3 py-1 text-xs font-medium text-white shrink-0">
+                                            <Flame className="w-3 h-3 text-orange-500 fill-orange-500" />
+                                            <span className="text-orange-400 font-bold">{activitySummary.currentStreak}</span>
+                                            <span>天</span>
+                                        </div>
+                                    )}
                                 </div>
                                 <h2 className="text-4xl md:text-6xl font-black tracking-tighter text-white drop-shadow-sm">
                                     {featuredPhoto.title}
                                 </h2>
-                                <p className="text-lg text-gray-200 font-light max-w-xl line-clamp-2 shadow-black drop-shadow-md">
-                                    {featuredPhoto.description}
-                                </p>
+                                <div className="hidden md:block">
+                                    <p className="text-lg text-gray-200 font-light max-w-xl line-clamp-2 shadow-black drop-shadow-md">
+                                        {featuredPhoto.description}
+                                    </p>
+                                </div>
                                 <div className="flex items-center gap-4 text-sm text-gray-300 pt-2">
                                     <span className="flex items-center gap-1"><Calendar className="w-4 h-4"/> {(() => { const exif = parseExif(featuredPhoto.exif); return String(exif.date || toDateText(featuredPhoto.createdAt)); })()}</span>
                                     <span className="flex items-center gap-1"><MapPin className="w-4 h-4"/> {(() => { const exif = parseExif(featuredPhoto.exif); return String(exif.location || ''); })()}</span>
                                     <span className="flex items-center gap-1"><Camera className="w-4 h-4"/> {(() => { const exif = parseExif(featuredPhoto.exif); return String(exif.camera || exif.Model || ''); })()}</span>
                                 </div>
                             </div>
-                            {/* Streak Widget */}
+
+                            {/* Desktop Streak Card - Right Side */}
                             {activitySummary && (
-                                <div className="bg-white/10 dark:bg-surface-dark/80 backdrop-blur-md border border-white/20 dark:border-surface-border p-5 rounded-2xl min-w-[200px] shadow-2xl transform transition hover:-translate-y-1">
-                                    <div className="flex items-center justify-between mb-2">
-                                        <span className="text-gray-300 dark:text-gray-400 text-xs font-medium uppercase tracking-wider">每日打卡</span>
-                                        <Flame className="text-primary w-5 h-5" />
+                                <div className="hidden md:block">
+                                    <div className="bg-black/30 backdrop-blur-md border border-white/10 rounded-2xl p-5 shadow-xl min-w-[200px] transform transition-transform hover:scale-105 duration-300">
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <div className="p-1.5 rounded-lg bg-orange-500/20 text-orange-400">
+                                                <Flame className="w-5 h-5 fill-orange-500" />
+                                            </div>
+                                            <span className="text-sm font-semibold text-gray-200 tracking-wide">每日打卡</span>
+                                        </div>
+                                        <div className="flex items-baseline gap-1.5">
+                                            <span className="text-4xl font-extrabold text-white tracking-tight">{activitySummary.currentStreak}</span>
+                                            <span className="text-sm font-medium text-gray-400">天连续</span>
+                                        </div>
+                                        <div className="mt-3 pt-3 border-t border-white/10 flex items-center justify-between text-xs">
+                                            <span className="text-gray-400">最高纪录</span>
+                                            <span className="text-white font-bold">{activitySummary.longestStreak} 天</span>
+                                        </div>
                                     </div>
-                                    <div className="flex items-baseline gap-1">
-                                        <span className="text-3xl font-bold text-white">{activitySummary.currentStreak}</span>
-                                        <span className="text-sm text-gray-300 dark:text-gray-400">天</span>
-                                    </div>
-                                    <div className="mt-2 w-full bg-white/20 dark:bg-surface-border rounded-full h-1.5 overflow-hidden">
-                                        <div className="bg-primary h-1.5 rounded-full" style={{ width: `${Math.min((activitySummary.currentStreak / (activitySummary.longestStreak || 1)) * 100, 100)}%` }}></div>
-                                    </div>
-                                    <p className="text-xs text-primary mt-2 font-medium">最长 {activitySummary.longestStreak} 天 · 共 {activitySummary.totalActiveDays} 天</p>
                                 </div>
                             )}
                         </div>
+
                     </div>
                 </section>
             )}
@@ -309,8 +333,146 @@ export const Home: React.FC = () => {
                 </section>
             )}
 
-            {/* Filter Bar */}
-            <section className="border-b border-gray-200 dark:border-surface-border bg-white dark:bg-background-dark sticky top-16 z-40 shadow-sm transition-colors duration-300">
+            {/* Mobile Toolbar (Filter, Sort, Heatmap) - Mobile Only */}
+            <section className="md:hidden border-b border-gray-200 dark:border-surface-border bg-white dark:bg-background-dark transition-colors duration-300">
+                <div className="grid grid-cols-3 divide-x divide-gray-100 dark:divide-surface-border">
+                    <button 
+                        onClick={() => setShowMobileFilter(true)}
+                        className="flex items-center justify-center gap-2 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 active:bg-gray-50 dark:active:bg-surface-border transition-colors"
+                    >
+                        <Grid className="w-4 h-4" />
+                        <span>分类</span>
+                    </button>
+                    <button 
+                        onClick={() => setShowMobileSort(true)}
+                        className="flex items-center justify-center gap-2 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 active:bg-gray-50 dark:active:bg-surface-border transition-colors"
+                    >
+                        <div className="flex flex-col gap-0.5 items-center justify-center">
+                            <div className="w-4 h-[1px] bg-current"></div>
+                            <div className="w-3 h-[1px] bg-current"></div>
+                            <div className="w-2 h-[1px] bg-current"></div>
+                        </div>
+                        <span>排序</span>
+                    </button>
+                    <button 
+                        onClick={() => setShowMobileHeatmap(true)}
+                        className="flex items-center justify-center gap-2 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 active:bg-gray-50 dark:active:bg-surface-border transition-colors"
+                    >
+                        <Flame className="w-4 h-4" />
+                        <span>热力</span>
+                    </button>
+                </div>
+            </section>
+
+            {/* Mobile Modals */}
+            {/* 1. Filter Modal */}
+            {showMobileFilter && (
+                <div className="fixed inset-0 z-[100] flex items-end justify-center md:hidden">
+                    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity" onClick={() => setShowMobileFilter(false)} />
+                    <div className="relative bg-white dark:bg-surface-dark w-full rounded-t-2xl p-6 shadow-2xl animate-in slide-in-from-bottom duration-200 max-h-[80vh] overflow-y-auto">
+                        <div className="flex items-center justify-between mb-6">
+                            <h3 className="text-lg font-bold text-gray-900 dark:text-white">选择分类</h3>
+                            <button onClick={() => setShowMobileFilter(false)} className="p-2 bg-gray-100 dark:bg-surface-border rounded-full text-gray-500">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                            {[{ id: 'all', label: '全部主题', icon: <Grid className="w-4 h-4"/> }, ...categories
+                                .filter(c => c.value !== 'uncategorized')
+                                .map(c => ({
+                                    id: c.value,
+                                    label: c.label,
+                                    icon: c.value === 'landscape' ? <ImageIcon className="w-4 h-4"/> :
+                                          c.value === 'portrait' ? <User className="w-4 h-4"/> :
+                                          c.value === 'travel' ? <Plane className="w-4 h-4"/> :
+                                          <ImageIcon className="w-4 h-4"/>,
+                                }))
+                            ].map(cat => (
+                                <button
+                                    key={cat.id}
+                                    onClick={() => {
+                                        setFilter(cat.id);
+                                        setShowMobileFilter(false);
+                                    }}
+                                    className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+                                        filter === cat.id 
+                                        ? 'bg-primary text-white shadow-lg shadow-primary/20' 
+                                        : 'bg-gray-100 dark:bg-surface-border text-gray-600 dark:text-gray-300'
+                                    }`}
+                                >
+                                    {cat.icon}
+                                    {cat.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* 2. Sort Modal */}
+            {showMobileSort && (
+                <div className="fixed inset-0 z-[100] flex items-end justify-center md:hidden">
+                    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity" onClick={() => setShowMobileSort(false)} />
+                    <div className="relative bg-white dark:bg-surface-dark w-full rounded-t-2xl p-6 shadow-2xl animate-in slide-in-from-bottom duration-200">
+                        <div className="flex items-center justify-between mb-6">
+                            <h3 className="text-lg font-bold text-gray-900 dark:text-white">排序方式</h3>
+                            <button onClick={() => setShowMobileSort(false)} className="p-2 bg-gray-100 dark:bg-surface-border rounded-full text-gray-500">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <div className="space-y-2">
+                            {sortOptions.map((option) => (
+                                <button
+                                    key={option}
+                                    onClick={() => {
+                                        setSortBy(option);
+                                        setShowMobileSort(false);
+                                    }}
+                                    className={`w-full flex items-center justify-between px-4 py-4 rounded-xl text-sm font-medium transition-all ${
+                                        sortBy === option 
+                                        ? 'bg-primary/10 text-primary' 
+                                        : 'bg-gray-50 dark:bg-surface-border/50 text-gray-700 dark:text-gray-300'
+                                    }`}
+                                >
+                                    <span>{option}</span>
+                                    {sortBy === option && <div className="w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_rgba(19,127,236,0.5)]" />}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* 3. Heatmap Modal */}
+            {showMobileHeatmap && heatmapData && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center md:hidden p-4">
+                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onClick={() => setShowMobileHeatmap(false)} />
+                    <div className="relative bg-white dark:bg-surface-dark w-full max-h-[85vh] rounded-2xl p-4 shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col">
+                        <div className="flex items-center justify-between mb-4 shrink-0">
+                            <div className="flex items-center gap-2">
+                                <Flame className="w-5 h-5 text-primary" />
+                                <h3 className="text-lg font-bold text-gray-900 dark:text-white">上传热力图</h3>
+                            </div>
+                            <button onClick={() => setShowMobileHeatmap(false)} className="p-2 bg-gray-100 dark:bg-surface-border rounded-full text-gray-500 hover:bg-gray-200 dark:hover:bg-surface-border/80">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0">
+                             <Heatmap
+                                data={heatmapData.days}
+                                year={heatmapYear}
+                                onYearChange={setHeatmapYear}
+                                startDate={heatmapData.startDate}
+                                endDate={heatmapData.endDate}
+                                variant="compact" // Use compact variant for one-page view on mobile
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Filter Bar - Desktop Only */}
+            <section className="hidden md:block border-b border-gray-200 dark:border-surface-border bg-white dark:bg-background-dark transition-colors duration-300">
                 <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 py-4">
                     <div className="flex flex-col md:flex-row items-center justify-between gap-4">
                         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar w-full md:w-auto pb-2 md:pb-0">
@@ -379,9 +541,9 @@ export const Home: React.FC = () => {
                 </div>
             </section>
 
-            {/* Heatmap Section */}
+            {/* Heatmap Section - Desktop Only */}
             {heatmapData && currentUser && !searchQuery && (
-                <section className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
+                <section className="hidden md:block max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
                     <Heatmap
                         data={heatmapData.days}
                         year={heatmapYear}

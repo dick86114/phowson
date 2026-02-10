@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '../api';
 import { MilestoneList, Milestone } from '../components/gamification/MilestoneList';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Activity } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 type Badge = {
@@ -72,7 +72,10 @@ export const GamificationHistory: React.FC = () => {
                 <Link to="/gamification" className="p-2 hover:bg-gray-100 dark:hover:bg-surface-border rounded-full transition-colors">
                     <ArrowLeft className="w-6 h-6 text-gray-700 dark:text-gray-300" />
                 </Link>
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">完整旅程</h1>
+                <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight flex items-center gap-3">
+                    <Activity className="w-8 h-8 text-primary" />
+                    我的历史
+                </h1>
             </div>
 
             <MilestoneList milestones={milestones} limit={0} />
