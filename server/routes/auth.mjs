@@ -78,7 +78,7 @@ export const registerAuthRoutes = async (app) => {
 
       const r = await pool.query(
         `
-          select id, name, role, coalesce(avatar_url, '/media/avatars/' || id) as avatar, password_hash, disabled_at
+          select id, name, role, email, coalesce(avatar_url, '/media/avatars/' || id) as avatar, password_hash, disabled_at
           from users
           where email = $1
           limit 1
@@ -106,6 +106,7 @@ export const registerAuthRoutes = async (app) => {
           id: String(u.id),
           name: String(u.name ?? u.id),
           role,
+          email: String(u.email ?? ''),
           avatar: String(u.avatar ?? ''),
         },
       };

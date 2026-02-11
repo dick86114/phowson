@@ -61,6 +61,11 @@ export const getAvatarUrl = (user: { id: string, avatar?: string } | null | unde
     const privateIpRegex = /^(https?:\/\/)(192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}|127\.0\.0\.1|localhost)(:\d+)?/;
     const safeBase = (API_BASE_URL && !privateIpRegex.test(API_BASE_URL)) ? API_BASE_URL : '';
 
+    // 如果是访客用户，直接返回头像 URL (通常是 ui-avatars)
+    if (user.id === 'guest' && user.avatar) {
+        return user.avatar;
+    }
+
     // 如果有头像 (URL 或 bytes)，通过后端代理访问
     // 后端 /media/avatars/:id 会处理 URL 代理或直接返回 bytes
     // 添加时间戳防止缓存（如果有 updateAt 更好，这里简化处理）

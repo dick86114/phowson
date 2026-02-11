@@ -5,6 +5,7 @@ export type AuthUser = {
   name: string;
   avatar: string;
   role: 'admin' | 'family';
+  email: string;
 };
 
 const STORAGE_KEY = 'photologs:auth:user';
@@ -57,6 +58,7 @@ export const useAuth = () => {
       name: '管理员',
       avatar: 'https://coreva-normal.trae.ai/api/ide/v1/text_to_image?prompt=portrait%20photo%2C%20minimalist%20admin%20avatar%2C%20soft%20light%2C%20neutral%20background%2C%20modern%20design%2C%20high%20detail&image_size=square',
       role: 'admin',
+      email: 'admin@phowson.com',
     };
     writeUser(admin);
     setUser(admin);

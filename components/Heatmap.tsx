@@ -132,8 +132,12 @@ export const Heatmap: React.FC<HeatmapProps & { variant?: 'scroll' | 'grid' | 'c
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Flame className="text-primary w-4 h-4" />
-          <h3 className="text-sm font-bold text-gray-900 dark:text-white">上传热力图</h3>
+          {variant !== 'compact' && (
+            <>
+              <Flame className="text-primary w-4 h-4" />
+              <h3 className="text-sm font-bold text-gray-900 dark:text-white">上传热力图</h3>
+            </>
+          )}
         </div>
         
         {/* Year Switcher */}

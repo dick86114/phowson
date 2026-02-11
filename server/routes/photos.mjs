@@ -194,7 +194,7 @@ export const registerPhotoRoutes = async (app) => {
 
     const camerasRes = await pool.query(
       `
-        select distinct nullif(p.exif->>'Model','') as model
+        select distinct trim(nullif(p.exif->>'Model','')) as model
         from photos p
         where p.owner_user_id = $1
           and nullif(p.exif->>'Model','') is not null

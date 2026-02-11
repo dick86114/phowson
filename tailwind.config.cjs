@@ -7,7 +7,6 @@ module.exports = {
     './pages/**/*.{ts,tsx}',
     './components/**/*.{ts,tsx}',
     './hooks/**/*.{ts,tsx}',
-    './**/*.{ts,tsx}',
   ],
   theme: {
     extend: {

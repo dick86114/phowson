@@ -63,10 +63,10 @@ export const AdminLayout: React.FC = () => {
     });
 
     const personalMenuItems = [
-        { key: 'me_albums', label: '我的照片', icon: ImageIcon, to: '/admin/me/albums' },
-        { key: 'me_analytics', label: '我的统计', icon: BarChart3, to: '/admin/me/analytics' },
-        { key: 'me_uploads', label: '我的历史', icon: Activity, to: '/admin/me/uploads' },
-        { key: 'me_profile', label: '我的资料', icon: Users, to: '/admin/me/profile' },
+        { key: 'me_albums', label: '我的照片', icon: ImageIcon, to: '/me/albums' },
+        { key: 'me_analytics', label: '我的统计', icon: BarChart3, to: '/me/analytics' },
+        { key: 'me_uploads', label: '我的历史', icon: Activity, to: '/me/uploads' },
+        { key: 'me_profile', label: '我的资料', icon: Users, to: '/me/profile' },
     ];
 
     const adminMenuItems = isAdmin ? [

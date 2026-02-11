@@ -70,7 +70,7 @@ export const Comments = () => {
     const { success, error } = useToast();
     const { confirm } = useModal();
 
-    if (user?.role !== 'admin') return <Navigate to="/admin/me/albums" replace />;
+    if (user?.role !== 'admin') return <Navigate to="/me/albums" replace />;
 
     // --- State ---
     const [activeTab, setActiveTab] = useState<'all' | 'pending' | 'approved' | 'rejected' | 'suspected'>('pending');

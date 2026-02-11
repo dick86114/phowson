@@ -21,96 +21,8 @@ import { Heatmap } from '../components/Heatmap';
 import { downloadCsv, downloadJson } from '../utils/exporters';
 import { getPhotoUrl, getAvatarUrl } from '../utils/helpers';
 
-// --- Components ---
-const DropdownFilter = ({ 
-    label, 
-    value, 
-    onChange, 
-    options, 
-    icon: Icon 
-}: { 
-    label: string; 
-    value: string | number; 
-    onChange: (val: any) => void; 
-    options: { label: string; value: string | number }[];
-    icon?: any;
-}) => {
-    const [isOpen, setIsOpen] = useState(false);
-    const containerRef = useRef<HTMLDivElement>(null);
+import { DropdownFilter } from '../components/admin/DropdownFilter';
 
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-                setIsOpen(false);
-            }
-        };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
-
-    const selectedLabel = options.find(o => o.value === value)?.label || label;
-    const isActive = value !== 'all';
-
-    return (
-        <div className="relative" ref={containerRef}>
-            <button
-                type="button"
-                onClick={() => setIsOpen(!isOpen)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all shadow-sm ${
-                    isActive 
-                        ? 'bg-primary/10 text-primary ring-1 ring-primary/20' 
-                        : 'bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border text-gray-700 dark:text-gray-200 hover:border-gray-300 dark:hover:border-gray-600 hover:shadow'
-                }`}
-            >
-                {Icon && <Icon className={`w-4 h-4 ${isActive ? 'text-primary' : 'text-gray-400'}`} />}
-                <span>{isActive ? selectedLabel : label}</span>
-                <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''} ${isActive ? 'text-primary' : 'text-gray-400'}`} />
-            </button>
-
-            {isOpen && (
-                <div className="absolute top-full right-0 mt-2 w-56 max-h-80 overflow-y-auto bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-xl shadow-xl z-50 animate-in fade-in zoom-in-95 duration-200">
-                    <div className="p-1.5 space-y-0.5">
-                        <button
-                            className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors flex items-center justify-between ${
-                                value === 'all' 
-                                    ? 'bg-primary/5 text-primary font-semibold' 
-                                    : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-surface-border'
-                            }`}
-                            onClick={() => {
-                                onChange('all');
-                                setIsOpen(false);
-                            }}
-                        >
-                            <span>{label}</span>
-                            {value === 'all' && <Check className="w-4 h-4" />}
-                        </button>
-                        <div className="h-px bg-gray-100 dark:bg-surface-border my-1" />
-                        {options.map((opt) => (
-                            <button
-                                key={opt.value}
-                                className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors flex items-center justify-between ${
-                                    value === opt.value 
-                                        ? 'bg-primary/5 text-primary font-semibold' 
-                                        : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-surface-border'
-                                }`}
-                                onClick={() => {
-                                    onChange(opt.value);
-                                    setIsOpen(false);
-                                }}
-                            >
-                                <span className="truncate">{opt.label}</span>
-                                {value === opt.value && <Check className="w-4 h-4" />}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-            )}
-        </div>
-    );
-};
-
-// Simple icons for DropdownFilter internal use if not imported
-import { ChevronDown, Check } from 'lucide-react';
 
 type Tab = 'photos' | 'stats' | 'users' | 'settings' | 'categories' | 'comments' | 'me_uploads';
 
@@ -198,10 +110,10 @@ export const Admin: React.FC<{ hideLayout?: boolean }> = ({ hideLayout }) => {
     
     if (!currentUser) return null;
 
-    const isMeAlbumsRoute = location.pathname.startsWith('/admin/me/albums');
-    const isMeAnalyticsRoute = location.pathname.startsWith('/admin/me/analytics');
-    const isMeUploadsRoute = location.pathname.startsWith('/admin/me/uploads');
-    const isMeProfileRoute = location.pathname.startsWith('/admin/me/profile');
+    const isMeAlbumsRoute = location.pathname.startsWith('/admin/me/albums') || location.pathname.startsWith('/me/albums');
+    const isMeAnalyticsRoute = location.pathname.startsWith('/admin/me/analytics') || location.pathname.startsWith('/me/analytics');
+    const isMeUploadsRoute = location.pathname.startsWith('/admin/me/uploads') || location.pathname.startsWith('/me/uploads');
+    const isMeProfileRoute = location.pathname.startsWith('/admin/me/profile') || location.pathname.startsWith('/me/profile');
 
     // --- State & Queries for "Me" Photos ---
     const [albumMonth, setAlbumMonth] = useState<'all' | string>('all');
@@ -537,40 +449,42 @@ export const Admin: React.FC<{ hideLayout?: boolean }> = ({ hideLayout }) => {
 
     // Render Logic
     return (
-        <div className="w-full">
+        <div className={`w-full ${hideLayout ? 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-8' : ''}`}>
             {/* --- PHOTOS TAB (ME) --- */}
             {activeTab === 'photos' && isMeAlbumsRoute && (
                 <div className="space-y-6 animate-in fade-in duration-300">
                     <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
                         <div>
-                            <h2 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight flex items-center gap-3"><ImageIcon className="w-8 h-8 text-primary" />我的照片</h2>
-                            <p className="text-gray-500 dark:text-gray-400 mt-2 text-sm">
+                            <h2 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight hidden md:flex items-center gap-3"><ImageIcon className="w-8 h-8 text-primary" />我的照片</h2>
+                            <p className="text-gray-500 dark:text-gray-400 mt-2 text-sm hidden md:block">
                                 记录您的每一次视觉捕捉与成长习惯。
                             </p>
                         </div>
-                        <div className="flex flex-wrap items-center gap-3">
+                        <div className="flex items-center gap-2 md:gap-3 overflow-x-auto md:overflow-visible no-scrollbar w-full md:w-auto pb-1 md:pb-0">
                             <DropdownFilter
-                                label="所有月份"
+                                label="月份"
                                 value={albumMonth}
                                 onChange={setAlbumMonth}
                                 options={(mePhotoFilters?.months || []).map(m => ({ label: m.label, value: m.value }))}
                                 icon={Calendar}
+                                className="flex-1 min-w-[100px] md:min-w-0 md:w-auto md:flex-none"
                             />
-                            
                             <DropdownFilter
-                                label="全部分类"
+                                label="分类"
                                 value={albumCategory}
                                 onChange={setAlbumCategory}
                                 options={categories.map(c => ({ label: c.label, value: c.value }))}
                                 icon={Filter}
+                                className="flex-1 min-w-[100px] md:min-w-0 md:w-auto md:flex-none"
+                                mobileGrid={true}
                             />
-                            
                             <DropdownFilter
-                                label="拍摄器材"
+                                label="器材"
                                 value={albumCamera}
                                 onChange={setAlbumCamera}
                                 options={(mePhotoFilters?.cameras || []).map(c => ({ label: c, value: c }))}
                                 icon={Camera}
+                                className="flex-1 min-w-[100px] md:min-w-0 md:w-auto md:flex-none"
                             />
                             
                             {(albumMonth !== 'all' || albumCategory !== 'all' || albumCamera !== 'all') && (
@@ -582,7 +496,7 @@ export const Admin: React.FC<{ hideLayout?: boolean }> = ({ hideLayout }) => {
                                         setAlbumPageSize(24);
                                         setAlbumPage(1);
                                     }}
-                                    className="p-2 text-gray-400 hover:text-red-500 transition-colors"
+                                    className="p-2.5 text-gray-400 hover:text-red-500 transition-colors bg-white dark:bg-surface-dark rounded-xl border border-gray-200 dark:border-surface-border shadow-sm hover:shadow-md shrink-0"
                                     title="重置筛选"
                                 >
                                     <X className="w-4 h-4" />
@@ -960,11 +874,11 @@ export const Admin: React.FC<{ hideLayout?: boolean }> = ({ hideLayout }) => {
             {activeTab === 'settings' && isMeProfileRoute && (
                 <div className="space-y-6 animate-in fade-in duration-300">
                      <div>
-                        <h2 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight flex items-center gap-3">
+                        <h2 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight hidden md:flex items-center gap-3">
                             <UserIcon className="w-8 h-8 text-primary" />
                             我的资料
                         </h2>
-                        <p className="text-gray-500 dark:text-gray-400 mt-2 text-sm">
+                        <p className="text-gray-500 dark:text-gray-400 mt-2 text-sm hidden md:block">
                             管理您的个人信息与安全设置。
                         </p>
                     </div>

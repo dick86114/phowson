@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Calendar, MapPin, Camera, Grid, Image as ImageIcon, User, Plane, Flame, Heart, MessageCircle, ChevronDown, X, Search } from 'lucide-react';
+import { Calendar, MapPin, Camera, Grid, Image as ImageIcon, User, Plane, Flame, Heart, MessageCircle, ChevronDown, X, Search, Clock, Eye, History, ArrowUp, Check, RefreshCw } from 'lucide-react';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import api, { API_BASE_URL } from '../api';
 import { getPhotoUrl } from '../utils/helpers';
@@ -242,7 +242,7 @@ export const Home: React.FC = () => {
                             {/* Desktop Streak Card - Right Side */}
                             {activitySummary && (
                                 <div className="hidden md:block">
-                                    <div className="bg-black/30 backdrop-blur-md border border-white/10 rounded-2xl p-5 shadow-xl min-w-[200px] transform transition-transform hover:scale-105 duration-300">
+                                    <div className="bg-black/30 backdrop-blur-md border border-white/10 rounded-2xl p-5 shadow-xl min-w-[320px] transform transition-transform hover:scale-105 duration-300">
                                         <div className="flex items-center gap-2 mb-2">
                                             <div className="p-1.5 rounded-lg bg-orange-500/20 text-orange-400">
                                                 <Flame className="w-5 h-5 fill-orange-500" />
@@ -334,29 +334,31 @@ export const Home: React.FC = () => {
             )}
 
             {/* Mobile Toolbar (Filter, Sort, Heatmap) - Mobile Only */}
-            <section className="md:hidden border-b border-gray-200 dark:border-surface-border bg-white dark:bg-background-dark transition-colors duration-300">
-                <div className="grid grid-cols-3 divide-x divide-gray-100 dark:divide-surface-border">
+            <section className="md:hidden border-b border-gray-100 dark:border-surface-border bg-white dark:bg-background-dark transition-colors duration-300 py-3">
+                <div className="flex items-center justify-around px-4">
                     <button 
                         onClick={() => setShowMobileFilter(true)}
-                        className="flex items-center justify-center gap-2 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 active:bg-gray-50 dark:active:bg-surface-border transition-colors"
+                        className="flex items-center gap-2 px-4 py-2 rounded-full bg-gray-50 dark:bg-surface-border/50 text-sm font-medium text-gray-700 dark:text-gray-300 active:scale-95 transition-all shadow-sm"
                     >
                         <Grid className="w-4 h-4" />
                         <span>分类</span>
                     </button>
+                    <div className="w-[1px] h-6 bg-gray-200 dark:bg-surface-border"></div>
                     <button 
                         onClick={() => setShowMobileSort(true)}
-                        className="flex items-center justify-center gap-2 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 active:bg-gray-50 dark:active:bg-surface-border transition-colors"
+                        className="flex items-center gap-2 px-4 py-2 rounded-full bg-gray-50 dark:bg-surface-border/50 text-sm font-medium text-gray-700 dark:text-gray-300 active:scale-95 transition-all shadow-sm"
                     >
                         <div className="flex flex-col gap-0.5 items-center justify-center">
-                            <div className="w-4 h-[1px] bg-current"></div>
-                            <div className="w-3 h-[1px] bg-current"></div>
-                            <div className="w-2 h-[1px] bg-current"></div>
+                            <div className="w-3.5 h-[1.5px] bg-current"></div>
+                            <div className="w-2.5 h-[1.5px] bg-current"></div>
+                            <div className="w-1.5 h-[1.5px] bg-current"></div>
                         </div>
                         <span>排序</span>
                     </button>
+                    <div className="w-[1px] h-6 bg-gray-200 dark:bg-surface-border"></div>
                     <button 
                         onClick={() => setShowMobileHeatmap(true)}
-                        className="flex items-center justify-center gap-2 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 active:bg-gray-50 dark:active:bg-surface-border transition-colors"
+                        className="flex items-center gap-2 px-4 py-2 rounded-full bg-gray-50 dark:bg-surface-border/50 text-sm font-medium text-gray-700 dark:text-gray-300 active:scale-95 transition-all shadow-sm"
                     >
                         <Flame className="w-4 h-4" />
                         <span>热力</span>
@@ -368,43 +370,63 @@ export const Home: React.FC = () => {
             {/* 1. Filter Modal */}
             {showMobileFilter && (
                 <div className="fixed inset-0 z-[100] flex items-end justify-center md:hidden">
-                    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity" onClick={() => setShowMobileFilter(false)} />
-                    <div className="relative bg-white dark:bg-surface-dark w-full rounded-t-2xl p-6 shadow-2xl animate-in slide-in-from-bottom duration-200 max-h-[80vh] overflow-y-auto">
-                        <div className="flex items-center justify-between mb-6">
-                            <h3 className="text-lg font-bold text-gray-900 dark:text-white">选择分类</h3>
-                            <button onClick={() => setShowMobileFilter(false)} className="p-2 bg-gray-100 dark:bg-surface-border rounded-full text-gray-500">
-                                <X className="w-5 h-5" />
+                    <div className="fixed inset-0 bg-black/60 backdrop-blur-md transition-opacity" onClick={() => setShowMobileFilter(false)} />
+                    <div className="relative bg-white/80 dark:bg-surface-dark/80 backdrop-blur-xl w-full rounded-t-3xl p-6 shadow-2xl animate-in slide-in-from-bottom duration-300 ring-1 ring-black/5 dark:ring-white/10 max-h-[80vh] overflow-y-auto">
+                        <div className="w-12 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full mx-auto mb-6" />
+                        
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-xl font-bold text-gray-900 dark:text-white">选择分类</h3>
+                            <button 
+                                onClick={() => setFilter('all')} 
+                                className="text-sm font-medium text-primary hover:text-primary/80 transition-colors"
+                            >
+                                重置
                             </button>
                         </div>
-                        <div className="grid grid-cols-2 gap-3">
+
+                        <div className="w-full h-px bg-gray-100 dark:bg-gray-800 mb-6" />
+
+                        <div className="grid grid-cols-2 gap-3 mb-8">
                             {[{ id: 'all', label: '全部主题', icon: <Grid className="w-4 h-4"/> }, ...categories
                                 .filter(c => c.value !== 'uncategorized')
                                 .map(c => ({
                                     id: c.value,
                                     label: c.label,
-                                    icon: c.value === 'landscape' ? <ImageIcon className="w-4 h-4"/> :
-                                          c.value === 'portrait' ? <User className="w-4 h-4"/> :
-                                          c.value === 'travel' ? <Plane className="w-4 h-4"/> :
-                                          <ImageIcon className="w-4 h-4"/>,
+                                    icon:
+                                        c.value === 'landscape' ? <ImageIcon className="w-4 h-4"/> :
+                                        c.value === 'portrait' ? <User className="w-4 h-4"/> :
+                                        c.value === 'travel' ? <Plane className="w-4 h-4"/> :
+                                        <ImageIcon className="w-4 h-4"/>,
                                 }))
                             ].map(cat => (
                                 <button
                                     key={cat.id}
                                     onClick={() => {
                                         setFilter(cat.id);
-                                        setShowMobileFilter(false);
+                                        setTimeout(() => setShowMobileFilter(false), 150);
                                     }}
-                                    className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+                                    className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-all duration-200 ${
                                         filter === cat.id 
-                                        ? 'bg-primary text-white shadow-lg shadow-primary/20' 
-                                        : 'bg-gray-100 dark:bg-surface-border text-gray-600 dark:text-gray-300'
+                                        ? 'bg-primary/10 border-primary text-primary shadow-sm font-bold' 
+                                        : 'bg-transparent border-transparent hover:bg-gray-50 dark:hover:bg-white/5 text-gray-600 dark:text-gray-300'
                                     }`}
                                 >
-                                    {cat.icon}
-                                    {cat.label}
+                                    <div className={`p-2 rounded-lg ${
+                                        filter === cat.id ? 'bg-primary text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
+                                    }`}>
+                                        {cat.icon}
+                                    </div>
+                                    <span>{cat.label}</span>
                                 </button>
                             ))}
                         </div>
+
+                        <button 
+                            onClick={() => setShowMobileFilter(false)}
+                            className="w-full py-4 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white font-bold text-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                        >
+                            取消
+                        </button>
                     </div>
                 </div>
             )}
@@ -412,33 +434,70 @@ export const Home: React.FC = () => {
             {/* 2. Sort Modal */}
             {showMobileSort && (
                 <div className="fixed inset-0 z-[100] flex items-end justify-center md:hidden">
-                    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity" onClick={() => setShowMobileSort(false)} />
-                    <div className="relative bg-white dark:bg-surface-dark w-full rounded-t-2xl p-6 shadow-2xl animate-in slide-in-from-bottom duration-200">
-                        <div className="flex items-center justify-between mb-6">
-                            <h3 className="text-lg font-bold text-gray-900 dark:text-white">排序方式</h3>
-                            <button onClick={() => setShowMobileSort(false)} className="p-2 bg-gray-100 dark:bg-surface-border rounded-full text-gray-500">
-                                <X className="w-5 h-5" />
+                    <div className="fixed inset-0 bg-black/60 backdrop-blur-md transition-opacity" onClick={() => setShowMobileSort(false)} />
+                    <div className="relative bg-white/80 dark:bg-surface-dark/80 backdrop-blur-xl w-full rounded-t-3xl p-6 shadow-2xl animate-in slide-in-from-bottom duration-300 ring-1 ring-black/5 dark:ring-white/10 max-h-[80vh] overflow-y-auto">
+                        <div className="w-12 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full mx-auto mb-6" />
+                        
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-xl font-bold text-gray-900 dark:text-white">排序方式</h3>
+                            <button 
+                                onClick={() => setSortBy('最新发布')} 
+                                className="text-sm font-medium text-primary hover:text-primary/80 transition-colors"
+                            >
+                                重置
                             </button>
                         </div>
-                        <div className="space-y-2">
-                            {sortOptions.map((option) => (
-                                <button
-                                    key={option}
-                                    onClick={() => {
-                                        setSortBy(option);
-                                        setShowMobileSort(false);
-                                    }}
-                                    className={`w-full flex items-center justify-between px-4 py-4 rounded-xl text-sm font-medium transition-all ${
-                                        sortBy === option 
-                                        ? 'bg-primary/10 text-primary' 
-                                        : 'bg-gray-50 dark:bg-surface-border/50 text-gray-700 dark:text-gray-300'
-                                    }`}
-                                >
-                                    <span>{option}</span>
-                                    {sortBy === option && <div className="w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_rgba(19,127,236,0.5)]" />}
-                                </button>
-                            ))}
+                        
+                        <div className="w-full h-px bg-gray-100 dark:bg-gray-800 mb-6" />
+
+                        <div className="flex flex-col gap-3 mb-8">
+                            {sortOptions.map((option) => {
+                                let icon;
+                                switch(option) {
+                                    case '最新发布': 
+                                        icon = <Clock className="w-5 h-5" />; 
+                                        break;
+                                    case '最受欢迎': 
+                                        icon = <Eye className="w-5 h-5" />; 
+                                        break;
+                                    case '最早发布': 
+                                        icon = <History className="w-5 h-5" />; 
+                                        break;
+                                    default: 
+                                        icon = <Clock className="w-5 h-5" />;
+                                }
+
+                                return (
+                                    <button
+                                        key={option}
+                                        onClick={() => {
+                                            setSortBy(option);
+                                            // 稍微延迟关闭以展示点击反馈
+                                            setTimeout(() => setShowMobileSort(false), 150);
+                                        }}
+                                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition-all duration-200 ${
+                                            sortBy === option 
+                                            ? 'bg-primary/10 border-primary text-primary shadow-sm font-bold' 
+                                            : 'bg-transparent border-transparent hover:bg-gray-50 dark:hover:bg-white/5 text-gray-600 dark:text-gray-300'
+                                        }`}
+                                    >
+                                        <div className={`p-2 rounded-lg ${
+                                            sortBy === option ? 'bg-primary text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
+                                        }`}>
+                                            {icon}
+                                        </div>
+                                        <span className="text-base">{option}</span>
+                                    </button>
+                                );
+                            })}
                         </div>
+
+                        <button 
+                            onClick={() => setShowMobileSort(false)}
+                            className="w-full py-4 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white font-bold text-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                        >
+                            取消
+                        </button>
                     </div>
                 </div>
             )}
@@ -555,7 +614,7 @@ export const Home: React.FC = () => {
             )}
 
             {/* Gallery Grid */}
-            <section className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <section className="max-w-[1920px] mx-auto px-[10px] sm:px-6 lg:px-8 py-2 md:py-8">
                 <MasonryVirtual
                     items={sortedPhotos.map(photo => ({
                         id: photo.id,

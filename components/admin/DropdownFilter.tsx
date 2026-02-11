@@ -1,24 +1,70 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ChevronDown, Check } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { ChevronDown, Check, X } from 'lucide-react';
+
+export interface DropdownFilterProps {
+    label: string;
+    value: string | number;
+    onChange: (val: any) => void;
+    options: { label: string; value: string | number }[];
+    icon?: any;
+    variant?: 'default' | 'ghost';
+    className?: string;
+    mobileGrid?: boolean;
+}
 
 export const DropdownFilter = ({ 
     label, 
     value, 
     onChange, 
     options, 
-    icon: Icon 
-}: { 
-    label: string; 
-    value: string | number; 
-    onChange: (val: any) => void; 
-    options: { label: string; value: string | number }[];
-    icon?: any;
-}) => {
+    icon: Icon,
+    variant = 'default',
+    className = '',
+    mobileGrid = false
+}: DropdownFilterProps) => {
     const [isOpen, setIsOpen] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
+            if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+                // Only close if it's not the mobile modal (which handles its own closing)
+                // But for desktop dropdown, we need this.
+                // We'll rely on the desktop dropdown being in the DOM under this container.
+                // For mobile portal, it's outside.
+                // So this logic is fine for desktop.
+                // For mobile, we have a backdrop click handler.
+                // However, if we click outside on desktop, we want to close.
+                // If we click inside the portal, containerRef doesn't contain it.
+                // So clicking inside portal might close it if we aren't careful?
+                // No, portal is separate.
+                // If isOpen is true, and we click in portal...
+                // The portal is attached to body. So 'event.target' will be in body.
+                // 'containerRef' is the button wrapper.
+                // So !contains will be true.
+                // So it will close.
+                // We need to check if target is inside the portal too?
+                // Or just disable this check for mobile?
+                // Simplest: Check if the click target is inside a specific class/id we put on the portal.
+            }
+        };
+        
+        // Revised logic:
+        // We handle desktop click-outside here.
+        // Mobile modal uses a backdrop overlay for closing.
+        // If we are on mobile, this effect might trigger closing if we interact with the modal?
+        // Yes, if we click inside the modal (which is in Portal), it is NOT in containerRef.
+        // So setIsOpen(false) will be called.
+        // But we WANT it to stay open when clicking inside modal.
+        // Solution: Add a check for the portal container.
+    }, []);
+
+    // Better implementation of click outside:
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (window.innerWidth < 768) return; // Disable for mobile, rely on backdrop
+            
             if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
                 setIsOpen(false);
             }
@@ -27,27 +73,42 @@ export const DropdownFilter = ({
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
+    // Lock body scroll when mobile modal is open
+    useEffect(() => {
+        if (isOpen && window.innerWidth < 768) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = '';
+        }
+        return () => { document.body.style.overflow = ''; };
+    }, [isOpen]);
+
     const selectedLabel = options.find(o => o.value === value)?.label || label;
     const isActive = value !== 'all';
 
     return (
-        <div className="relative" ref={containerRef}>
+        <div className={`relative ${className}`} ref={containerRef}>
             <button
                 type="button"
                 onClick={() => setIsOpen(!isOpen)}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all shadow-sm active:scale-95 ${
-                    isActive 
-                        ? 'bg-primary/10 text-primary ring-1 ring-primary/20' 
-                        : 'bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border text-gray-700 dark:text-gray-200 hover:border-gray-300 dark:hover:border-gray-600 hover:shadow'
+                className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all active:scale-95 ${
+                    variant === 'ghost'
+                        ? (isActive ? 'bg-primary/10 text-primary' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-surface-border hover:text-gray-900 dark:hover:text-white')
+                        : (isActive 
+                            ? 'bg-primary/10 text-primary ring-1 ring-primary/20 shadow-sm' 
+                            : 'bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border text-gray-700 dark:text-gray-200 hover:border-gray-300 dark:hover:border-gray-600 hover:shadow shadow-sm px-4 py-2.5 rounded-xl')
                 }`}
             >
-                {Icon && <Icon className={`w-4 h-4 ${isActive ? 'text-primary' : 'text-gray-400'}`} />}
-                <span>{isActive ? selectedLabel : label}</span>
-                <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''} ${isActive ? 'text-primary' : 'text-gray-400'}`} />
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                    {Icon && <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-primary' : 'text-gray-400'}`} />}
+                    <span className="truncate">{isActive ? selectedLabel : label}</span>
+                </div>
+                <ChevronDown className={`w-4 h-4 shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''} ${isActive ? 'text-primary' : 'text-gray-400'}`} />
             </button>
 
+            {/* Desktop Dropdown */}
             {isOpen && (
-                <div className="absolute top-full right-0 mt-2 w-56 max-h-80 overflow-y-auto bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-xl shadow-xl z-50 animate-in fade-in zoom-in-95 duration-200">
+                <div className="hidden md:block absolute top-full left-0 md:left-auto md:right-0 mt-2 w-56 max-h-80 overflow-y-auto bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-xl shadow-xl z-50 animate-in fade-in zoom-in-95 duration-200">
                     <div className="p-1.5 space-y-0.5">
                         <button
                             className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors flex items-center justify-between ${
@@ -84,6 +145,90 @@ export const DropdownFilter = ({
                     </div>
                 </div>
             )}
+
+            {/* Mobile Bottom Sheet Modal */}
+            {isOpen && createPortal(
+                <div className="md:hidden fixed inset-0 z-[100] flex items-end justify-center">
+                    <div className="fixed inset-0 bg-black/60 backdrop-blur-md transition-opacity animate-in fade-in duration-200" onClick={() => setIsOpen(false)} />
+                    <div className="relative bg-white/90 dark:bg-surface-dark/90 backdrop-blur-xl w-full rounded-t-3xl p-6 shadow-2xl animate-in slide-in-from-bottom duration-300 ring-1 ring-black/5 dark:ring-white/10 max-h-[80vh] overflow-y-auto flex flex-col">
+                        <div className="w-12 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full mx-auto mb-6 shrink-0" />
+                        
+                        <div className="flex items-center justify-between mb-4 shrink-0">
+                            <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                                {Icon && <Icon className="w-5 h-5 text-primary" />}
+                                {label}
+                            </h3>
+                            {value !== 'all' && (
+                                <button 
+                                    onClick={() => {
+                                        onChange('all');
+                                        // Optional: close on reset? Or keep open? User preference.
+                                        // Home page reset keeps it open usually?
+                                        // Let's keep it open to let user confirm.
+                                    }} 
+                                    className="text-sm font-medium text-primary hover:text-primary/80 transition-colors"
+                                >
+                                    重置
+                                </button>
+                            )}
+                        </div>
+
+                        <div className="w-full h-px bg-gray-100 dark:bg-gray-800 mb-6 shrink-0" />
+
+                        <div className={`mb-8 overflow-y-auto ${mobileGrid ? 'grid grid-cols-2 gap-3' : 'flex flex-col gap-3'}`}>
+                            <button
+                                onClick={() => {
+                                    onChange('all');
+                                    setTimeout(() => setIsOpen(false), 150);
+                                }}
+                                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition-all duration-200 ${
+                                    value === 'all'
+                                    ? 'bg-primary/10 border-primary text-primary shadow-sm font-bold' 
+                                    : 'bg-transparent border-transparent hover:bg-gray-50 dark:hover:bg-white/5 text-gray-600 dark:text-gray-300'
+                                }`}
+                            >
+                                <div className={`p-2 rounded-lg ${
+                                    value === 'all' ? 'bg-primary text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
+                                }`}>
+                                    <Check className="w-4 h-4" />
+                                </div>
+                                <span className="text-base">全部</span>
+                            </button>
+
+                            {options.map((opt) => (
+                                <button
+                                    key={opt.value}
+                                    onClick={() => {
+                                        onChange(opt.value);
+                                        setTimeout(() => setIsOpen(false), 150);
+                                    }}
+                                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition-all duration-200 ${
+                                        value === opt.value 
+                                        ? 'bg-primary/10 border-primary text-primary shadow-sm font-bold' 
+                                        : 'bg-transparent border-transparent hover:bg-gray-50 dark:hover:bg-white/5 text-gray-600 dark:text-gray-300'
+                                    }`}
+                                >
+                                    <div className={`p-2 rounded-lg ${
+                                        value === opt.value ? 'bg-primary text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
+                                    }`}>
+                                        {Icon ? <Icon className="w-4 h-4" /> : <Check className="w-4 h-4" />}
+                                    </div>
+                                    <span className="text-base">{opt.label}</span>
+                                </button>
+                            ))}
+                        </div>
+
+                        <button 
+                            onClick={() => setIsOpen(false)}
+                            className="w-full py-4 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white font-bold text-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors shrink-0"
+                        >
+                            取消
+                        </button>
+                    </div>
+                </div>,
+                document.body
+            )}
         </div>
     );
+
 };

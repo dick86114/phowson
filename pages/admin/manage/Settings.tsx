@@ -45,7 +45,7 @@ export const SettingsPage: React.FC = () => {
     const { confirm } = useModal();
     const siteSettingsImportInputRef = useRef<HTMLInputElement>(null);
 
-    if (user?.role !== 'admin') return <Navigate to="/admin/me/albums" replace />;
+    if (user?.role !== 'admin') return <Navigate to="/me/albums" replace />;
 
     const [siteSettingsForm, setSiteSettingsForm] = useState<SiteSettings>({
         siteName: '',

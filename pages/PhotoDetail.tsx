@@ -185,32 +185,39 @@ export const PhotoDetail: React.FC = () => {
     });
 
     return (
-        <div className="bg-background-light dark:bg-background-dark min-h-screen pb-20 transition-colors duration-300">
-             {/* Toolbar */}
-             <div className="sticky top-16 z-30 bg-white/90 dark:bg-[#111a22]/90 backdrop-blur-md border-b border-gray-200 dark:border-surface-border px-4 py-3 flex items-center justify-between">
-                <button 
-                    onClick={() => navigate(-1)}
-                    className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors py-2 active:scale-95"
-                >
-                    <ArrowLeft className="w-4 h-4" />
-                    返回画廊
-                </button>
-                <div className="flex items-center gap-3">
-                    <button 
-                        onClick={() => setShowShareCard(true)}
-                        type="button"
-                        aria-label="分享"
-                        className="p-3 text-gray-600 dark:text-gray-300 hover:text-primary transition-colors hover:bg-gray-100 dark:hover:bg-surface-dark rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-background-dark active:scale-95"
-                    >
-                        <Share2 className="w-5 h-5" />
-                    </button>
-                </div>
-            </div>
-
+        <div className="bg-background-light dark:bg-background-dark min-h-screen pb-0 transition-colors duration-300">
             <div className="max-w-[1920px] mx-auto">
                 <div className="flex flex-col xl:flex-row h-full">
                     {/* Image Viewer (Inline) */}
                     <div className="xl:flex-1 bg-gray-100 dark:bg-black flex items-center justify-center p-4 xl:p-8 min-h-[60vh] xl:h-[calc(100vh-8rem)] xl:sticky xl:top-32 relative group overflow-hidden transition-colors">
+                        {/* Floating Navigation Controls */}
+                        <div className="absolute top-6 left-6 z-20 flex items-center gap-3">
+                            <button 
+                                onClick={() => navigate(-1)}
+                                className="flex items-center gap-2 px-4 py-2 bg-black/50 hover:bg-black/70 text-white rounded-full backdrop-blur-md border border-white/10 transition-all active:scale-95 shadow-lg"
+                            >
+                                <ArrowLeft className="w-4 h-4" />
+                                <span className="text-sm font-medium">返回</span>
+                            </button>
+                        </div>
+
+                        <div className="absolute top-6 right-6 z-20 flex items-center gap-3 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300">
+                             <button 
+                                onClick={() => setShowShareCard(true)}
+                                className="p-2.5 bg-black/50 hover:bg-black/70 text-white rounded-full backdrop-blur-md border border-white/10 transition-all active:scale-95 shadow-lg"
+                                title="分享"
+                            >
+                                <Share2 className="w-5 h-5" />
+                            </button>
+                            <button
+                                onClick={() => setIsFullScreen(true)}
+                                className="p-2.5 bg-black/50 hover:bg-black/70 text-white rounded-full backdrop-blur-md border border-white/10 transition-all active:scale-95 shadow-lg"
+                                title="全屏查看"
+                            >
+                                <Maximize2 className="w-5 h-5" />
+                            </button>
+                        </div>
+
                         <div className="relative w-full h-full flex items-center justify-center">
                         <ProgressiveImage
                                 src={getPhotoUrl(photo, 'medium')}
@@ -232,15 +239,6 @@ export const PhotoDetail: React.FC = () => {
                                 type="button"
                             />
                         </div>
-                         <button
-                            onClick={() => setIsFullScreen(true)}
-                            type="button"
-                            aria-label="全屏查看"
-                            className="absolute top-6 right-6 p-2 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70 backdrop-blur-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
-                            title="全屏查看"
-                        >
-                            <Maximize2 className="w-5 h-5" />
-                        </button>
                     </div>
 
                     {/* Info Sidebar */}

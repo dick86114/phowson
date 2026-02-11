@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { twMerge } from 'tailwind-merge';
 
 type Props = {
   src: string;
@@ -60,7 +61,7 @@ export const ProgressiveImage: React.FC<Props> = ({
   }, [attempt, failed, loaded, onImageLoad, src]);
 
   return (
-    <div className={`relative ${className || ''}`.trim()}>
+    <div className={twMerge('relative', className)}>
       <div className="absolute inset-0">
         {placeholderSrc ? (
           <img

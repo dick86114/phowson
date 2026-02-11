@@ -26,8 +26,7 @@ const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(ma
 const getColumnCount = (width: number) => {
   if (width >= 1280) return 4;
   if (width >= 1024) return 3;
-  if (width >= 640) return 2;
-  return 1;
+  return 2;
 };
 
 const NATURAL_SIZE_CACHE_MAX = 3000;
@@ -126,7 +125,8 @@ export const MasonryVirtual = <T,>({ items, gapPx = 24, overscanPx = 2000 }: Pro
     if (!width) return { columns: 1, positions: [], height: 0, itemWidth: 0 };
 
     const columns = getColumnCount(width);
-    const itemWidth = (width - gapPx * (columns - 1)) / columns;
+    const currentGap = width < 640 ? 10 : gapPx;
+    const itemWidth = (width - currentGap * (columns - 1)) / columns;
 
     const colHeights = Array.from({ length: columns }, () => 0);
     const positions = items.map((it) => {
@@ -139,9 +139,9 @@ export const MasonryVirtual = <T,>({ items, gapPx = 24, overscanPx = 2000 }: Pro
         if (colHeights[i] < colHeights[targetCol]) targetCol = i;
       }
 
-      const x = targetCol * (itemWidth + gapPx);
+      const x = targetCol * (itemWidth + currentGap);
       const y = colHeights[targetCol];
-      colHeights[targetCol] += height + gapPx;
+      colHeights[targetCol] += height + currentGap;
 
       return {
         id: it.id,
@@ -152,7 +152,7 @@ export const MasonryVirtual = <T,>({ items, gapPx = 24, overscanPx = 2000 }: Pro
       };
     });
 
-    const height = colHeights.length ? Math.max(...colHeights) - gapPx : 0;
+    const height = colHeights.length ? Math.max(...colHeights) - currentGap : 0;
     return { columns, positions, height: Math.max(0, height), itemWidth };
   }, [containerWidth, gapPx, items, naturalSizes]);
 

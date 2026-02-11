@@ -282,7 +282,7 @@ export const UsersPage: React.FC = () => {
     const { confirm } = useModal();
     const { success, error } = useToast();
 
-    if (user?.role !== 'admin') return <Navigate to="/admin/me/albums" replace />;
+    if (user?.role !== 'admin') return <Navigate to="/me/albums" replace />;
 
     // Filters & Pagination
     const [keyword, setKeyword] = useState('');

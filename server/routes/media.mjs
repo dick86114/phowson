@@ -125,7 +125,7 @@ export const registerMediaRoutes = async (app) => {
     },
     handler: async (req, reply) => {
       const id = String(req.params.id);
-      const r = await pool.query('select avatar_mime, avatar_bytes, avatar_url from users where id=$1', [id]);
+      const r = await pool.query('select name, avatar_mime, avatar_bytes, avatar_url from users where id=$1', [id]);
       if (r.rowCount === 0) return reply.code(404).send();
       
       const user = r.rows[0];
@@ -150,7 +150,8 @@ export const registerMediaRoutes = async (app) => {
          }
       }
       
-      return reply.code(404).send();
+      const name = user.name || 'User';
+      return reply.redirect(`https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`);
     },
   });
 

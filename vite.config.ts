@@ -116,9 +116,6 @@ export default defineConfig(({ mode }) => {
             output: {
                 manualChunks: {
                     'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-                    'vendor-ui': ['lucide-react', 'react-hot-toast', 'react-hook-form', 'react-zoom-pan-pinch'],
-                    'vendor-maps': ['leaflet', 'react-leaflet'],
-                    'vendor-utils': ['@tanstack/react-query', 'html2canvas', 'jspdf', 'qrcode.react']
                 }
             }
         }

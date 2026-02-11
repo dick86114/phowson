@@ -47,7 +47,7 @@ export const ManagePhotos: React.FC = () => {
     // Redirect if not admin
     useEffect(() => {
         if (currentUser && !isAdmin) {
-            navigate('/admin/me/albums');
+            navigate('/me/albums');
         }
     }, [currentUser, isAdmin, navigate]);
 
