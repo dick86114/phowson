@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
 import { Calendar, MapPin, Camera, Grid, Image as ImageIcon, User, Plane, Flame, Heart, MessageCircle, ChevronDown, X, Search, Clock, Eye, History, ArrowUp, Check, RefreshCw } from 'lucide-react';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
@@ -86,6 +87,16 @@ export const Home: React.FC = () => {
 
     // Heatmap State
     const [heatmapYear, setHeatmapYear] = useState(new Date().getFullYear());
+
+    // Lock body scroll when mobile modals are open
+    useEffect(() => {
+        if (showMobileFilter || showMobileSort || showMobileHeatmap) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = '';
+        }
+        return () => { document.body.style.overflow = ''; };
+    }, [showMobileFilter, showMobileSort, showMobileHeatmap]);
 
     const { data: photos = [], isLoading } = useQuery({
         queryKey: ['photos'],
@@ -355,20 +366,24 @@ export const Home: React.FC = () => {
                         </div>
                         <span>排序</span>
                     </button>
-                    <div className="w-[1px] h-6 bg-gray-200 dark:bg-surface-border"></div>
-                    <button 
-                        onClick={() => setShowMobileHeatmap(true)}
-                        className="flex items-center gap-2 px-4 py-2 rounded-full bg-gray-50 dark:bg-surface-border/50 text-sm font-medium text-gray-700 dark:text-gray-300 active:scale-95 transition-all shadow-sm"
-                    >
-                        <Flame className="w-4 h-4" />
-                        <span>热力</span>
-                    </button>
+                    {currentUser && (
+                        <>
+                            <div className="w-[1px] h-6 bg-gray-200 dark:bg-surface-border"></div>
+                            <button 
+                                onClick={() => setShowMobileHeatmap(true)}
+                                className="flex items-center gap-2 px-4 py-2 rounded-full bg-gray-50 dark:bg-surface-border/50 text-sm font-medium text-gray-700 dark:text-gray-300 active:scale-95 transition-all shadow-sm"
+                            >
+                                <Flame className="w-4 h-4" />
+                                <span>热力</span>
+                            </button>
+                        </>
+                    )}
                 </div>
             </section>
 
             {/* Mobile Modals */}
             {/* 1. Filter Modal */}
-            {showMobileFilter && (
+            {showMobileFilter && createPortal(
                 <div className="fixed inset-0 z-[100] flex items-end justify-center md:hidden">
                     <div className="fixed inset-0 bg-black/60 backdrop-blur-md transition-opacity" onClick={() => setShowMobileFilter(false)} />
                     <div className="relative bg-white/80 dark:bg-surface-dark/80 backdrop-blur-xl w-full rounded-t-3xl p-6 shadow-2xl animate-in slide-in-from-bottom duration-300 ring-1 ring-black/5 dark:ring-white/10 max-h-[80vh] overflow-y-auto">
@@ -428,11 +443,12 @@ export const Home: React.FC = () => {
                             取消
                         </button>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
             {/* 2. Sort Modal */}
-            {showMobileSort && (
+            {showMobileSort && createPortal(
                 <div className="fixed inset-0 z-[100] flex items-end justify-center md:hidden">
                     <div className="fixed inset-0 bg-black/60 backdrop-blur-md transition-opacity" onClick={() => setShowMobileSort(false)} />
                     <div className="relative bg-white/80 dark:bg-surface-dark/80 backdrop-blur-xl w-full rounded-t-3xl p-6 shadow-2xl animate-in slide-in-from-bottom duration-300 ring-1 ring-black/5 dark:ring-white/10 max-h-[80vh] overflow-y-auto">
@@ -499,11 +515,12 @@ export const Home: React.FC = () => {
                             取消
                         </button>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
             {/* 3. Heatmap Modal */}
-            {showMobileHeatmap && heatmapData && (
+            {showMobileHeatmap && heatmapData && createPortal(
                 <div className="fixed inset-0 z-[100] flex items-center justify-center md:hidden p-4">
                     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onClick={() => setShowMobileHeatmap(false)} />
                     <div className="relative bg-white dark:bg-surface-dark w-full max-h-[85vh] rounded-2xl p-4 shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col">
@@ -527,7 +544,8 @@ export const Home: React.FC = () => {
                             />
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
             {/* Filter Bar - Desktop Only */}
