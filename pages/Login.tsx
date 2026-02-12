@@ -23,7 +23,10 @@ export const Login: React.FC = () => {
             const payload = res.data as any;
             if (!payload?.token || !payload?.user) throw new Error('invalid auth payload');
             setSession(payload.user, payload.token);
-            navigate('/admin');
+            
+            const searchParams = new URLSearchParams(window.location.search);
+            const returnUrl = searchParams.get('returnUrl');
+            navigate(returnUrl || '/');
         } catch {
             setLoginError('账号或密码错误');
         } finally {

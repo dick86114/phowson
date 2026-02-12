@@ -391,7 +391,7 @@ export const Header: React.FC = () => {
               </div>
             ) : (
               <Link
-                to="/login"
+                to={`/login?returnUrl=${encodeURIComponent(location.pathname + location.search)}`}
                 className="hidden md:inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary text-white text-sm font-medium hover:bg-primary/90 transition-colors"
               >
                 <LogIn className="w-4 h-4" />
@@ -592,7 +592,7 @@ export const Header: React.FC = () => {
                         
                         <div className="p-8 border-t border-gray-100/50 dark:border-white/5 bg-white/50 dark:bg-surface-dark/50">
                              <Link 
-                                to="/login" 
+                                to={`/login?returnUrl=${encodeURIComponent(location.pathname + location.search)}`} 
                                 onClick={() => setIsMenuOpen(false)}
                                 className="w-full py-4 rounded-xl bg-primary text-white text-lg font-bold flex items-center justify-center gap-2 shadow-xl shadow-primary/20 active:scale-95 transition-transform"
                              >
@@ -612,6 +612,7 @@ export const Header: React.FC = () => {
 
 export const Footer: React.FC = () => {
     const settings = useSiteSettings();
+    const location = useLocation();
     return (
         <footer className="bg-white dark:bg-[#111a22] border-t border-gray-200 dark:border-surface-border transition-colors duration-300 pb-28 md:pb-0">
             <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-6 md:py-12">
@@ -648,7 +649,7 @@ export const Footer: React.FC = () => {
                             <ul className="space-y-3">
                                 <li><Link to="/about" className="text-sm text-gray-500 dark:text-gray-400 hover:text-primary transition-colors">关于摄影师</Link></li>
                                 <li><a href="mailto:admin@idickies.com" className="text-sm text-gray-500 dark:text-gray-400 hover:text-primary transition-colors">联系合作</a></li>
-                                <li><Link to="/login" className="text-sm text-gray-500 dark:text-gray-400 hover:text-primary transition-colors">后台登录</Link></li>
+                                <li><Link to={`/login?returnUrl=${encodeURIComponent(location.pathname + location.search)}`} className="text-sm text-gray-500 dark:text-gray-400 hover:text-primary transition-colors">后台登录</Link></li>
                             </ul>
                         </div>
                     </div>

@@ -8,6 +8,7 @@ import { SiteSettingsProvider, useSiteSettings, toMediaUrl } from './SiteSetting
 
 import { ToastProvider } from './components/Toast';
 import { useAuth } from './hooks/useAuth';
+import { InstallPrompt } from './components/InstallPrompt';
 
 // Lazy load pages for better performance
 const Home = React.lazy(() => import('./pages/Home').then(module => ({ default: module.Home })));
@@ -87,6 +88,7 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 {children}
                 {!isStandalonePage && <Footer />}
                 {!isStandalonePage && <MobileBottomNav />}
+                <InstallPrompt />
             </div>
         </ToastProvider>
     );
@@ -95,12 +97,13 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 const AdminGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const { user } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
 
     useEffect(() => {
         if (!user || user.role !== 'admin') {
-            navigate('/');
+            navigate(`/login?returnUrl=${encodeURIComponent(location.pathname + location.search)}`);
         }
-    }, [user, navigate]);
+    }, [user, navigate, location]);
 
     if (!user || user.role !== 'admin') return null;
 
