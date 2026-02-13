@@ -25,3 +25,4 @@
 - Admin页面筛选栏（DropdownFilter）若默认值不是 'all'，必须显式传递 `defaultValue` 属性，以确保默认状态下呈现为非激活样式（灰色），保持视觉统一。
 - 前端 Header 或 Overlay 区域的图标与文字，若背景为透明或动态图片，必须使用 `drop-shadow-md` 并保持 100% 不透明度（如 `text-white` 而非 `text-white/70`），以确保在各种背景下的可见性。
 - 交付代码前必须清理所有前端调试代码（如 `console.log` 和 `debugger`），仅保留必要的 `console.error`。
+- 语义搜索实现规范：语义搜索必须包含相似度/距离阈值过滤（如 cosine distance < 0.65），避免返回不相关的结果，不能仅依赖排序。

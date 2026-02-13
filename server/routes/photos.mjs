@@ -282,7 +282,7 @@ export const registerPhotoRoutes = async (app) => {
 
   // 语义搜索接口
   app.get('/photos/semantic-search', async (req, reply) => {
-    const { query, limit = 20 } = req.query;
+    const { query, limit = 20, threshold = 0.65 } = req.query;
 
     if (!query || typeof query !== 'string' || query.trim().length === 0) {
       throw badRequest('INVALID_QUERY', '搜索关键词不能为空');
@@ -293,6 +293,8 @@ export const registerPhotoRoutes = async (app) => {
       const queryEmbedding = await generateEmbedding(query.trim());
 
       // 2. 使用余弦相似度搜索
+      // 增加距离阈值过滤，避免返回不相关的结果
+      // 距离越小越相似，0.65 是一个经验值
       const sql = `
         SELECT 
           p.id, p.title, p.description, p.url, p.thumb_url, p.medium_url,
@@ -302,13 +304,15 @@ export const registerPhotoRoutes = async (app) => {
         FROM photos p
         WHERE p.embedding IS NOT NULL
           AND p.status = 'approved'
+          AND (p.embedding <=> $1::vector) < $3
         ORDER BY p.embedding <=> $1::vector
         LIMIT $2
       `;
 
       const result = await pool.query(sql, [
         JSON.stringify(queryEmbedding),
-        parseInt(limit, 10)
+        parseInt(limit, 10),
+        parseFloat(threshold)
       ]);
 
       return {
