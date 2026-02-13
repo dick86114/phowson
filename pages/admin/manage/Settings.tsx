@@ -203,7 +203,7 @@ export const SettingsPage: React.FC = () => {
             </div>
 
             {/* Site Settings */}
-            <div className="bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-xl p-6 shadow-sm">
+            <div className="glass-panel p-6 !bg-slate-50/90">
                 <h3 className="font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
                     <Settings className="w-5 h-5 text-primary" />
                     网站设置
@@ -217,7 +217,7 @@ export const SettingsPage: React.FC = () => {
                                 value={siteSettingsForm.siteName || ''}
                                 onChange={(e) => setSiteSettingsForm({...siteSettingsForm, siteName: e.target.value})}
                                 placeholder="显示在Header和Footer的名称"
-                                className="w-full mt-2 bg-gray-50 dark:bg-[#111a22] border border-gray-200 dark:border-surface-border rounded-lg p-3 text-gray-900 dark:text-white text-base focus:outline-none focus:border-primary"
+                                className="w-full mt-2 bg-white/50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded-lg p-3 text-gray-900 dark:text-white text-base focus:outline-none focus:border-primary backdrop-blur-sm"
                             />
                         </div>
                         <div>
@@ -227,7 +227,7 @@ export const SettingsPage: React.FC = () => {
                                 value={siteSettingsForm.documentTitle || ''}
                                 onChange={(e) => setSiteSettingsForm({...siteSettingsForm, documentTitle: e.target.value})}
                                 placeholder="浏览器标签页标题"
-                                className="w-full mt-2 bg-gray-50 dark:bg-[#111a22] border border-gray-200 dark:border-surface-border rounded-lg p-3 text-gray-900 dark:text-white text-base focus:outline-none focus:border-primary"
+                                className="w-full mt-2 bg-white/50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded-lg p-3 text-gray-900 dark:text-white text-base focus:outline-none focus:border-primary backdrop-blur-sm"
                             />
                         </div>
                     </div>
@@ -238,7 +238,7 @@ export const SettingsPage: React.FC = () => {
                             <label className="text-xs text-gray-500 dark:text-gray-400 uppercase font-medium mb-2 block">网站 Logo</label>
                             <div className="flex items-center gap-4">
                                 {siteSettingsForm.siteLogo ? (
-                                    <div className="relative w-16 h-16 bg-gray-100 dark:bg-[#111a22] rounded-lg border border-gray-200 dark:border-surface-border flex items-center justify-center overflow-hidden">
+                                    <div className="relative w-16 h-16 bg-white/5 dark:bg-white/5 rounded-lg border border-white/20 flex items-center justify-center overflow-hidden glass-card">
                                         <img src={toMediaUrl(siteSettingsForm.siteLogo)} alt="Logo" className="max-w-full max-h-full object-contain" />
                                         <button 
                                             type="button"
@@ -250,12 +250,12 @@ export const SettingsPage: React.FC = () => {
                                         </button>
                                     </div>
                                 ) : (
-                                    <div className="w-16 h-16 bg-gray-50 dark:bg-[#111a22] rounded-lg border border-dashed border-gray-300 dark:border-surface-border flex items-center justify-center text-gray-400">
+                                    <div className="w-16 h-16 bg-white/5 dark:bg-white/5 rounded-lg border border-dashed border-gray-300 dark:border-white/10 flex items-center justify-center text-gray-400 glass-card">
                                         <ImageIcon className="w-6 h-6" />
                                     </div>
                                 )}
                                 <div>
-                                    <label className="cursor-pointer bg-white dark:bg-surface-border text-gray-700 dark:text-gray-200 px-3 py-2 rounded-lg text-sm border border-gray-200 dark:border-surface-border hover:bg-gray-50 dark:hover:bg-[#2a4055] transition-colors inline-flex items-center gap-2">
+                                    <label className="cursor-pointer bg-white/50 dark:bg-white/5 text-gray-700 dark:text-gray-200 px-3 py-2 rounded-lg text-sm border border-white/20 hover:bg-white/80 dark:hover:bg-white/10 transition-colors inline-flex items-center gap-2 backdrop-blur-sm">
                                         <Upload className="w-3 h-3" />
                                         上传图片
                                         <input 
@@ -282,7 +282,7 @@ export const SettingsPage: React.FC = () => {
                             <label className="text-xs text-gray-500 dark:text-gray-400 uppercase font-medium mb-2 block">网站 Favicon</label>
                             <div className="flex items-center gap-4">
                                 {siteSettingsForm.favicon ? (
-                                    <div className="relative w-16 h-16 bg-gray-100 dark:bg-[#111a22] rounded-lg border border-gray-200 dark:border-surface-border flex items-center justify-center overflow-hidden">
+                                    <div className="relative w-16 h-16 bg-white/5 dark:bg-white/5 rounded-lg border border-white/20 flex items-center justify-center overflow-hidden glass-card">
                                         <img src={toMediaUrl(siteSettingsForm.favicon)} alt="Favicon" className="w-8 h-8 object-contain" />
                                         <button 
                                             type="button"
@@ -294,12 +294,12 @@ export const SettingsPage: React.FC = () => {
                                         </button>
                                     </div>
                                 ) : (
-                                    <div className="w-16 h-16 bg-gray-50 dark:bg-[#111a22] rounded-lg border border-dashed border-gray-300 dark:border-surface-border flex items-center justify-center text-gray-400">
+                                    <div className="w-16 h-16 bg-white/5 dark:bg-white/5 rounded-lg border border-dashed border-gray-300 dark:border-white/10 flex items-center justify-center text-gray-400 glass-card">
                                         <Settings className="w-6 h-6" />
                                     </div>
                                 )}
                                 <div>
-                                    <label className="cursor-pointer bg-white dark:bg-surface-border text-gray-700 dark:text-gray-200 px-3 py-2 rounded-lg text-sm border border-gray-200 dark:border-surface-border hover:bg-gray-50 dark:hover:bg-[#2a4055] transition-colors inline-flex items-center gap-2">
+                                    <label className="cursor-pointer bg-white/50 dark:bg-white/5 text-gray-700 dark:text-gray-200 px-3 py-2 rounded-lg text-sm border border-white/20 hover:bg-white/80 dark:hover:bg-white/10 transition-colors inline-flex items-center gap-2 backdrop-blur-sm">
                                         <Upload className="w-3 h-3" />
                                         上传图片
                                         <input 
@@ -335,8 +335,8 @@ export const SettingsPage: React.FC = () => {
                                     onClick={() => setSiteSettingsForm({...siteSettingsForm, defaultTheme: opt.val as any})}
                                     className={`flex flex-col items-center justify-center gap-1.5 p-2 rounded-lg border transition-all ${
                                         siteSettingsForm.defaultTheme === opt.val
-                                        ? 'bg-primary/5 border-primary text-primary ring-1 ring-primary'
-                                        : 'bg-gray-50 dark:bg-[#111a22] border-gray-200 dark:border-surface-border text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-surface-border'
+                                        ? 'bg-primary/10 border-primary text-primary ring-1 ring-primary backdrop-blur-sm'
+                                        : 'bg-white/50 dark:bg-white/5 border-white/20 text-gray-600 dark:text-gray-400 hover:bg-white/80 dark:hover:bg-white/10 backdrop-blur-sm'
                                     }`}
                                 >
                                     <opt.icon className="w-4 h-4" />
@@ -346,7 +346,7 @@ export const SettingsPage: React.FC = () => {
                         </div>
                     </div>
 
-                    <div className="pt-4 border-t border-gray-100 dark:border-surface-border flex flex-col sm:flex-row justify-end">
+                    <div className="pt-4 border-t border-gray-100 dark:border-white/10 flex flex-col sm:flex-row justify-end">
                         <button
                             onClick={() => updateSiteSettingsMutation.mutate(siteSettingsForm)}
                             disabled={updateSiteSettingsMutation.isPending}
@@ -360,7 +360,7 @@ export const SettingsPage: React.FC = () => {
             </div>
 
             {/* Category Management */}
-            <div className="bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-xl p-6 shadow-sm">
+            <div className="glass-panel p-6 !bg-slate-50/90">
                 <div className="mb-6 flex items-center justify-between">
                     <div>
                         <h3 className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
@@ -387,18 +387,18 @@ export const SettingsPage: React.FC = () => {
                         <>
                             {/* Desktop Table View */}
                             <table className="hidden md:table w-full text-left text-sm">
-                                <thead className="bg-gray-50 dark:bg-[#111a22] text-gray-500 dark:text-gray-400 font-medium">
+                                <thead className="bg-white/10 dark:bg-black/20 text-gray-500 dark:text-gray-400 font-medium backdrop-blur-sm">
                                     <tr>
                                         <th className="px-4 py-3 rounded-l-lg">显示名称 (Label)</th>
                                         <th className="px-4 py-3">系统值 (Value)</th>
                                         <th className="px-4 py-3">排序 (Sort)</th>
                                         <th className="px-4 py-3">照片数</th>
-                                        <th className="px-4 py-3 text-right rounded-r-lg">操作</th>
+                                        <th className="px-4 py-3 text-right rounded-tr-lg">操作</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-gray-100 dark:divide-surface-border">
+                                <tbody className="divide-y divide-white/10 dark:divide-white/5">
                                     {categories.map((cat) => (
-                                        <tr key={cat.value} className="group hover:bg-gray-50 dark:hover:bg-[#111a22] transition-colors">
+                                        <tr key={cat.value} className="group hover:bg-white/5 dark:hover:bg-white/5 transition-colors">
                                             <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">
                                                 {cat.label}
                                             </td>
@@ -444,7 +444,7 @@ export const SettingsPage: React.FC = () => {
                             {/* Mobile Card View */}
                             <div className="md:hidden space-y-4">
                                 {categories.map((cat) => (
-                                    <div key={cat.value} className="bg-white dark:bg-surface-dark p-4 rounded-xl border border-gray-200 dark:border-surface-border shadow-sm">
+                                    <div key={cat.value} className="glass-card p-4">
                                         <div className="flex justify-between items-start mb-3">
                                             <div>
                                                 <h4 className="font-bold text-gray-900 dark:text-white">{cat.label}</h4>
@@ -455,14 +455,14 @@ export const SettingsPage: React.FC = () => {
                                             </span>
                                         </div>
                                         
-                                        <div className="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-surface-border">
+                                        <div className="flex items-center justify-between pt-3 border-t border-white/10 dark:border-white/5">
                                             <div className="text-xs text-gray-500">
                                                 排序权重: {cat.sortOrder}
                                             </div>
                                             <div className="flex items-center gap-2">
                                                 <button
                                                     onClick={() => openEditModal(cat)}
-                                                    className="p-2 text-gray-500 hover:text-primary bg-gray-50 dark:bg-surface-border/50 rounded-lg transition-colors"
+                                                    className="p-2 text-gray-500 hover:text-primary bg-white/50 dark:bg-white/5 rounded-lg transition-colors"
                                                     title="编辑"
                                                 >
                                                     <Settings className="w-4 h-4" />
@@ -503,7 +503,7 @@ export const SettingsPage: React.FC = () => {
                             type="text"
                             value={categoryForm.label}
                             onChange={(e) => setCategoryForm({ ...categoryForm, label: e.target.value })}
-                            className="w-full px-3 py-2 bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                            className="w-full px-3 py-2 bg-white/50 dark:bg-black/20 border border-white/20 dark:border-white/10 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all backdrop-blur-sm"
                             placeholder="例如：黑白摄影"
                             required
                         />
@@ -517,8 +517,10 @@ export const SettingsPage: React.FC = () => {
                             value={categoryForm.value}
                             onChange={(e) => setCategoryForm({ ...categoryForm, value: e.target.value })}
                             disabled={!!editingCategory}
-                            className={`w-full px-3 py-2 bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-mono ${
-                                editingCategory ? 'opacity-50 cursor-not-allowed bg-gray-100 dark:bg-surface-border' : ''
+                            className={`w-full px-3 py-2 border border-white/20 dark:border-white/10 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-mono backdrop-blur-sm ${
+                                editingCategory 
+                                ? 'opacity-50 cursor-not-allowed bg-gray-100/50 dark:bg-white/5' 
+                                : 'bg-white/50 dark:bg-black/20'
                             }`}
                             placeholder="例如：bnw (仅支持小写字母、数字、短横线)"
                             pattern="[a-z0-9][a-z0-9_-]*"
@@ -534,7 +536,7 @@ export const SettingsPage: React.FC = () => {
                             type="number"
                             value={categoryForm.sortOrder}
                             onChange={(e) => setCategoryForm({ ...categoryForm, sortOrder: parseInt(e.target.value) || 0 })}
-                            className="w-full px-3 py-2 bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                            className="w-full px-3 py-2 bg-white/50 dark:bg-black/20 border border-white/20 dark:border-white/10 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all backdrop-blur-sm"
                             placeholder="0"
                         />
                         <p className="text-xs text-gray-500 mt-1">数字越小越靠前</p>
@@ -544,7 +546,7 @@ export const SettingsPage: React.FC = () => {
                         <button
                             type="button"
                             onClick={() => setIsCategoryModalOpen(false)}
-                            className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-surface-border rounded-lg transition-colors"
+                            className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-white/50 dark:hover:bg-white/10 rounded-lg transition-colors"
                         >
                             取消
                         </button>
@@ -563,7 +565,7 @@ export const SettingsPage: React.FC = () => {
             </Modal>
 
             {/* Config Backup/Restore */}
-            <div className="bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-xl p-6 shadow-sm">
+            <div className="glass-panel p-6">
                 <h3 className="font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
                     <Download className="w-5 h-5 text-primary" />
                     配置备份与恢复
@@ -576,7 +578,7 @@ export const SettingsPage: React.FC = () => {
                         <button
                             type="button"
                             onClick={() => downloadJson(siteSettingsForm, `站点配置-${todayIso}.json`)}
-                            className="px-3 py-2 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-surface-border transition-colors flex items-center gap-2"
+                            className="px-3 py-2 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-white/50 dark:hover:bg-white/10 border border-transparent hover:border-white/20 transition-all flex items-center gap-2"
                         >
                             <Download className="w-4 h-4" />
                             导出 JSON
@@ -584,7 +586,7 @@ export const SettingsPage: React.FC = () => {
                         <button
                             type="button"
                             onClick={() => siteSettingsImportInputRef.current?.click()}
-                            className="px-3 py-2 rounded-lg text-sm font-medium bg-primary text-white hover:bg-primary/90 transition-colors flex items-center gap-2"
+                            className="px-3 py-2 rounded-lg text-sm font-medium bg-primary text-white hover:bg-primary/90 transition-colors flex items-center gap-2 shadow-lg shadow-primary/20"
                         >
                             <Upload className="w-4 h-4" />
                             导入并应用

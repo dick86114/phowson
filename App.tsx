@@ -2,6 +2,7 @@ import React, { useEffect, Suspense } from 'react';
 import { HashRouter, Routes, Route, useLocation, useNavigationType, Navigate, useNavigate } from 'react-router-dom';
 import { Header, Footer, MobileBottomNav } from './components/Layout';
 import { ThemeProvider } from './ThemeContext';
+import { HeaderThemeProvider } from './HeaderThemeContext';
 import { ModalProvider } from './components/Modal';
 import { useModal } from './components/Modal';
 import { SiteSettingsProvider, useSiteSettings, toMediaUrl } from './SiteSettingsContext';
@@ -82,15 +83,17 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     }, [settings]);
 
     return (
-        <ToastProvider>
-            <div className="min-h-screen flex flex-col bg-background-light dark:bg-background-dark text-gray-900 dark:text-white font-sans selection:bg-primary selection:text-white transition-colors duration-300">
-                {!isStandalonePage && <Header />}
-                {children}
-                {!isStandalonePage && <Footer />}
-                {!isStandalonePage && <MobileBottomNav />}
-                <InstallPrompt />
-            </div>
-        </ToastProvider>
+        <HeaderThemeProvider>
+            <ToastProvider>
+                <div className="min-h-screen flex flex-col bg-background-light dark:bg-background-dark text-gray-900 dark:text-white font-sans selection:bg-primary selection:text-white transition-colors duration-300">
+                    {!isStandalonePage && <Header />}
+                    {children}
+                    {!isStandalonePage && <Footer />}
+                    {!isStandalonePage && <MobileBottomNav />}
+                    <InstallPrompt />
+                </div>
+            </ToastProvider>
+        </HeaderThemeProvider>
     );
 };
 

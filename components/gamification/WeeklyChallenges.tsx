@@ -46,8 +46,8 @@ export const WeeklyChallenges: React.FC<WeeklyChallengesProps> = ({ challenges, 
                     const percent = Math.min(100, Math.floor((challenge.progress / challenge.target) * 100));
                     
                     return (
-                        <div key={challenge.id} className="bg-white dark:bg-surface-dark rounded-2xl p-6 border border-gray-100 dark:border-surface-border shadow-sm flex flex-col h-full">
-                            <div className="w-12 h-12 rounded-2xl bg-gray-50 dark:bg-surface-border/50 flex items-center justify-center mb-4">
+                        <div key={challenge.id} className="glass-card rounded-2xl p-6 flex flex-col h-full group hover:-translate-y-1 transition-transform duration-300">
+                            <div className="w-12 h-12 rounded-2xl bg-white/50 dark:bg-white/5 backdrop-blur-md flex items-center justify-center mb-4 shadow-inner">
                                 {getIcon(challenge.title)}
                             </div>
                             
@@ -60,18 +60,18 @@ export const WeeklyChallenges: React.FC<WeeklyChallengesProps> = ({ challenges, 
                                         <span className="text-gray-700 dark:text-gray-300">进度 {challenge.progress}/{challenge.target}</span>
                                         <span className="text-primary">{percent}%</span>
                                     </div>
-                                    <div className="h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                                    <div className="h-2 bg-gray-100/50 dark:bg-gray-700/50 rounded-full overflow-hidden border border-white/10">
                                         <div 
-                                            className="h-full bg-primary rounded-full transition-all duration-500"
+                                            className="h-full bg-primary rounded-full transition-all duration-1000 ease-out shadow-[0_0_8px_rgba(59,130,246,0.4)]"
                                             style={{ width: `${percent}%` }}
                                         />
                                     </div>
                                 </div>
                                 
-                                <div className={`flex items-center gap-2 text-xs font-medium px-3 py-2 rounded-lg w-fit ${
+                                <div className={`flex items-center gap-2 text-xs font-medium px-3 py-2 rounded-lg w-fit backdrop-blur-sm ${
                                     challenge.completed 
-                                        ? 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-500/10' 
-                                        : 'text-primary bg-blue-50 dark:bg-blue-500/10'
+                                        ? 'text-green-600 dark:text-green-400 bg-green-100/50 dark:bg-green-500/10' 
+                                        : 'text-primary bg-blue-100/50 dark:bg-blue-500/10'
                                 }`}>
                                     {challenge.completed ? (
                                         <>
@@ -91,7 +91,7 @@ export const WeeklyChallenges: React.FC<WeeklyChallengesProps> = ({ challenges, 
                 })}
                 
                 {challenges.length === 0 && (
-                    <div className="col-span-full text-center py-12 bg-gray-50 dark:bg-surface-dark/50 rounded-2xl border border-dashed border-gray-200 dark:border-gray-700">
+                    <div className="col-span-full text-center py-12 glass-card rounded-2xl border-dashed">
                         <p className="text-gray-500 dark:text-gray-400">本周暂无挑战，敬请期待！</p>
                     </div>
                 )}

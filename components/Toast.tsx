@@ -62,11 +62,11 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                         key={toast.id}
                         role={toast.type === 'error' || toast.type === 'warning' ? 'alert' : 'status'}
                         className={`
-                            pointer-events-auto min-w-[300px] max-w-md p-4 rounded-lg shadow-lg border flex items-start gap-3 transform transition-all duration-300 animate-in slide-in-from-right-full
-                            ${toast.type === 'success' ? 'bg-white dark:bg-surface-card border-green-200 dark:border-green-900/30 text-green-800 dark:text-green-200' : ''}
-                            ${toast.type === 'error' ? 'bg-white dark:bg-surface-card border-red-200 dark:border-red-900/30 text-red-800 dark:text-red-200' : ''}
-                            ${toast.type === 'info' ? 'bg-white dark:bg-surface-card border-blue-200 dark:border-blue-900/30 text-blue-800 dark:text-blue-200' : ''}
-                            ${toast.type === 'warning' ? 'bg-white dark:bg-surface-card border-yellow-200 dark:border-yellow-900/30 text-yellow-800 dark:text-yellow-200' : ''}
+                            pointer-events-auto min-w-[300px] max-w-md p-4 rounded-xl shadow-xl flex items-start gap-3 transform transition-all duration-300 animate-in slide-in-from-right-full backdrop-blur-xl border
+                            ${toast.type === 'success' ? 'bg-white/80 dark:bg-slate-900/80 border-green-500/20 text-green-700 dark:text-green-300' : ''}
+                            ${toast.type === 'error' ? 'bg-white/80 dark:bg-slate-900/80 border-red-500/20 text-red-700 dark:text-red-300' : ''}
+                            ${toast.type === 'info' ? 'bg-white/80 dark:bg-slate-900/80 border-blue-500/20 text-blue-700 dark:text-blue-300' : ''}
+                            ${toast.type === 'warning' ? 'bg-white/80 dark:bg-slate-900/80 border-yellow-500/20 text-yellow-700 dark:text-yellow-300' : ''}
                         `}
                     >
                         <div className="flex-shrink-0 mt-0.5">

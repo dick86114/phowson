@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Calendar, MapPin, Camera, Grid, Image as ImageIcon, User, Plane, Flame, Heart, MessageCircle, ChevronDown, X, Search, Clock, Eye, History, ArrowUp, Check, RefreshCw } from 'lucide-react';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import api, { API_BASE_URL } from '../api';
@@ -8,6 +9,8 @@ import { getPhotoUrl } from '../utils/helpers';
 import { MasonryVirtual } from '../components/MasonryVirtual';
 import { Heatmap } from '../components/Heatmap';
 import { useAuth } from '../hooks/useAuth';
+import { useHeaderTheme } from '../HeaderThemeContext';
+import { getImageBrightness } from '../utils/color';
 
 type ApiPhoto = {
     id: string;
@@ -74,6 +77,7 @@ export const Home: React.FC = () => {
     const [sortBy, setSortBy] = useState('最新发布');
     const [searchParams, setSearchParams] = useSearchParams();
     const { user: currentUser } = useAuth();
+    const { setHeaderColorMode } = useHeaderTheme();
     
     // 语义搜索状态
     const [searchMode, setSearchMode] = useState<'normal' | 'semantic'>('normal');
@@ -147,6 +151,23 @@ export const Home: React.FC = () => {
     });
     
     const featuredPhoto = photos[0] || null;
+
+    useEffect(() => {
+        if (featuredPhoto) {
+            const url = getPhotoUrl(featuredPhoto, 'medium');
+            getImageBrightness(url).then(brightness => {
+                // Because we have a dark gradient overlay (rgba(17,26,34,0.3)), 
+                // we only switch to dark text if the underlying image is very bright.
+                // Threshold 160 allows more images to keep white text.
+                setHeaderColorMode(brightness > 160 ? 'dark-text' : 'light-text');
+            });
+        } else {
+             // No hero image -> likely white background -> dark text
+             setHeaderColorMode('dark-text');
+        }
+        
+        return () => setHeaderColorMode('light-text');
+    }, [featuredPhoto?.id, setHeaderColorMode]);
 
     // Search Logic
     const urlSearchQuery = searchParams.get('q') || '';
@@ -279,67 +300,78 @@ export const Home: React.FC = () => {
 
             {/* Search Result Banner */}
             {urlSearchQuery && (
-                <section className="bg-gray-100 dark:bg-surface-dark border-b border-gray-200 dark:border-surface-border py-8">
-                     <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8">
-                        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                            <div className="flex-1">
-                                <div className="flex items-center gap-3 mb-2">
-                                    <div className="p-3 bg-primary/10 rounded-full text-primary">
-                                        <Search className="w-6 h-6" />
-                                    </div>
-                                    <div>
-                                        <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-                                            {searchMode === 'semantic' ? '🤖 语义搜索' : '🔍 关键词搜索'}: "{urlSearchQuery}"
-                                        </h2>
-                                        <p className="text-gray-500 dark:text-gray-400 text-sm">
-                                            找到 {isSearchLoading ? '...' : sortedPhotos.length} 张相关照片
-                                            {searchMode === 'semantic' && searchResults && (
-                                                <span className="ml-2 text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
-                                                    相似度排序
-                                                </span>
-                                            )}
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <div className="flex gap-1 bg-white dark:bg-surface-border rounded-lg p-1 shadow-sm">
-                                    <button
-                                        onClick={() => {
-                                            searchParams.set('mode', 'normal');
-                                            setSearchParams(searchParams);
-                                        }}
-                                        className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
-                                            searchMode === 'normal'
-                                                ? 'bg-primary text-white shadow-sm'
-                                                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                                        }`}
-                                    >
-                                        关键词
-                                    </button>
-                                    <button
-                                        onClick={() => {
-                                            searchParams.set('mode', 'semantic');
-                                            setSearchParams(searchParams);
-                                        }}
-                                        className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-1 ${
-                                            searchMode === 'semantic'
-                                                ? 'bg-primary text-white shadow-sm'
-                                                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                                        }`}
-                                    >
-                                        🤖 语义
-                                    </button>
-                                </div>
-                                <button 
-                                    onClick={clearSearch}
-                                    className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white px-4 py-2 rounded-lg hover:bg-gray-200 dark:hover:bg-surface-border transition-colors"
+                <section className="relative overflow-hidden py-12 md:py-16 bg-gradient-to-b from-gray-50/50 to-white/50 dark:from-surface-dark/50 dark:to-background-dark/50 backdrop-blur-sm border-b border-gray-100 dark:border-white/5">
+                     <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center space-y-8 relative z-10">
+                        
+                        <div className="space-y-4">
+                            
+                            <motion.h1 
+                                initial={{ y: 10, opacity: 0 }}
+                                animate={{ y: 0, opacity: 1 }}
+                                transition={{ delay: 0.1 }}
+                                className="text-3xl md:text-5xl font-black text-gray-900 dark:text-white tracking-tight"
+                            >
+                                "{urlSearchQuery}"
+                            </motion.h1>
+                            
+                            <motion.p 
+                                initial={{ y: 10, opacity: 0 }}
+                                animate={{ y: 0, opacity: 1 }}
+                                transition={{ delay: 0.2 }}
+                                className="text-lg text-gray-500 dark:text-gray-400"
+                            >
+                                找到 <span className="font-bold text-gray-900 dark:text-white mx-1">{isSearchLoading ? '...' : sortedPhotos.length}</span> 张
+                                {searchMode === 'semantic' ? '语义匹配' : '关键词匹配'}的照片
+                            </motion.p>
+                        </div>
+
+                        <motion.div 
+                            initial={{ y: 20, opacity: 0 }}
+                            animate={{ y: 0, opacity: 1 }}
+                            transition={{ delay: 0.3 }}
+                            className="flex flex-col sm:flex-row items-center justify-center gap-4"
+                        >
+                            {/* Mode Toggle */}
+                            <div className="bg-gray-100/80 dark:bg-white/5 p-1.5 rounded-2xl inline-flex items-center shadow-inner backdrop-blur-md">
+                                <button
+                                    onClick={() => {
+                                        searchParams.set('mode', 'normal');
+                                        setSearchParams(searchParams);
+                                    }}
+                                    className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 ${
+                                        searchMode === 'normal'
+                                            ? 'bg-white dark:bg-surface-light text-primary shadow-md shadow-gray-200/50 dark:shadow-none ring-1 ring-black/5'
+                                            : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
+                                    }`}
                                 >
-                                    <X className="w-4 h-4" />
-                                    清除搜索
+                                    关键词搜索
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        searchParams.set('mode', 'semantic');
+                                        setSearchParams(searchParams);
+                                    }}
+                                    className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 flex items-center gap-2 ${
+                                        searchMode === 'semantic'
+                                            ? 'bg-white dark:bg-surface-light text-primary shadow-md shadow-gray-200/50 dark:shadow-none ring-1 ring-black/5'
+                                            : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
+                                    }`}
+                                >
+                                    <span className="text-lg leading-none">🤖</span> 语义搜索
                                 </button>
                             </div>
-                        </div>
+
+                            {/* Clear Button */}
+                            <button 
+                                onClick={clearSearch}
+                                className="group flex items-center gap-2 px-6 py-3 rounded-2xl border border-transparent hover:border-red-200 hover:bg-red-50 dark:hover:bg-red-500/10 text-gray-400 hover:text-red-500 transition-all duration-300"
+                            >
+                                <div className="bg-gray-100 dark:bg-white/10 rounded-full p-1 group-hover:bg-red-100 dark:group-hover:bg-red-500/20 transition-colors">
+                                    <X className="w-3 h-3" />
+                                </div>
+                                <span className="font-medium">清除搜索</span>
+                            </button>
+                        </motion.div>
                      </div>
                 </section>
             )}
@@ -386,7 +418,7 @@ export const Home: React.FC = () => {
             {showMobileFilter && createPortal(
                 <div className="fixed inset-0 z-[100] flex items-end justify-center md:hidden">
                     <div className="fixed inset-0 bg-black/60 backdrop-blur-md transition-opacity" onClick={() => setShowMobileFilter(false)} />
-                    <div className="relative bg-white/80 dark:bg-surface-dark/80 backdrop-blur-xl w-full rounded-t-3xl p-6 shadow-2xl animate-in slide-in-from-bottom duration-300 ring-1 ring-black/5 dark:ring-white/10 max-h-[80vh] overflow-y-auto">
+                    <div className="relative glass-panel w-full rounded-t-3xl p-6 animate-in slide-in-from-bottom duration-500 max-h-[80vh] overflow-y-auto">
                         <div className="w-12 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full mx-auto mb-6" />
                         
                         <div className="flex items-center justify-between mb-4">
@@ -399,7 +431,7 @@ export const Home: React.FC = () => {
                             </button>
                         </div>
 
-                        <div className="w-full h-px bg-gray-100 dark:bg-gray-800 mb-6" />
+                        <div className="w-full h-px bg-gradient-to-r from-transparent via-gray-200/50 dark:via-gray-700/50 to-transparent mb-6 backdrop-blur-sm" />
 
                         <div className="grid grid-cols-2 gap-3 mb-8">
                             {[{ id: 'all', label: '全部主题', icon: <Grid className="w-4 h-4"/> }, ...categories
@@ -414,8 +446,10 @@ export const Home: React.FC = () => {
                                         <ImageIcon className="w-4 h-4"/>,
                                 }))
                             ].map(cat => (
-                                <button
+                                <motion.button
                                     key={cat.id}
+                                    whileHover={{ scale: 1.02 }}
+                                    whileTap={{ scale: 0.95 }}
                                     onClick={() => {
                                         setFilter(cat.id);
                                         setTimeout(() => setShowMobileFilter(false), 150);
@@ -432,7 +466,7 @@ export const Home: React.FC = () => {
                                         {cat.icon}
                                     </div>
                                     <span>{cat.label}</span>
-                                </button>
+                                </motion.button>
                             ))}
                         </div>
 
@@ -451,7 +485,7 @@ export const Home: React.FC = () => {
             {showMobileSort && createPortal(
                 <div className="fixed inset-0 z-[100] flex items-end justify-center md:hidden">
                     <div className="fixed inset-0 bg-black/60 backdrop-blur-md transition-opacity" onClick={() => setShowMobileSort(false)} />
-                    <div className="relative bg-white/80 dark:bg-surface-dark/80 backdrop-blur-xl w-full rounded-t-3xl p-6 shadow-2xl animate-in slide-in-from-bottom duration-300 ring-1 ring-black/5 dark:ring-white/10 max-h-[80vh] overflow-y-auto">
+                    <div className="relative glass-panel w-full rounded-t-3xl p-6 animate-in slide-in-from-bottom duration-500 max-h-[80vh] overflow-y-auto">
                         <div className="w-12 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full mx-auto mb-6" />
                         
                         <div className="flex items-center justify-between mb-4">
@@ -484,8 +518,10 @@ export const Home: React.FC = () => {
                                 }
 
                                 return (
-                                    <button
+                                    <motion.button
                                         key={option}
+                                        whileHover={{ scale: 1.02 }}
+                                        whileTap={{ scale: 0.95 }}
                                         onClick={() => {
                                             setSortBy(option);
                                             // 稍微延迟关闭以展示点击反馈
@@ -503,7 +539,7 @@ export const Home: React.FC = () => {
                                             {icon}
                                         </div>
                                         <span className="text-base">{option}</span>
-                                    </button>
+                                    </motion.button>
                                 );
                             })}
                         </div>
@@ -523,7 +559,7 @@ export const Home: React.FC = () => {
             {showMobileHeatmap && heatmapData && createPortal(
                 <div className="fixed inset-0 z-[100] flex items-center justify-center md:hidden p-4">
                     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onClick={() => setShowMobileHeatmap(false)} />
-                    <div className="relative bg-white dark:bg-surface-dark w-full max-h-[85vh] rounded-2xl p-4 shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col">
+                    <div className="relative glass-panel w-full max-h-[85vh] rounded-2xl p-4 animate-in zoom-in-95 duration-200 flex flex-col">
                         <div className="flex items-center justify-between mb-4 shrink-0">
                             <div className="flex items-center gap-2">
                                 <Flame className="w-5 h-5 text-primary" />
@@ -549,7 +585,7 @@ export const Home: React.FC = () => {
             )}
 
             {/* Filter Bar - Desktop Only */}
-            <section className="hidden md:block border-b border-gray-200 dark:border-surface-border bg-white dark:bg-background-dark transition-colors duration-300">
+            <section className="hidden md:block glass-nav transition-colors duration-300">
                 <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 py-4">
                     <div className="flex flex-col md:flex-row items-center justify-between gap-4">
                         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar w-full md:w-auto pb-2 md:pb-0">
@@ -570,8 +606,8 @@ export const Home: React.FC = () => {
                                     onClick={() => setFilter(cat.id)}
                                     className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap ${
                                         filter === cat.id 
-                                        ? 'bg-primary text-white shadow-lg shadow-primary/20' 
-                                        : 'bg-gray-100 dark:bg-surface-border text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-[#2a4055]'
+                                        ? 'bg-primary text-white' 
+                                        : 'bg-white/50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-800 text-gray-600 dark:text-gray-300 border border-transparent hover:border-gray-200 dark:hover:border-gray-700'
                                     }`}
                                 >
                                     {cat.icon}
@@ -584,7 +620,7 @@ export const Home: React.FC = () => {
                         <div className="relative z-50">
                             <button 
                                 onClick={() => setSortOpen(!sortOpen)}
-                                className="flex items-center gap-3 px-4 py-2 rounded-full text-sm font-medium bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border text-gray-600 dark:text-gray-300 hover:border-gray-400 dark:hover:border-gray-500 transition-all min-w-[160px] justify-between group"
+                                className="flex items-center gap-3 px-4 py-2 rounded-full text-sm font-medium bg-white/50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-800 border border-transparent hover:border-gray-200 dark:hover:border-gray-700 text-gray-600 dark:text-gray-300 min-w-[160px] justify-between group transition-all"
                             >
                                 <span className="text-gray-400 dark:text-gray-500 text-xs font-semibold uppercase tracking-wider group-hover:text-gray-600 dark:group-hover:text-gray-400">排序</span>
                                 <span className="flex-1 text-right text-gray-900 dark:text-white">{sortBy}</span>
@@ -594,7 +630,7 @@ export const Home: React.FC = () => {
                             {sortOpen && (
                                 <>
                                     <div className="fixed inset-0 z-40" onClick={() => setSortOpen(false)}></div>
-                                    <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-xl shadow-xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-100">
+                                    <div className="absolute right-0 mt-2 w-48 glass-panel rounded-xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-100">
                                         {sortOptions.map((option) => (
                                             <button
                                                 key={option}

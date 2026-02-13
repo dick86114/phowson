@@ -38,25 +38,27 @@ export const MilestoneList: React.FC<MilestoneListProps> = ({ milestones, limit 
     };
 
     return (
-        <div className="bg-white dark:bg-surface-dark rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-surface-border h-full flex flex-col">
+        <div className="glass-panel rounded-3xl p-6 h-full flex flex-col">
             <div className="flex items-center gap-2 mb-6">
-                <TrendingUp className="w-5 h-5 text-primary" />
+                <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                    <TrendingUp className="w-5 h-5" />
+                </div>
                 <h3 className="text-lg font-bold text-gray-900 dark:text-white">最近里程碑</h3>
             </div>
 
             <div className="flex-1 relative space-y-8">
                 {/* Vertical Line */}
-                <div className="absolute top-2 bottom-2 left-[15px] w-0.5 bg-gray-100 dark:bg-gray-700" />
+                <div className="absolute top-2 bottom-2 left-[15px] w-0.5 bg-gray-200/50 dark:bg-gray-700/50" />
 
                 {displayMilestones.length === 0 ? (
-                    <div className="text-gray-400 text-sm py-4 pl-8">暂无里程碑记录，快去上传照片吧！</div>
+                    <div className="text-gray-500 dark:text-gray-400 text-sm py-4 pl-8">暂无里程碑记录，快去上传照片吧！</div>
                 ) : (
                     displayMilestones.map((item) => (
-                        <div key={item.id} className="relative flex gap-4">
-                            <div className={`relative z-10 w-8 h-8 rounded-full ${getBgColor(item.type)} flex items-center justify-center shrink-0 ring-4 ring-white dark:ring-surface-dark`}>
+                        <div key={item.id} className="relative flex gap-4 group">
+                            <div className={`relative z-10 w-8 h-8 rounded-full ${getBgColor(item.type)} flex items-center justify-center shrink-0 ring-4 ring-white/20 dark:ring-white/5 shadow-lg group-hover:scale-110 transition-transform duration-300`}>
                                 {getIcon(item.type)}
                             </div>
-                            <div className="pt-1">
+                            <div className="pt-1 group-hover:translate-x-1 transition-transform duration-300">
                                 <div className="text-xs text-gray-400 mb-1">{item.date}</div>
                                 <div className="font-bold text-gray-900 dark:text-white text-sm">{item.title}</div>
                                 <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">{item.description}</div>
@@ -67,7 +69,7 @@ export const MilestoneList: React.FC<MilestoneListProps> = ({ milestones, limit 
             </div>
 
             {hasMore && (
-                <Link to="/gamification/history" className="mt-6 w-full py-3 bg-gray-50 dark:bg-surface-border/50 text-gray-600 dark:text-gray-300 font-bold rounded-xl text-sm hover:bg-gray-100 dark:hover:bg-surface-border transition-colors text-center block">
+                <Link to="/gamification/history" className="mt-6 w-full py-3 bg-white/50 dark:bg-white/5 backdrop-blur-sm border border-white/20 dark:border-white/10 text-gray-600 dark:text-gray-300 font-bold rounded-xl text-sm hover:bg-white/80 dark:hover:bg-white/10 transition-all text-center block shadow-sm hover:shadow-md">
                     查看完整旅程
                 </Link>
             )}

@@ -532,7 +532,7 @@ export const Admin: React.FC<{ hideLayout?: boolean }> = ({ hideLayout }) => {
                                             <Link
                                                 key={p.id}
                                                 to={`/photo/${p.id}`}
-                                                className="group relative aspect-video bg-gray-900 rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 ring-1 ring-black/5"
+                                                className="group relative aspect-video glass-card rounded-2xl overflow-hidden"
                                             >
                                                 <img
                                                     src={getPhotoUrl(p, 'medium')}
@@ -577,7 +577,7 @@ export const Admin: React.FC<{ hideLayout?: boolean }> = ({ hideLayout }) => {
                                         <Link
                                             key={p.id}
                                             to={`/photo/${p.id}`}
-                                            className="group relative bg-gray-100 dark:bg-surface-dark rounded-xl overflow-hidden aspect-square hover:ring-4 hover:ring-primary/10 transition-all"
+                                            className="group relative glass-card rounded-xl overflow-hidden aspect-square hover:ring-4 hover:ring-primary/10 transition-all"
                                         >
                                             <img
                                                 src={getPhotoUrl(p, 'thumb')}
@@ -641,7 +641,7 @@ export const Admin: React.FC<{ hideLayout?: boolean }> = ({ hideLayout }) => {
                         {/* Left Column: Activity & Goals */}
                         <div className="lg:col-span-2 space-y-6">
                             {/* Activity Ring & Hours */}
-                            <div className="bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-2xl p-6 shadow-sm">
+                            <div className="glass-panel rounded-2xl p-6">
                                 <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
                                     <Activity className="w-5 h-5 text-primary" />
                                     活跃时段分布
@@ -660,12 +660,12 @@ export const Admin: React.FC<{ hideLayout?: boolean }> = ({ hideLayout }) => {
                                             { label: '傍晚 (18-23)', value: timeOfDayStats?.evening, color: 'text-blue-500' },
                                             { label: '深夜 (0-5)', value: timeOfDayStats?.night, color: 'text-purple-500' },
                                         ].map((item) => (
-                                            <div key={item.label} className="bg-gray-50 dark:bg-surface-border/50 rounded-xl p-4">
+                                            <div key={item.label} className="glass-card rounded-xl p-4">
                                                 <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">{item.label}</div>
                                                 <div className={`text-xl font-bold ${item.color}`}>
                                                     {item.value || 0} <span className="text-xs text-gray-400">张</span>
                                                 </div>
-                                                <div className="w-full h-1 bg-gray-200 dark:bg-gray-700 rounded-full mt-2 overflow-hidden">
+                                                <div className="w-full h-1 bg-gray-200 dark:bg-white/10 rounded-full mt-2 overflow-hidden">
                                                     <div 
                                                         className={`h-full rounded-full ${item.color.replace('text-', 'bg-')}`} 
                                                         style={{ width: `${Math.min(100, ((item.value || 0) / (timeOfDayStats?.max || 1)) * 100)}%` }}
@@ -678,7 +678,7 @@ export const Admin: React.FC<{ hideLayout?: boolean }> = ({ hideLayout }) => {
                             </div>
 
                             {/* Heatmap */}
-                            <div className="bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-2xl p-6 shadow-sm">
+                            <div className="glass-panel rounded-2xl p-6">
                                 <div className="flex items-center justify-between mb-6">
                                     <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
                                         <Calendar className="w-5 h-5 text-primary" />
@@ -687,7 +687,7 @@ export const Admin: React.FC<{ hideLayout?: boolean }> = ({ hideLayout }) => {
                                     <select
                                         value={heatmapYear}
                                         onChange={(e) => setHeatmapYear(Number(e.target.value))}
-                                        className="bg-gray-50 dark:bg-surface-border border-none rounded-lg text-sm px-3 py-1.5 focus:ring-2 focus:ring-primary/20"
+                                        className="bg-white/50 dark:bg-black/30 backdrop-blur-sm border border-white/10 rounded-lg text-sm px-3 py-1.5 focus:ring-2 focus:ring-primary/20"
                                     >
                                         {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map(y => (
                                             <option key={y} value={y}>{y}年</option>
@@ -701,7 +701,7 @@ export const Admin: React.FC<{ hideLayout?: boolean }> = ({ hideLayout }) => {
                         {/* Right Column: Insights & Goals */}
                         <div className="space-y-6">
                              {/* Daily Goal Card */}
-                            <div className="bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 rounded-2xl p-6">
+                            <div className="glass-panel bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20 rounded-2xl p-6">
                                 <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">每日目标</h3>
                                 <div className="text-center mb-6">
                                     <div className="inline-flex items-center justify-center w-20 h-20 rounded-full border-4 border-primary/30 text-2xl font-bold text-primary mb-2">
@@ -718,7 +718,7 @@ export const Admin: React.FC<{ hideLayout?: boolean }> = ({ hideLayout }) => {
                                             value={dailyGoalInput}
                                             onChange={(e) => setDailyGoalInput(e.target.value)}
                                             placeholder="设置目标..."
-                                            className="flex-1 bg-white dark:bg-surface-dark border border-primary/20 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                                            className="flex-1 bg-white/50 dark:bg-black/20 backdrop-blur-sm border border-primary/20 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
                                         />
                                         <button
                                             onClick={() => {
@@ -739,7 +739,7 @@ export const Admin: React.FC<{ hideLayout?: boolean }> = ({ hideLayout }) => {
 
                             {/* Best Day Card */}
                             {highestUploadDay && (
-                                <div className="bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-2xl p-6 shadow-sm">
+                                <div className="glass-panel border-white/20 rounded-2xl p-6 shadow-sm">
                                     <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4">最佳创作日</h3>
                                     <div className="flex items-baseline gap-2 mb-2">
                                         <span className="text-4xl font-extrabold text-gray-900 dark:text-white">{highestUploadDay.count}</span>
@@ -781,7 +781,7 @@ export const Admin: React.FC<{ hideLayout?: boolean }> = ({ hideLayout }) => {
                             { label: '活跃天数', value: activitySummary?.totalActiveDays || 0, unit: '天', icon: Calendar },
                             { label: '最后活跃', value: activitySummary?.lastActiveDay || '-', unit: '', icon: Activity },
                         ].map((stat, i) => (
-                            <div key={i} className="bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-xl p-4 shadow-sm">
+                            <div key={i} className="glass-card rounded-xl p-4 shadow-sm">
                                 <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400 mb-2">
                                     <stat.icon className="w-4 h-4" />
                                     <span className="text-xs font-medium">{stat.label}</span>
@@ -794,21 +794,21 @@ export const Admin: React.FC<{ hideLayout?: boolean }> = ({ hideLayout }) => {
                     </div>
 
                     {/* Timeline Controls */}
-                    <div className="bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-xl p-4 flex flex-wrap gap-4 items-center">
+                    <div className="glass-panel border-white/20 rounded-xl p-4 flex flex-wrap gap-4 items-center">
                         <div className="flex items-center gap-2">
                             <span className="text-sm text-gray-500">日期范围:</span>
                             <input
                                 type="date"
                                 value={uploadsFrom}
                                 onChange={(e) => setUploadsFrom(e.target.value)}
-                                className="bg-gray-50 dark:bg-surface-border border-none rounded-lg text-sm px-3 py-1.5"
+                                className="bg-white/50 dark:bg-black/20 backdrop-blur-sm border-white/10 rounded-lg text-sm px-3 py-1.5"
                             />
                             <span className="text-gray-400">-</span>
                             <input
                                 type="date"
                                 value={uploadsTo}
                                 onChange={(e) => setUploadsTo(e.target.value)}
-                                className="bg-gray-50 dark:bg-surface-border border-none rounded-lg text-sm px-3 py-1.5"
+                                className="bg-white/50 dark:bg-black/20 backdrop-blur-sm border-white/10 rounded-lg text-sm px-3 py-1.5"
                             />
                         </div>
                         <div className="flex-1">
@@ -817,7 +817,7 @@ export const Admin: React.FC<{ hideLayout?: boolean }> = ({ hideLayout }) => {
                                 placeholder="搜索照片标题..."
                                 value={uploadsKeyword}
                                 onChange={(e) => setUploadsKeyword(e.target.value)}
-                                className="w-full bg-gray-50 dark:bg-surface-border border-none rounded-lg text-sm px-3 py-1.5 focus:ring-2 focus:ring-primary/20"
+                                className="w-full bg-white/50 dark:bg-black/20 backdrop-blur-sm border-white/10 rounded-lg text-sm px-3 py-1.5 focus:ring-2 focus:ring-primary/20"
                             />
                         </div>
                     </div>
@@ -833,14 +833,14 @@ export const Admin: React.FC<{ hideLayout?: boolean }> = ({ hideLayout }) => {
                         <div className="space-y-8 relative before:absolute before:inset-y-0 before:left-[19px] before:w-0.5 before:bg-gray-200 dark:before:bg-surface-border">
                             {uploadsTimeline?.items.map((dayItem) => (
                                 <div key={dayItem.day} className="relative pl-10">
-                                    <div className="absolute left-0 top-1 w-10 h-10 flex items-center justify-center bg-white dark:bg-background-dark border-4 border-white dark:border-background-dark z-10">
-                                        <div className="w-3 h-3 rounded-full bg-primary ring-4 ring-primary/20"></div>
+                                    <div className="absolute left-0 top-1 w-10 h-10 flex items-center justify-center bg-transparent z-10">
+                                        <div className="w-3 h-3 rounded-full bg-primary ring-4 ring-primary/20 backdrop-blur-sm"></div>
                                     </div>
                                     
                                     <div className="mb-4">
                                         <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
                                             {dayItem.day}
-                                            <span className="px-2 py-0.5 rounded-full bg-gray-100 dark:bg-surface-border text-xs font-medium text-gray-600 dark:text-gray-300">
+                                            <span className="px-2 py-0.5 rounded-full bg-black/5 dark:bg-white/10 text-xs font-medium text-gray-600 dark:text-gray-300">
                                                 {dayItem.count} 张
                                             </span>
                                         </h3>
@@ -851,7 +851,7 @@ export const Admin: React.FC<{ hideLayout?: boolean }> = ({ hideLayout }) => {
                                             <Link 
                                                 key={p.id}
                                                 to={`/photo/${p.id}`}
-                                                className="group relative aspect-square bg-gray-100 dark:bg-surface-border rounded-lg overflow-hidden"
+                                                className="group relative aspect-square glass-card rounded-lg overflow-hidden"
                                             >
                                                 <img 
                                                     src={getPhotoUrl(p, 'thumb')} 
@@ -883,8 +883,8 @@ export const Admin: React.FC<{ hideLayout?: boolean }> = ({ hideLayout }) => {
                         </p>
                     </div>
 
-                    <div className="bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-2xl shadow-sm overflow-hidden">
-                        <div className="p-6 border-b border-gray-100 dark:border-surface-border">
+                    <div className="glass-panel border-white/20 rounded-2xl shadow-sm overflow-hidden">
+                        <div className="p-6 border-b border-white/10 dark:border-white/5">
                             <h3 className="text-lg font-bold text-gray-900 dark:text-white">基本信息</h3>
                         </div>
                         <div className="p-6 space-y-6">
@@ -893,7 +893,7 @@ export const Admin: React.FC<{ hideLayout?: boolean }> = ({ hideLayout }) => {
                                     <img 
                                         src={avatarUrl} 
                                         alt={currentUser?.name} 
-                                        className="w-24 h-24 rounded-full object-cover border-4 border-white dark:border-surface-border shadow-md"
+                                        className="w-24 h-24 rounded-full object-cover border-4 border-white/20 shadow-md"
                                     />
                                     <label className="absolute inset-0 flex items-center justify-center bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
                                         <Camera className="w-6 h-6" />
@@ -915,7 +915,7 @@ export const Admin: React.FC<{ hideLayout?: boolean }> = ({ hideLayout }) => {
                                         type="text"
                                         value={profileName}
                                         onChange={(e) => setProfileName(e.target.value)}
-                                        className="w-full bg-gray-50 dark:bg-surface-border border border-gray-200 dark:border-surface-border rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                        className="w-full bg-white/50 dark:bg-black/20 backdrop-blur-sm border border-gray-300 dark:border-white/10 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20"
                                     />
                                 </div>
                                 <div>
@@ -926,7 +926,7 @@ export const Admin: React.FC<{ hideLayout?: boolean }> = ({ hideLayout }) => {
                                         type="email"
                                         value={currentUser?.email || ''}
                                         disabled
-                                        className="w-full bg-gray-100 dark:bg-surface-border/50 border border-gray-200 dark:border-surface-border rounded-lg px-4 py-2.5 text-gray-500 cursor-not-allowed"
+                                        className="w-full bg-gray-100/50 dark:bg-white/5 border border-gray-300 dark:border-white/10 rounded-lg px-4 py-2.5 text-gray-500 cursor-not-allowed"
                                     />
                                 </div>
                                 
@@ -944,8 +944,8 @@ export const Admin: React.FC<{ hideLayout?: boolean }> = ({ hideLayout }) => {
                         </div>
                     </div>
 
-                    <div className="bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-2xl shadow-sm overflow-hidden">
-                        <div className="p-6 border-b border-gray-100 dark:border-surface-border">
+                    <div className="glass-panel border-white/20 rounded-2xl shadow-sm overflow-hidden">
+                        <div className="p-6 border-b border-white/10 dark:border-white/5">
                             <h3 className="text-lg font-bold text-gray-900 dark:text-white">修改密码</h3>
                         </div>
                         <div className="p-6 space-y-4">
@@ -957,7 +957,7 @@ export const Admin: React.FC<{ hideLayout?: boolean }> = ({ hideLayout }) => {
                                     type="password"
                                     value={currentPassword}
                                     onChange={(e) => setCurrentPassword(e.target.value)}
-                                    className="w-full bg-gray-50 dark:bg-surface-border border border-gray-200 dark:border-surface-border rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                    className="w-full bg-white/50 dark:bg-black/20 backdrop-blur-sm border border-gray-300 dark:border-white/10 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20"
                                 />
                             </div>
                             <div>
@@ -968,7 +968,7 @@ export const Admin: React.FC<{ hideLayout?: boolean }> = ({ hideLayout }) => {
                                     type="password"
                                     value={newPasswordSelf}
                                     onChange={(e) => setNewPasswordSelf(e.target.value)}
-                                    className="w-full bg-gray-50 dark:bg-surface-border border border-gray-200 dark:border-surface-border rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                    className="w-full bg-white/50 dark:bg-black/20 backdrop-blur-sm border border-gray-300 dark:border-white/10 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20"
                                 />
                             </div>
                             <div>
@@ -979,7 +979,7 @@ export const Admin: React.FC<{ hideLayout?: boolean }> = ({ hideLayout }) => {
                                     type="password"
                                     value={newPasswordConfirm}
                                     onChange={(e) => setNewPasswordConfirm(e.target.value)}
-                                    className="w-full bg-gray-50 dark:bg-surface-border border border-gray-200 dark:border-surface-border rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                    className="w-full bg-white/50 dark:bg-black/20 backdrop-blur-sm border border-gray-300 dark:border-white/10 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20"
                                 />
                             </div>
 
@@ -987,7 +987,7 @@ export const Admin: React.FC<{ hideLayout?: boolean }> = ({ hideLayout }) => {
                                 <button
                                     onClick={() => changeMyPasswordMutation.mutate()}
                                     disabled={changeMyPasswordMutation.isPending || !currentPassword || !newPasswordSelf}
-                                    className="px-6 py-2.5 bg-white dark:bg-surface-border border border-gray-200 dark:border-surface-border text-gray-700 dark:text-gray-200 rounded-lg font-medium hover:bg-gray-50 dark:hover:bg-surface-border/80 transition-colors disabled:opacity-50 flex items-center gap-2"
+                                    className="px-6 py-2.5 glass-card border-white/20 text-gray-700 dark:text-gray-200 rounded-lg font-medium hover:bg-white/20 transition-colors disabled:opacity-50 flex items-center gap-2"
                                 >
                                     {changeMyPasswordMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
                                     更新密码

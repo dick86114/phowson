@@ -109,10 +109,8 @@ export const Comments = () => {
             params.set('limit', String(pageSize));
             params.set('offset', String((page - 1) * pageSize));
             
-            console.log(`[Comments] Fetching: /admin/comments?${params.toString()}`);
             try {
                 const res = await api.get<AdminCommentsResponse>(`/admin/comments?${params.toString()}`);
-                console.log('[Comments] Response:', res.data);
                 return res.data;
             } catch (err) {
                 console.error('[Comments] Error:', err);
@@ -270,11 +268,11 @@ export const Comments = () => {
                             placeholder="搜索评论或用户..."
                             value={keyword}
                             onChange={(e) => { setKeyword(e.target.value); setPage(1); }}
-                            className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-sm"
+                            className="w-full pl-10 pr-4 py-2.5 bg-white/50 dark:bg-black/20 border border-white/20 dark:border-white/10 backdrop-blur-sm rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-sm"
                         />
                     </div>
                     
-                    <div className="flex items-center p-1 bg-gray-100 dark:bg-surface-border rounded-lg w-full sm:w-auto overflow-x-auto no-scrollbar">
+                    <div className="flex items-center p-1 bg-gray-100/50 dark:bg-white/5 backdrop-blur-sm rounded-lg w-full sm:w-auto overflow-x-auto no-scrollbar border border-white/10 dark:border-white/5">
                         <div className="flex gap-1 min-w-max">
                         {[
                             { id: 'all', label: '全部状态' },
@@ -289,8 +287,8 @@ export const Comments = () => {
                                 className={`
                                     relative px-4 py-2.5 sm:py-1.5 text-sm font-medium rounded-md whitespace-nowrap transition-all active:scale-95
                                     ${activeTab === tab.id 
-                                        ? 'bg-white dark:bg-surface-dark text-gray-900 dark:text-white shadow-sm' 
-                                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                                        ? 'bg-white dark:bg-white/10 text-gray-900 dark:text-white shadow-lg shadow-black/5 backdrop-blur-md' 
+                                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-white/30 dark:hover:bg-white/5'
                                     }
                                 `}
                             >
@@ -310,7 +308,7 @@ export const Comments = () => {
                 </div>
 
                 {/* Table Header Row */}
-                <div className="hidden md:grid grid-cols-12 gap-4 px-5 py-3 bg-gray-50 dark:bg-surface-dark/50 rounded-lg border border-gray-100 dark:border-surface-border mb-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <div className="hidden md:grid grid-cols-12 gap-4 px-5 py-3 bg-white/30 dark:bg-white/5 backdrop-blur-md rounded-lg border border-white/20 dark:border-white/10 mb-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     <div className="col-span-6">评论内容</div>
                     <div className="col-span-3">用户信息</div>
                     <div className="col-span-1 text-center">关联图片</div>
@@ -320,33 +318,33 @@ export const Comments = () => {
                 {/* List */}
                 <div className="space-y-4">
                     {isLoading ? (
-                        <div className="bg-white dark:bg-surface-dark rounded-xl p-8 border border-gray-200 dark:border-surface-border shadow-sm">
+                        <div className="glass-panel rounded-xl p-8 shadow-sm">
                             <LoadingState />
                         </div>
                     ) : (data?.items || []).length === 0 ? (
-                        <div className="bg-white dark:bg-surface-dark rounded-xl p-8 border border-gray-200 dark:border-surface-border shadow-sm min-h-[400px] flex items-center justify-center">
+                        <div className="glass-panel rounded-xl p-8 shadow-sm min-h-[400px] flex items-center justify-center">
                             <EmptyState message="暂无评论数据" />
                         </div>
                     ) : (
                         (data?.items || []).map((comment) => (
                             <div 
                                 key={comment.id}
-                                className="group bg-white dark:bg-surface-dark rounded-xl p-5 border border-gray-200 dark:border-surface-border shadow-sm hover:shadow-md hover:border-primary/30 transition-all duration-200"
+                                className="group glass-card rounded-xl p-5 hover:shadow-lg hover:shadow-primary/5 hover:border-primary/30 transition-all duration-300"
                             >
                                 <div className="grid grid-cols-2 md:grid-cols-12 gap-4 md:gap-6 items-start">
                                     {/* Content Column (col-span-6) */}
                                     <div className="col-span-2 md:col-span-6 space-y-3 order-2 md:order-1">
                                         <div className="flex items-center gap-2 flex-wrap">
                                             {comment.status === 'pending' && (
-                                                <span className="px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-700 dark:bg-yellow-500/10 dark:text-yellow-400 border border-yellow-200 dark:border-yellow-500/20">
+                                                <span className="px-2 py-0.5 rounded text-xs font-medium bg-yellow-100/50 text-yellow-700 dark:bg-yellow-500/10 dark:text-yellow-400 border border-yellow-200/50 dark:border-yellow-500/20 backdrop-blur-sm">
                                                     待审核
                                                 </span>
                                             )}
                                             {comment.status === 'rejected' && (
-                                                <span className={`px-2 py-0.5 rounded text-xs font-medium border ${
+                                                <span className={`px-2 py-0.5 rounded text-xs font-medium border backdrop-blur-sm ${
                                                     comment.reviewReason?.includes('System auto-flagged')
-                                                        ? 'bg-orange-100 text-orange-700 dark:bg-orange-500/10 dark:text-orange-400 border-orange-200 dark:border-orange-500/20'
-                                                        : 'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400 border-red-200 dark:border-red-500/20'
+                                                        ? 'bg-orange-100/50 text-orange-700 dark:bg-orange-500/10 dark:text-orange-400 border-orange-200/50 dark:border-orange-500/20'
+                                                        : 'bg-red-100/50 text-red-700 dark:bg-red-500/10 dark:text-red-400 border-red-200/50 dark:border-red-500/20'
                                                 }`}>
                                                     {comment.reviewReason?.includes('System auto-flagged') ? '疑似垃圾' : '垃圾评论'}
                                                 </span>
@@ -367,7 +365,7 @@ export const Comments = () => {
                                         </div>
                                         
                                         {translatedTexts[comment.id] && (
-                                            <div className="bg-blue-50 dark:bg-blue-900/10 p-3 rounded-lg text-sm text-gray-700 dark:text-gray-300 border border-blue-100 dark:border-blue-900/20">
+                                            <div className="bg-blue-50/50 dark:bg-blue-900/10 p-3 rounded-lg text-sm text-gray-700 dark:text-gray-300 border border-blue-100 dark:border-blue-900/20 backdrop-blur-sm">
                                                 <div className="text-xs text-blue-500 font-medium mb-1">翻译结果：</div>
                                                 {translatedTexts[comment.id]}
                                             </div>
@@ -375,11 +373,11 @@ export const Comments = () => {
                                     </div>
 
                                     {/* User Info Column (col-span-3) */}
-                                    <div className="col-span-2 md:col-span-3 flex flex-col gap-1.5 md:border-l md:border-gray-100 md:dark:border-gray-800 md:pl-6 order-1 md:order-2">
+                                    <div className="col-span-2 md:col-span-3 flex flex-col gap-1.5 md:border-l md:border-gray-100/50 md:dark:border-white/5 md:pl-6 order-1 md:order-2">
                                         <div className="font-semibold text-gray-900 dark:text-white text-sm truncate flex items-center gap-2" title={getUserName(comment)}>
                                             {getUserName(comment)}
                                             {!comment.userId && (
-                                                <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 border border-gray-200 dark:border-gray-700">
+                                                <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100/50 text-gray-600 dark:bg-white/5 dark:text-gray-400 border border-gray-200/50 dark:border-white/10 backdrop-blur-sm">
                                                     游客
                                                 </span>
                                             )}
@@ -404,7 +402,7 @@ export const Comments = () => {
                                             <img 
                                                 src={getPhotoUrl({ id: comment.photoId, thumbUrl: comment.photoVariants?.thumb }, 'thumb')}
                                                 alt="Photo" 
-                                                className="w-12 h-12 rounded-lg object-cover bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700"
+                                                className="w-12 h-12 rounded-lg object-cover bg-gray-100 dark:bg-gray-800 border border-white/20 dark:border-white/10"
                                                 onError={(e) => { (e.target as HTMLImageElement).src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="%23ccc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"%3E%3Crect x="3" y="3" width="18" height="18" rx="2" ry="2"/%3E%3Ccircle cx="8.5" cy="8.5" r="1.5"/%3E%3Cpolyline points="21 15 16 10 5 21"/%3E%3C/svg%3E' }}
                                             />
                                             <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/10 transition-colors rounded-lg" />
@@ -526,17 +524,17 @@ export const Comments = () => {
                                 <button
                                     onClick={() => setPage(p => Math.max(1, p - 1))}
                                     disabled={page === 1}
-                                    className="px-3 py-1.5 border border-gray-200 dark:border-surface-border rounded-lg text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-surface-border disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                    className="px-3 py-1.5 border border-white/20 dark:border-white/10 rounded-lg text-sm text-gray-600 dark:text-gray-300 hover:bg-white/30 dark:hover:bg-white/5 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                                 >
                                     上一页
                                 </button>
-                                <div className="px-3 py-1.5 bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-lg text-sm font-medium text-primary">
+                                <div className="px-3 py-1.5 bg-white/50 dark:bg-white/10 border border-white/20 dark:border-white/10 rounded-lg text-sm font-medium text-primary backdrop-blur-sm shadow-sm">
                                     {page}
                                 </div>
                                 <button
                                     onClick={() => setPage(p => p + 1)}
                                     disabled={page * pageSize >= data.total}
-                                    className="px-3 py-1.5 border border-gray-200 dark:border-surface-border rounded-lg text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-surface-border disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                    className="px-3 py-1.5 border border-white/20 dark:border-white/10 rounded-lg text-sm text-gray-600 dark:text-gray-300 hover:bg-white/30 dark:hover:bg-white/5 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                                 >
                                     下一页
                                 </button>
@@ -549,7 +547,7 @@ export const Comments = () => {
             {/* Sidebar (Right) */}
             <div className="w-full xl:w-80 space-y-6 flex-shrink-0">
                 {/* Audit Overview */}
-                <div className="bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-xl p-6 shadow-sm">
+                <div className="glass-panel p-6">
                     <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2 mb-1">
                         <CheckCircle2 className="w-5 h-5 text-green-500" />
                         审核概况
@@ -561,20 +559,20 @@ export const Comments = () => {
                             <span className="text-gray-600 dark:text-gray-300 font-medium">处理进度</span>
                             <span className="text-green-600 dark:text-green-400 font-bold">{getProgress()}%</span>
                         </div>
-                        <div className="w-full bg-gray-100 dark:bg-gray-800 rounded-full h-2 overflow-hidden">
+                        <div className="w-full bg-gray-100/50 dark:bg-white/10 rounded-full h-2 overflow-hidden backdrop-blur-sm">
                             <div 
-                                className="bg-green-500 h-full rounded-full transition-all duration-1000 ease-out"
+                                className="bg-green-500 h-full rounded-full transition-all duration-1000 ease-out shadow-[0_0_10px_rgba(34,197,94,0.3)]"
                                 style={{ width: `${getProgress()}%` }}
                             />
                         </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
-                        <div className="bg-gray-50 dark:bg-gray-800/50 p-3 rounded-xl border border-gray-100 dark:border-gray-800">
+                        <div className="glass-card p-3 rounded-xl">
                             <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">总评论</div>
                             <div className="text-xl font-bold text-gray-900 dark:text-white">{summary?.total?.toLocaleString() || 0}</div>
                         </div>
-                        <div className="bg-gray-50 dark:bg-gray-800/50 p-3 rounded-xl border border-gray-100 dark:border-gray-800">
+                        <div className="glass-card p-3 rounded-xl">
                             <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">今日新增</div>
                             <div className="text-xl font-bold text-gray-900 dark:text-white">{summary?.today?.toLocaleString() || 0}</div>
                         </div>
@@ -592,10 +590,10 @@ export const Comments = () => {
                             onConfirm: () => approveAllPendingMutation.mutate()
                         })}
                         disabled={!summary?.pending}
-                        className="w-full bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border p-4 rounded-xl flex items-center justify-between group hover:border-green-500/50 hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-full glass-card p-4 rounded-xl flex items-center justify-between group hover:border-green-500/50 hover:shadow-md hover:shadow-green-500/5 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-green-50 dark:bg-green-500/10 flex items-center justify-center text-green-600 dark:text-green-400">
+                            <div className="w-8 h-8 rounded-full bg-green-50/50 dark:bg-green-500/10 flex items-center justify-center text-green-600 dark:text-green-400 backdrop-blur-sm">
                                 <ShieldCheck className="w-4 h-4" />
                             </div>
                             <span className="font-medium text-gray-900 dark:text-white text-sm">一键批准全部</span>
@@ -610,10 +608,10 @@ export const Comments = () => {
                             onConfirm: () => clearSpamMutation.mutate()
                         })}
                         disabled={!summary?.spam}
-                        className="w-full bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border p-4 rounded-xl flex items-center justify-between group hover:border-red-500/50 hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-full glass-card p-4 rounded-xl flex items-center justify-between group hover:border-red-500/50 hover:shadow-md hover:shadow-red-500/5 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-red-50 dark:bg-red-500/10 flex items-center justify-center text-red-600 dark:text-red-400">
+                            <div className="w-8 h-8 rounded-full bg-red-50/50 dark:bg-red-500/10 flex items-center justify-center text-red-600 dark:text-red-400 backdrop-blur-sm">
                                 <Trash2 className="w-4 h-4" />
                             </div>
                             <span className="font-medium text-gray-900 dark:text-white text-sm">清空垃圾评论</span>
@@ -623,7 +621,7 @@ export const Comments = () => {
                 </div>
 
                 {/* Tips */}
-                <div className="bg-green-50 dark:bg-green-900/10 border border-green-100 dark:border-green-900/20 p-4 rounded-xl">
+                <div className="bg-green-50/50 dark:bg-green-900/10 border border-green-100/50 dark:border-green-900/20 p-4 rounded-xl backdrop-blur-sm">
                     <div className="flex items-center gap-2 mb-2 text-green-700 dark:text-green-400 font-semibold text-sm">
                         <Zap className="w-4 h-4" />
                         审核贴士

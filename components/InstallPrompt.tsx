@@ -87,9 +87,9 @@ export const InstallPrompt: React.FC = () => {
 
   const content = (
     <div className="fixed inset-x-4 bottom-6 z-[9999] md:hidden animate-in slide-in-from-bottom-10 fade-in duration-300">
-      <div className="bg-white/95 dark:bg-[#111a22]/95 backdrop-blur-xl border border-gray-200 dark:border-surface-border shadow-2xl rounded-2xl p-4 flex items-center gap-3">
+      <div className="glass-panel rounded-2xl p-4 flex items-center gap-3">
         {logo ? (
-          <img src={logo} alt="App Icon" className="w-12 h-12 rounded-xl border border-gray-200 dark:border-surface-border object-cover shadow-sm" />
+          <img src={logo} alt="App Icon" className="w-12 h-12 rounded-xl border border-white/20 object-cover shadow-sm" />
         ) : (
           <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
               <Download className="w-6 h-6" />

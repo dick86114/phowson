@@ -10,6 +10,7 @@ import { useQuery } from '@tanstack/react-query';
 import api, { API_BASE_URL } from '../api';
 import { getPhotoUrl } from '../utils/helpers';
 import { useModal } from '../components/Modal';
+import DatePicker from '../components/DatePicker';
 
 type ApiCategory = {
     value: string;
@@ -48,10 +49,10 @@ const statusText = (s: UploadStatus) => {
 };
 
 const statusClassName = (s: UploadStatus) => {
-    if (s === 'queued') return 'bg-gray-100 text-gray-700 dark:bg-surface-border dark:text-gray-200';
-    if (s === 'uploading') return 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-200';
-    if (s === 'success') return 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-200';
-    return 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-200';
+    if (s === 'queued') return 'bg-gray-100/50 text-gray-700 dark:bg-white/5 dark:text-gray-200 border border-gray-200/50 dark:border-white/10';
+    if (s === 'uploading') return 'bg-blue-50/50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-200 border border-blue-200/50 dark:border-blue-500/20';
+    if (s === 'success') return 'bg-green-50/50 text-green-700 dark:bg-green-900/20 dark:text-green-200 border border-green-200/50 dark:border-green-500/20';
+    return 'bg-red-50/50 text-red-700 dark:bg-red-900/20 dark:text-red-200 border border-red-200/50 dark:border-red-500/20';
 };
 
 const formatBytes = (bytes: number) => {
@@ -105,6 +106,7 @@ export const Upload: React.FC = () => {
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
     const [tags, setTags] = useState<string[]>([]);
     const [tagInput, setTagInput] = useState('');
+    const [isCategoryOpen, setIsCategoryOpen] = useState(false);
 
     const uploadItemsRef = useRef<UploadItem[]>([]);
 
@@ -633,13 +635,13 @@ export const Upload: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-background-light dark:bg-background-dark pb-20 transition-colors duration-300">
+        <div className="min-h-screen pb-20 transition-colors duration-300">
             {/* Top Bar */}
-            <div className="sticky top-0 z-30 bg-white/90 dark:bg-[#111a22]/90 backdrop-blur-md border-b border-gray-200 dark:border-surface-border px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div className="sticky top-0 z-30 glass-nav border-b border-white/20 dark:border-white/10 px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between backdrop-blur-md">
                 <div className="flex items-center gap-4">
                     <button 
                         onClick={() => navigate(-1)}
-                        className="p-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-surface-dark rounded-full transition-colors"
+                        className="p-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-white/10 rounded-full transition-colors"
                     >
                         <ArrowLeft className="w-5 h-5" />
                     </button>
@@ -655,7 +657,7 @@ export const Upload: React.FC = () => {
                     <button 
                         onClick={handleSubmit}
                         disabled={isQueueMode ? uploadItems.length === 0 || isUploadingQueue : isLoading || !previewUrl}
-                        className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-white px-6 py-2 rounded-full font-medium transition-all shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="glass-button-primary flex items-center gap-2 px-6 py-2 rounded-full font-medium transition-all shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95"
                     >
                         {isQueueMode ? (
                             isUploadingQueue ? (
@@ -692,10 +694,10 @@ export const Upload: React.FC = () => {
                             className={`
                                 relative aspect-[4/3] rounded-2xl border-2 border-dashed transition-all overflow-hidden flex flex-col items-center justify-center
                                 ${isDragging 
-                                    ? 'border-primary bg-primary/5' 
-                                    : 'border-gray-300 dark:border-surface-border bg-white dark:bg-surface-dark'
+                                    ? 'border-primary bg-primary/10' 
+                                    : 'border-white/30 dark:border-white/10 glass-panel shadow-sm'
                                 }
-                                ${!previewUrl && !isQueueMode ? 'cursor-pointer hover:border-primary/50' : ''}
+                                ${!previewUrl && !isQueueMode ? 'cursor-pointer hover:border-primary/50 hover:shadow-md' : ''}
                             `}
                             onDragOver={handleDragOver}
                             onDragLeave={handleDragLeave}
@@ -704,30 +706,30 @@ export const Upload: React.FC = () => {
                             {isQueueMode ? (
                                 <div className="w-full h-full p-4 flex flex-col">
                                     <div className="flex items-center justify-between gap-3">
-                                        <div className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                                        <div className="text-sm font-bold text-gray-700 dark:text-gray-200">
                                             已添加 {uploadItems.length} 张
                                         </div>
-                                        <label className="px-3 py-2 text-sm font-medium bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-lg hover:bg-gray-50 dark:hover:bg-[#23303e] cursor-pointer transition-colors">
+                                        <label className="glass-button px-3 py-2 text-sm font-medium rounded-lg cursor-pointer transition-colors hover:bg-white/50 dark:hover:bg-white/10">
                                             继续添加
                                             <input type="file" className="hidden" onChange={handleFileSelect} accept="image/*" multiple />
                                         </label>
                                     </div>
 
-                                    <div className="mt-4 flex-1 overflow-auto rounded-xl border border-gray-200 dark:border-surface-border bg-gray-50/50 dark:bg-[#0f1720]">
-                                        <div className="divide-y divide-gray-200 dark:divide-surface-border">
+                                    <div className="mt-4 flex-1 overflow-auto rounded-xl border border-white/20 dark:border-white/10 bg-white/30 dark:bg-black/20 backdrop-blur-sm custom-scrollbar">
+                                        <div className="divide-y divide-white/20 dark:divide-white/10">
                                             {uploadItems.map((it) => (
-                                                <div key={it.id} className="flex items-center gap-3 p-3">
-                                                    <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100 dark:bg-surface-dark border border-gray-200 dark:border-surface-border shrink-0">
+                                                <div key={it.id} className="flex items-center gap-3 p-3 hover:bg-white/10 dark:hover:bg-white/5 transition-colors">
+                                                    <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100 dark:bg-surface-dark border border-white/10 shrink-0 shadow-sm">
                                                         <img src={it.previewUrl} alt={it.title} className="w-full h-full object-cover" />
                                                     </div>
-                                                    <div className="flex-1 min-w-0 space-y-1">
+                                                    <div className="flex-1 min-w-0 space-y-2">
                                                         <input
                                                             type="text"
                                                             value={it.title}
                                                             placeholder="照片标题"
                                                             disabled={it.status === 'uploading' || it.status === 'success' || isUploadingQueue}
                                                             onChange={(e) => setUploadItems(prev => prev.map(p => (p.id === it.id ? { ...p, title: e.target.value } : p)))}
-                                                            className="w-full bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-primary truncate disabled:opacity-70"
+                                                            className="w-full bg-white/50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded-lg px-3 py-1.5 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50 truncate disabled:opacity-70 transition-all"
                                                         />
                                                         <input
                                                             type="text"
@@ -735,37 +737,45 @@ export const Upload: React.FC = () => {
                                                             placeholder="照片故事（描述）"
                                                             disabled={it.status === 'uploading' || it.status === 'success' || isUploadingQueue}
                                                             onChange={(e) => setUploadItems(prev => prev.map(p => (p.id === it.id ? { ...p, description: e.target.value } : p)))}
-                                                            className="w-full bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-primary truncate disabled:opacity-70"
+                                                            className="w-full bg-white/50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded-lg px-3 py-1.5 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50 truncate disabled:opacity-70 transition-all"
                                                         />
-                                                        <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                                                            {it.width && it.height ? `${it.width}×${it.height}` : '未知分辨率'}
-                                                            {it.bytes ? ` · ${formatBytes(it.bytes)}` : ''}
-                                                        </div>
-                                                        <div className="flex items-center gap-2">
-                                                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${statusClassName(it.status)}`}>{statusText(it.status)}</span>
-                                                            {it.error ? <span className="text-xs text-red-600 dark:text-red-300 truncate">{it.error}</span> : null}
+                                                        <div className="flex items-center justify-between">
+                                                            <div className="text-xs text-gray-500 dark:text-gray-400 truncate flex items-center gap-2">
+                                                                <span className="bg-white/30 dark:bg-white/10 px-1.5 py-0.5 rounded">
+                                                                    {it.width && it.height ? `${it.width}×${it.height}` : '未知分辨率'}
+                                                                </span>
+                                                                <span className="bg-white/30 dark:bg-white/10 px-1.5 py-0.5 rounded">
+                                                                    {it.bytes ? formatBytes(it.bytes) : ''}
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium backdrop-blur-sm shadow-sm ${statusClassName(it.status)}`}>{statusText(it.status)}</span>
+                                                                {it.error ? <span className="text-xs text-red-600 dark:text-red-300 truncate">{it.error}</span> : null}
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                    <div className="flex items-center gap-2">
+                                                    <div className="flex items-center gap-2 flex-col justify-center">
                                                         {it.status === 'failed' && !isUploadingQueue ? (
                                                             <button
                                                                 type="button"
                                                                 onClick={() => retryItem(it.id)}
-                                                                className="px-3 py-2 text-xs font-medium bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-lg hover:bg-gray-50 dark:hover:bg-[#23303e] transition-colors"
+                                                                className="p-2 text-xs font-medium bg-white/50 dark:bg-white/10 border border-white/20 rounded-lg hover:bg-white/80 dark:hover:bg-white/20 transition-colors"
+                                                                title="重试"
                                                             >
-                                                                重试
+                                                                <Sparkles className="w-4 h-4 text-blue-500" />
                                                             </button>
                                                         ) : null}
                                                         {it.status !== 'uploading' && !isUploadingQueue ? (
                                                             <button
                                                                 type="button"
                                                                 onClick={() => removeItem(it.id)}
-                                                                className="px-3 py-2 text-xs font-medium text-red-600 dark:text-red-300 bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                                                                className="p-2 text-xs font-medium text-red-600 dark:text-red-300 bg-white/50 dark:bg-white/10 border border-white/20 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                                                                title="移除"
                                                             >
-                                                                移除
+                                                                <X className="w-4 h-4" />
                                                             </button>
                                                         ) : null}
-                                                        {it.status === 'uploading' ? <span className="w-4 h-4 border-2 border-gray-400/40 border-t-gray-600 dark:border-white/30 dark:border-t-white rounded-full animate-spin" /> : null}
+                                                        {it.status === 'uploading' ? <span className="w-4 h-4 border-2 border-primary/40 border-t-primary rounded-full animate-spin" /> : null}
                                                     </div>
                                                 </div>
                                             ))}
@@ -841,88 +851,88 @@ export const Upload: React.FC = () => {
                         </div>
 
                         {!isQueueMode ? (
-                            <div className="bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-xl p-6">
+                            <div className="glass-panel p-6">
                                 <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
                                     <Camera className="w-5 h-5 text-primary" />
                                     拍摄参数 (EXIF)
                                 </h3>
                                 <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
                                     <div className="space-y-2">
-                                        <label className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase flex items-center gap-1">
+                                        <label className="text-xs font-bold text-gray-600 dark:text-gray-400 uppercase flex items-center gap-1">
                                             <Camera className="w-3 h-3" /> 机身
                                         </label>
                                         <input 
                                             type="text" 
                                             value={exif.camera}
                                             onChange={e => setExif({...exif, camera: e.target.value})}
-                                            className="w-full bg-gray-50 dark:bg-[#111a22] border border-gray-200 dark:border-surface-border rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-primary"
+                                            className="w-full bg-white/50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50 backdrop-blur-sm transition-all"
                                             placeholder="Sony A7R V"
                                         />
                                     </div>
                                 <div className="space-y-2">
-                                    <label className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase flex items-center gap-1">
+                                    <label className="text-xs font-bold text-gray-600 dark:text-gray-400 uppercase flex items-center gap-1">
                                         <Disc className="w-3 h-3" /> 镜头
                                     </label>
                                     <input 
                                         type="text" 
                                         value={exif.lens}
                                         onChange={e => setExif({...exif, lens: e.target.value})}
-                                        className="w-full bg-gray-50 dark:bg-[#111a22] border border-gray-200 dark:border-surface-border rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-primary"
+                                        className="w-full bg-white/50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50 backdrop-blur-sm transition-all"
                                         placeholder="FE 35mm F1.4 GM"
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase flex items-center gap-1">
+                                    <label className="text-xs font-bold text-gray-600 dark:text-gray-400 uppercase flex items-center gap-1">
                                         <Aperture className="w-3 h-3" /> 光圈
                                     </label>
                                     <input 
                                         type="text" 
                                         value={exif.aperture}
                                         onChange={e => setExif({...exif, aperture: e.target.value})}
-                                        className="w-full bg-gray-50 dark:bg-[#111a22] border border-gray-200 dark:border-surface-border rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-primary"
+                                        className="w-full bg-white/50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50 backdrop-blur-sm transition-all"
                                         placeholder="f/1.4"
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase flex items-center gap-1">
+                                    <label className="text-xs font-bold text-gray-600 dark:text-gray-400 uppercase flex items-center gap-1">
                                         <Timer className="w-3 h-3" /> 快门
                                     </label>
                                     <input 
                                         type="text" 
                                         value={exif.shutterSpeed}
                                         onChange={e => setExif({...exif, shutterSpeed: e.target.value})}
-                                        className="w-full bg-gray-50 dark:bg-[#111a22] border border-gray-200 dark:border-surface-border rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-primary"
+                                        className="w-full bg-white/50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50 backdrop-blur-sm transition-all"
                                         placeholder="1/200s"
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase flex items-center gap-1">
+                                    <label className="text-xs font-bold text-gray-600 dark:text-gray-400 uppercase flex items-center gap-1">
                                         <Zap className="w-3 h-3" /> ISO
                                     </label>
                                     <input 
                                         type="text" 
                                         value={exif.iso}
                                         onChange={e => setExif({...exif, iso: e.target.value})}
-                                        className="w-full bg-gray-50 dark:bg-[#111a22] border border-gray-200 dark:border-surface-border rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-primary"
+                                        className="w-full bg-white/50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50 backdrop-blur-sm transition-all"
                                         placeholder="100"
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase flex items-center gap-1">
+                                    <label className="text-xs font-bold text-gray-600 dark:text-gray-400 uppercase flex items-center gap-1">
                                         <ImageIcon className="w-3 h-3" /> 焦段
                                     </label>
                                     <input 
                                         type="text" 
                                         value={exif.focalLength}
                                         onChange={e => setExif({...exif, focalLength: e.target.value})}
-                                        className="w-full bg-gray-50 dark:bg-[#111a22] border border-gray-200 dark:border-surface-border rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-primary"
+                                        className="w-full bg-white/50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50 backdrop-blur-sm transition-all"
                                         placeholder="35mm"
                                     />
                                 </div>
                                 </div>
                             </div>
                         ) : (
-                            <div className="bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-xl p-6">
+                            <div className="glass-panel p-6">
                                 <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
                                     <Camera className="w-5 h-5 text-primary" />
                                     批量上传
@@ -936,33 +946,33 @@ export const Upload: React.FC = () => {
 
                     {/* Right: Info Form */}
                     <div className="lg:w-1/3 space-y-6">
-                        <div className="bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-xl p-6 space-y-6">
+                        <div className="glass-panel p-6 space-y-6 relative z-10">
                             {!isQueueMode ? (
                                 <>
                                     <div className="space-y-2">
-                                        <label className="text-sm font-medium text-gray-700 dark:text-gray-200">标题</label>
+                                        <label className="text-sm font-bold text-gray-700 dark:text-gray-200">标题</label>
                                         <input 
                                             type="text" 
                                             value={title}
                                             onChange={e => setTitle(e.target.value)}
-                                            className="w-full bg-gray-50 dark:bg-[#111a22] border border-gray-200 dark:border-surface-border rounded-lg px-4 py-2.5 text-gray-900 dark:text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary placeholder-gray-400 dark:placeholder-gray-600"
+                                            className="w-full bg-white/50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded-lg px-4 py-2.5 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50 backdrop-blur-sm placeholder-gray-400 dark:placeholder-gray-500 transition-all"
                                             placeholder="给照片起个好听的名字"
                                         />
                                     </div>
 
                                     <div className="space-y-2">
-                                        <label className="text-sm font-medium text-gray-700 dark:text-gray-200">描述 / 故事</label>
+                                        <label className="text-sm font-bold text-gray-700 dark:text-gray-200">描述 / 故事</label>
                                         <textarea 
                                             value={description}
                                             onChange={e => setDescription(e.target.value)}
                                             rows={5}
-                                            className="w-full bg-gray-50 dark:bg-[#111a22] border border-gray-200 dark:border-surface-border rounded-lg px-4 py-2.5 text-gray-900 dark:text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary placeholder-gray-400 dark:placeholder-gray-600 resize-none"
+                                            className="w-full bg-white/50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded-lg px-4 py-2.5 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50 backdrop-blur-sm placeholder-gray-400 dark:placeholder-gray-500 resize-none transition-all"
                                             placeholder="讲述这张照片背后的故事..."
                                         />
                                     </div>
                                 </>
                             ) : (
-                                <div className="bg-primary/5 dark:bg-primary/10 border border-primary/20 p-4 rounded-xl text-sm text-gray-700 dark:text-gray-200">
+                                <div className="bg-primary/10 border border-primary/20 p-4 rounded-xl text-sm text-gray-700 dark:text-gray-200 backdrop-blur-sm">
                                     标题默认取文件名，可在左侧列表逐张修改。分类/标签/地点会统一应用到本次批量上传。
                                 </div>
                             )}
@@ -970,60 +980,78 @@ export const Upload: React.FC = () => {
                             <div className="grid grid-cols-2 gap-4">
                                 {!isQueueMode ? (
                                     <div className="space-y-2">
-                                        <label className="text-sm font-medium text-gray-700 dark:text-gray-200">拍摄日期</label>
-                                        <div className="relative">
-                                            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                            <input 
-                                                type="date" 
-                                                value={date}
-                                                onChange={e => setDate(e.target.value)}
-                                                className="w-full bg-gray-50 dark:bg-[#111a22] border border-gray-200 dark:border-surface-border rounded-lg pl-10 pr-3 py-2.5 text-gray-900 dark:text-white focus:outline-none focus:border-primary text-sm"
-                                            />
-                                        </div>
+                                        <label className="text-sm font-bold text-gray-700 dark:text-gray-200">拍摄日期</label>
+                                        <DatePicker 
+                                            value={date} 
+                                            onChange={setDate}
+                                            placeholder="选择日期"
+                                        />
                                     </div>
                                 ) : (
                                     <div />
                                 )}
                                 <div className="space-y-2">
-                                    <label className="text-sm font-medium text-gray-700 dark:text-gray-200">拍摄地点</label>
+                                    <label className="text-sm font-bold text-gray-700 dark:text-gray-200">拍摄地点</label>
                                     <div className="relative">
-                                        <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                                         <input 
                                             type="text" 
                                             value={location}
                                             onChange={e => setLocation(e.target.value)}
-                                            className="w-full bg-gray-50 dark:bg-[#111a22] border border-gray-200 dark:border-surface-border rounded-lg pl-10 pr-3 py-2.5 text-gray-900 dark:text-white focus:outline-none focus:border-primary text-sm"
+                                            className="w-full bg-white/50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded-lg pl-10 pr-3 py-2.5 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50 backdrop-blur-sm text-sm transition-all"
                                             placeholder="城市, 国家"
                                         />
+                                        <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-900 dark:text-gray-400 pointer-events-none" />
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-gray-700 dark:text-gray-200">分类</label>
+                            <div className="space-y-2 relative z-20">
+                                <label className="text-sm font-bold text-gray-700 dark:text-gray-200">分类</label>
                                 <div className="relative">
-                                    <select 
-                                        value={category}
-                                        onChange={e => setCategory(e.target.value)}
-                                        className="w-full bg-gray-50 dark:bg-[#111a22] border border-gray-200 dark:border-surface-border rounded-lg px-4 py-2.5 text-gray-900 dark:text-white focus:outline-none focus:border-primary appearance-none"
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsCategoryOpen(!isCategoryOpen)}
+                                        className="w-full bg-white/50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded-lg px-4 py-2.5 text-left text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50 backdrop-blur-sm transition-all flex items-center justify-between"
                                     >
-                                        {categories.length === 0 ? (
-                                            <option value={category}>{category}</option>
-                                        ) : categories.map(cat => (
-                                            <option key={cat.value} value={cat.value}>{cat.label}</option>
-                                        ))}
-                                    </select>
-                                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                                        <span>
+                                            {categories.find(c => c.value === category)?.label || category}
+                                        </span>
+                                        <ChevronDown className={`w-4 h-4 text-gray-900 dark:text-gray-400 transition-transform ${isCategoryOpen ? 'rotate-180' : ''}`} />
+                                    </button>
+                                    
+                                    {isCategoryOpen && (
+                                        <>
+                                            <div 
+                                                className="fixed inset-0 z-10" 
+                                                onClick={() => setIsCategoryOpen(false)}
+                                            />
+                                            <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white/90 dark:bg-gray-900/90 border border-white/20 dark:border-white/10 rounded-lg shadow-lg backdrop-blur-md overflow-hidden max-h-60 overflow-y-auto custom-scrollbar">
+                                                {categories.map(cat => (
+                                                    <button
+                                                        key={cat.value}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setCategory(cat.value);
+                                                            setIsCategoryOpen(false);
+                                                        }}
+                                                        className={`w-full text-left px-4 py-2.5 text-sm transition-colors hover:bg-primary/10 dark:hover:bg-white/10 ${category === cat.value ? 'bg-primary/5 text-primary font-medium' : 'text-gray-700 dark:text-gray-200'}`}
+                                                    >
+                                                        {cat.label}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </>
+                                    )}
                                 </div>
                             </div>
 
                             <div className="space-y-2">
-                                <label className="text-sm font-medium text-gray-700 dark:text-gray-200">标签</label>
-                                <div className="bg-gray-50 dark:bg-[#111a22] border border-gray-200 dark:border-surface-border rounded-lg p-2 min-h-[80px] flex flex-wrap gap-2 items-start">
+                                <label className="text-sm font-bold text-gray-700 dark:text-gray-200">标签</label>
+                                <div className="bg-white/50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded-lg p-2 min-h-[80px] flex flex-wrap gap-2 items-start backdrop-blur-sm transition-all focus-within:ring-2 focus-within:ring-primary/50">
                                     {tags.map(tag => (
-                                        <span key={tag} className="inline-flex items-center gap-1 bg-white dark:bg-surface-border text-gray-700 dark:text-gray-200 px-2 py-1 rounded text-xs border border-gray-200 dark:border-gray-600">
+                                        <span key={tag} className="inline-flex items-center gap-1 bg-white/60 dark:bg-white/10 text-gray-800 dark:text-gray-200 px-2 py-1 rounded text-xs border border-white/20 shadow-sm backdrop-blur-md">
                                             #{tag}
-                                            <button onClick={() => removeTag(tag)} className="hover:text-red-500"><X className="w-3 h-3" /></button>
+                                            <button onClick={() => removeTag(tag)} className="hover:text-red-500 transition-colors"><X className="w-3 h-3" /></button>
                                         </span>
                                     ))}
                                     <input 
@@ -1031,7 +1059,7 @@ export const Upload: React.FC = () => {
                                         value={tagInput}
                                         onChange={e => setTagInput(e.target.value)}
                                         onKeyDown={handleAddTag}
-                                        className="bg-transparent text-sm min-w-[100px] flex-1 outline-none text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600"
+                                        className="bg-transparent text-sm min-w-[100px] flex-1 outline-none text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-500"
                                         placeholder="输入标签按回车..."
                                     />
                                 </div>
@@ -1039,10 +1067,10 @@ export const Upload: React.FC = () => {
                         </div>
 
                         {!previewUrl && !isQueueMode && (
-                            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-900/30 p-4 rounded-xl flex gap-3">
+                            <div className="glass-panel bg-yellow-50/50 dark:bg-yellow-900/20 border-yellow-200/50 dark:border-yellow-700/30 p-4 rounded-xl flex gap-3">
                                 <AlertTriangle className="w-5 h-5 text-yellow-600 dark:text-yellow-500 shrink-0" />
                                 <div className="text-sm text-yellow-800 dark:text-yellow-200">
-                                    <p className="font-medium">提示</p>
+                                    <p className="font-bold">提示</p>
                                     <p className="mt-1">上传照片后，您可以点击 "AI 智能填单" 让系统自动识别照片内容、生成标题、描述和标签。</p>
                                 </div>
                             </div>

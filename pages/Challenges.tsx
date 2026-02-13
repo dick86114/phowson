@@ -139,7 +139,7 @@ export const ChallengesPage: React.FC = () => {
     }, [stats]);
 
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-[#0b1218] pb-20">
+        <div className="min-h-screen pb-20 pt-4">
             <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 {/* Header with Breadcrumb-like Feel */}
                 <div className="flex items-center gap-2 mb-8 text-sm text-gray-500">
@@ -149,18 +149,18 @@ export const ChallengesPage: React.FC = () => {
                 </div>
 
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
-                    <h1 className="text-3xl font-bold text-gray-900 dark:text-white">每周挑战任务</h1>
+                    <h1 className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">每周挑战任务</h1>
                     
                     {/* Tabs */}
-                    <div className="bg-white dark:bg-surface-dark p-1 rounded-full shadow-sm border border-gray-100 dark:border-surface-border inline-flex">
+                    <div className="glass-panel p-1 rounded-full shadow-sm inline-flex">
                         {(['active', 'completed', 'expired'] as const).map((tab) => (
                             <button
                                 key={tab}
                                 onClick={() => setCurrentTab(tab)}
                                 className={`px-6 py-2 rounded-full text-sm font-medium transition-all ${
                                     currentTab === tab
-                                        ? 'bg-blue-600 text-white shadow-md'
-                                        : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-surface-border/50'
+                                        ? 'bg-primary text-white shadow-md'
+                                        : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100/50 dark:hover:bg-white/10'
                                 }`}
                             >
                                 {tab === 'active' && '进行中'}
@@ -173,7 +173,7 @@ export const ChallengesPage: React.FC = () => {
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                     {/* Left Main Content - Challenge List */}
-                    <div className="lg:col-span-8 space-y-6">
+                    <div className="lg:col-span-8 space-y-6 animate-in slide-in-from-left duration-500">
                         {filteredChallenges.length > 0 ? (
                             filteredChallenges.map(challenge => (
                                 <ChallengeListCard 
@@ -183,7 +183,7 @@ export const ChallengesPage: React.FC = () => {
                                 />
                             ))
                         ) : (
-                            <div className="bg-white dark:bg-surface-dark rounded-3xl p-12 text-center border border-dashed border-gray-200 dark:border-surface-border">
+                            <div className="glass-panel rounded-3xl p-12 text-center border-dashed">
                                 <div className="text-gray-400 mb-2">暂无相关挑战</div>
                                 <p className="text-sm text-gray-500">
                                     {currentTab === 'active' && '当前没有进行中的挑战，请稍后查看。'}
@@ -195,7 +195,7 @@ export const ChallengesPage: React.FC = () => {
                     </div>
 
                     {/* Right Sidebar */}
-                    <div className="lg:col-span-4 space-y-6">
+                    <div className="lg:col-span-4 space-y-6 animate-in slide-in-from-right duration-500 delay-200">
                         <ChallengeStatsCard 
                             totalCompleted={stats?.completedChallenges || 0} 
                             winRate={winRate} 

@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Navigate } from 'react-router-dom';
 import { 
@@ -14,6 +15,7 @@ import { useToast } from '../../../components/Toast';
 import { Pagination } from '../../../components/Pagination';
 import { EmptyState, ErrorState, LoadingState } from '../../../components/States';
 import { DropdownFilter } from '../../../components/admin/DropdownFilter';
+import { FormSelect } from '../../../components/admin/FormSelect';
 import { Switch } from '../../../components/Switch';
 
 // Types
@@ -78,14 +80,14 @@ const PlatformOverview: React.FC = () => {
     if (!stats) return null;
 
     return (
-        <div className="bg-white dark:bg-surface-dark rounded-xl border border-gray-100 dark:border-surface-border shadow-sm p-6 space-y-6">
+        <div className="glass-panel p-6 space-y-6">
             <h3 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                 <Activity className="w-5 h-5 text-blue-600" />
                 平台概览
             </h3>
             
             <div className="space-y-4">
-                <div className="p-4 bg-white dark:bg-surface-dark rounded-xl border border-gray-100 dark:border-surface-border shadow-sm flex items-center justify-between group hover:border-blue-200 dark:hover:border-blue-800 transition-colors">
+                <div className="p-4 glass-card flex items-center justify-between group hover:border-blue-200 dark:hover:border-blue-800 transition-colors">
                     <div>
                         <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">总用户数</div>
                         <div className="text-2xl font-bold text-gray-900 dark:text-white">{stats.totalUsers}</div>
@@ -95,7 +97,7 @@ const PlatformOverview: React.FC = () => {
                     </div>
                 </div>
                 
-                <div className="p-4 bg-white dark:bg-surface-dark rounded-xl border border-gray-100 dark:border-surface-border shadow-sm flex items-center justify-between group hover:border-green-200 dark:hover:border-green-800 transition-colors">
+                <div className="p-4 glass-card flex items-center justify-between group hover:border-green-200 dark:hover:border-green-800 transition-colors">
                     <div>
                         <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">今日活跃</div>
                         <div className="text-2xl font-bold text-gray-900 dark:text-white">{stats.activeToday}</div>
@@ -105,7 +107,7 @@ const PlatformOverview: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="p-4 bg-white dark:bg-surface-dark rounded-xl border border-gray-100 dark:border-surface-border shadow-sm flex items-center justify-between group hover:border-purple-200 dark:hover:border-purple-800 transition-colors">
+                <div className="p-4 glass-card flex items-center justify-between group hover:border-purple-200 dark:hover:border-purple-800 transition-colors">
                     <div>
                         <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">系统负载</div>
                         <div className="text-2xl font-bold text-gray-900 dark:text-white">{stats.systemLoad}</div>
@@ -195,9 +197,14 @@ const OperationLogsDrawer: React.FC<{ userId: string; onClose: () => void }> = (
         };
     };
 
-    return (
-        <div className="fixed inset-y-0 right-0 w-96 bg-white dark:bg-surface-dark shadow-2xl transform transition-transform duration-300 ease-in-out z-50 flex flex-col">
-            <div className="p-6 border-b border-gray-100 dark:border-surface-border flex items-center justify-between bg-white dark:bg-surface-dark">
+    return createPortal(
+        <>
+            <div 
+                className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[9998] transition-opacity"
+                onClick={onClose}
+            />
+            <div className="fixed inset-y-0 right-0 w-96 bg-white/90 dark:bg-black/80 backdrop-blur-xl border-l border-white/20 shadow-2xl transform transition-transform duration-300 ease-in-out z-[9999] flex flex-col">
+            <div className="p-6 border-b border-white/10 flex items-center justify-between bg-transparent">
                 <div>
                     <h3 className="font-bold text-xl text-gray-900 dark:text-white flex items-center gap-2">
                         <Activity className="w-6 h-6 text-green-600" />
@@ -205,18 +212,18 @@ const OperationLogsDrawer: React.FC<{ userId: string; onClose: () => void }> = (
                     </h3>
                     <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">该用户的历史修改记录</p>
                 </div>
-                <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
+                <button onClick={onClose} className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors">
                     <X className="w-6 h-6" />
                 </button>
             </div>
             
             <div className="flex-1 overflow-y-auto p-6 relative">
                 {/* Timeline Line */}
-                <div className="absolute left-9 top-6 bottom-6 w-0.5 bg-gray-100 dark:bg-surface-border"></div>
+                <div className="absolute left-9 top-6 bottom-6 w-0.5 bg-gray-200/50 dark:bg-white/10"></div>
 
                 {isLoading ? (
                     <div className="space-y-8 pl-10">
-                        {[1,2,3].map(i => <div key={i} className="h-16 bg-gray-50 dark:bg-surface-border animate-pulse rounded-lg"></div>)}
+                        {[1,2,3].map(i => <div key={i} className="h-16 bg-white/10 animate-pulse rounded-lg"></div>)}
                     </div>
                 ) : logs?.length === 0 ? (
                     <div className="text-center text-gray-500 dark:text-gray-400 py-10 pl-4">暂无操作日志</div>
@@ -229,7 +236,7 @@ const OperationLogsDrawer: React.FC<{ userId: string; onClose: () => void }> = (
                             return (
                                 <div key={log.id} className="relative pl-10">
                                     {/* Timeline Dot */}
-                                    <div className={`absolute left-0 top-1 w-6 h-6 rounded-full border-4 border-white dark:border-surface-dark shadow-sm ${config.bg} ${config.color} flex items-center justify-center z-10`}>
+                                    <div className={`absolute left-0 top-1 w-6 h-6 rounded-full border-4 border-white/20 shadow-sm ${config.bg} ${config.color} flex items-center justify-center z-10`}>
                                         <div className="w-2 h-2 rounded-full bg-current"></div>
                                     </div>
                                     
@@ -245,7 +252,7 @@ const OperationLogsDrawer: React.FC<{ userId: string; onClose: () => void }> = (
                                             })}
                                         </div>
                                         {config.desc && (
-                                            <div className="text-sm text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-surface-dark/50 p-3 rounded-lg border border-gray-100 dark:border-surface-border group-hover:border-gray-200 dark:group-hover:border-gray-700 transition-colors">
+                                            <div className="text-sm text-gray-600 dark:text-gray-300 glass-card p-3 rounded-lg border border-white/10 group-hover:border-white/20 transition-colors">
                                                 {config.desc}
                                             </div>
                                         )}
@@ -261,9 +268,9 @@ const OperationLogsDrawer: React.FC<{ userId: string; onClose: () => void }> = (
             </div>
 
             {/* High Activity Card (Mock based on screenshot) */}
-            <div className="p-6 border-t border-gray-100 dark:border-surface-border bg-gray-50 dark:bg-surface-dark/50">
-                <div className="bg-orange-50 dark:bg-orange-900/10 border border-orange-100 dark:border-orange-900/20 rounded-xl p-4 flex items-center gap-4">
-                    <div className="w-10 h-10 bg-orange-100 dark:bg-orange-900/20 rounded-lg flex items-center justify-center flex-shrink-0">
+            <div className="p-6 border-t border-white/10 bg-white/5 dark:bg-black/20">
+                <div className="bg-orange-50/50 dark:bg-orange-900/20 border border-orange-100/50 dark:border-orange-900/30 rounded-xl p-4 flex items-center gap-4 backdrop-blur-sm">
+                    <div className="w-10 h-10 bg-orange-100/50 dark:bg-orange-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
                         <Activity className="w-6 h-6 text-orange-600 dark:text-orange-500" />
                     </div>
                     <div>
@@ -272,7 +279,9 @@ const OperationLogsDrawer: React.FC<{ userId: string; onClose: () => void }> = (
                     </div>
                 </div>
             </div>
-        </div>
+            </div>
+        </>,
+        document.body
     );
 };
 
@@ -514,61 +523,58 @@ export const UsersPage: React.FC = () => {
                 </div>
 
                 {/* Filters */}
-                <div className="flex flex-col sm:flex-row gap-4 bg-white dark:bg-surface-dark p-4 rounded-xl border border-gray-100 dark:border-surface-border shadow-sm">
+                <div className="flex flex-col sm:flex-row gap-4 glass-panel p-4 relative z-20">
                     <div className="relative flex-1">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600 dark:text-gray-400" />
                         <input
                             type="text"
                             placeholder="搜索用户..."
                             value={keyword}
                             onChange={(e) => setKeyword(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2.5 border border-gray-200 dark:border-surface-border rounded-lg bg-white dark:bg-surface-dark/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm text-gray-900 dark:text-white placeholder-gray-400"
+                            className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-white/50 dark:bg-black/20 border border-gray-300 dark:border-white/10 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 backdrop-blur-sm transition-all text-sm text-gray-900 dark:text-white placeholder-gray-400"
                         />
                     </div>
                     <div className="grid grid-cols-2 sm:flex gap-3">
-                        <div className="relative group col-span-2 sm:col-span-1">
-                            <select 
-                                value={sort} 
-                                onChange={(e) => setSort(e.target.value as any)}
-                                className="w-full appearance-none pl-4 pr-10 py-2.5 border border-gray-200 dark:border-surface-border rounded-lg bg-white dark:bg-surface-dark/50 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer hover:border-blue-300 dark:hover:border-blue-700 transition-all text-sm text-gray-700 dark:text-gray-200 font-medium"
-                            >
-                                <option value="newest">最近加入</option>
-                                <option value="oldest">最早加入</option>
-                                <option value="active">最近活跃</option>
-                            </select>
-                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none group-hover:text-blue-500 transition-colors" />
+                        <div className="col-span-2 sm:col-span-1">
+                            <DropdownFilter
+                                label="排序"
+                                value={sort}
+                                onChange={(val) => setSort(val)}
+                                defaultValue="newest"
+                                options={[
+                                    { label: '最近加入', value: 'newest' },
+                                    { label: '最早加入', value: 'oldest' },
+                                    { label: '最近活跃', value: 'active' }
+                                ]}
+                            />
                         </div>
 
-                        <div className="relative group">
-                            <select 
-                                value={role} 
-                                onChange={(e) => setRole(e.target.value as any)}
-                                className="w-full appearance-none pl-4 pr-10 py-2.5 border border-gray-200 dark:border-surface-border rounded-lg bg-white dark:bg-surface-dark/50 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer hover:border-blue-300 dark:hover:border-blue-700 transition-all text-sm text-gray-700 dark:text-gray-200 font-medium"
-                            >
-                                <option value="all">所有角色</option>
-                                <option value="admin">管理员</option>
-                                <option value="family">家庭成员</option>
-                            </select>
-                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none group-hover:text-blue-500 transition-colors" />
-                        </div>
+                        <DropdownFilter
+                            label="所有角色"
+                            value={role}
+                            onChange={(val) => setRole(val)}
+                            options={[
+                                { label: '所有角色', value: 'all' },
+                                { label: '管理员', value: 'admin' },
+                                { label: '家庭成员', value: 'family' }
+                            ]}
+                        />
 
-                        <div className="relative group">
-                            <select 
-                                value={status} 
-                                onChange={(e) => setStatus(e.target.value as any)}
-                                className="w-full appearance-none pl-4 pr-10 py-2.5 border border-gray-200 dark:border-surface-border rounded-lg bg-white dark:bg-surface-dark/50 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer hover:border-blue-300 dark:hover:border-blue-700 transition-all text-sm text-gray-700 dark:text-gray-200 font-medium"
-                            >
-                                <option value="all">所有状态</option>
-                                <option value="enabled">正常</option>
-                                <option value="disabled">已禁用</option>
-                            </select>
-                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none group-hover:text-blue-500 transition-colors" />
-                        </div>
+                        <DropdownFilter
+                            label="所有状态"
+                            value={status}
+                            onChange={(val) => setStatus(val)}
+                            options={[
+                                { label: '所有状态', value: 'all' },
+                                { label: '正常', value: 'enabled' },
+                                { label: '已禁用', value: 'disabled' }
+                            ]}
+                        />
                     </div>
                 </div>
 
                 {/* Table */}
-                <div className="bg-white dark:bg-surface-dark rounded-xl border border-gray-100 dark:border-surface-border shadow-sm overflow-hidden">
+                <div className="glass-panel overflow-hidden">
                     {isLoading ? (
                         <LoadingState message="加载用户列表..." />
                     ) : isError ? (
@@ -584,7 +590,7 @@ export const UsersPage: React.FC = () => {
                         <div className="hidden md:block overflow-x-auto">
                             <table className="w-full text-left border-collapse">
                                 <thead>
-                                    <tr className="bg-gray-50 dark:bg-surface-dark/50 border-b border-gray-100 dark:border-surface-border text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                    <tr className="bg-white/10 dark:bg-black/20 border-b border-white/10 dark:border-white/5 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                                         <th className="px-6 py-3">用户信息</th>
                                         <th className="px-6 py-3">角色</th>
                                         <th className="px-6 py-3">账号状态</th>
@@ -592,9 +598,9 @@ export const UsersPage: React.FC = () => {
                                         <th className="px-6 py-3 text-right">操作</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-gray-50 dark:divide-surface-border">
-                                    {usersPage?.items.map((u) => (
-                                        <tr key={u.id} className="hover:bg-gray-50/50 dark:hover:bg-surface-border/30 transition-colors">
+                                <tbody className="divide-y divide-gray-100/50 dark:divide-white/5">
+                                        {usersPage?.items.map((u) => (
+                                            <tr key={u.id} className="hover:bg-white/5 dark:hover:bg-white/5 transition-colors">
                                             <td className="px-6 py-3">
                                                 <div className="flex items-center gap-3">
                                                     <UserAvatar url={u.avatar} name={u.name} />
@@ -640,7 +646,7 @@ export const UsersPage: React.FC = () => {
                                                 <div className="flex items-center justify-end gap-2">
                                                     <button 
                                                         onClick={() => setShowLogsUserId(u.id)}
-                                                        className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                                                        className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:text-gray-400 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
                                                         title="查看日志"
                                                     >
                                                         <FileText className="w-4 h-4" />
@@ -687,7 +693,7 @@ export const UsersPage: React.FC = () => {
                         </div>
 
                         {/* Mobile Cards */}
-                        <div className="md:hidden divide-y divide-gray-100 dark:divide-surface-border">
+                        <div className="md:hidden divide-y divide-gray-100/50 dark:divide-white/5">
                             {usersPage?.items.map((u) => (
                                 <div key={u.id} className="p-4 space-y-4">
                                     <div className="flex items-start justify-between">
@@ -792,16 +798,10 @@ export const UsersPage: React.FC = () => {
 
             {/* Logs Drawer */}
             {showLogsUserId && (
-                <>
-                    <div 
-                        className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 transition-opacity"
-                        onClick={() => setShowLogsUserId(null)}
-                    />
-                    <OperationLogsDrawer 
-                        userId={showLogsUserId} 
-                        onClose={() => setShowLogsUserId(null)} 
-                    />
-                </>
+                <OperationLogsDrawer 
+                    userId={showLogsUserId} 
+                    onClose={() => setShowLogsUserId(null)} 
+                />
             )}
 
             {/* User Modal */}
@@ -859,44 +859,48 @@ export const UsersPage: React.FC = () => {
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">用户名</label>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">用户名</label>
                         <input
                             type="text"
                             value={userFormData.name}
                             onChange={(e) => setUserFormData({ ...userFormData, name: e.target.value })}
-                            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                            className="w-full mt-1 bg-white/50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded-lg p-3 text-gray-900 dark:text-white text-base focus:outline-none focus:border-primary backdrop-blur-sm"
                             placeholder="请输入用户名"
                         />
                     </div>
+                    
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">邮箱</label>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">邮箱</label>
                         <input
                             type="email"
                             value={userFormData.email}
                             onChange={(e) => setUserFormData({ ...userFormData, email: e.target.value })}
-                            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                            className="w-full mt-1 bg-white/50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded-lg p-3 text-gray-900 dark:text-white text-base focus:outline-none focus:border-primary backdrop-blur-sm"
                             placeholder="请输入邮箱"
                         />
                     </div>
+
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">角色</label>
-                        <select
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">角色</label>
+                        <FormSelect
                             value={userFormData.role}
-                            onChange={(e) => setUserFormData({ ...userFormData, role: e.target.value as any })}
-                            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                        >
-                            <option value="family">家庭成员</option>
-                            <option value="admin">管理员</option>
-                        </select>
+                            onChange={(val) => setUserFormData({ ...userFormData, role: val })}
+                            options={[
+                                { label: '家庭成员', value: 'family' },
+                                { label: '管理员', value: 'admin' }
+                            ]}
+                            placeholder="请选择角色"
+                        />
                     </div>
                         <div>
                             <div className="flex justify-between items-center mb-1">
-                                <label className="block text-sm font-medium text-gray-700">
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                                     {editingUser ? '重置密码' : '初始密码'}
                                 </label>
                                 <button
+                                    type="button"
                                     onClick={generateRandomPassword}
-                                    className="text-blue-600 hover:text-blue-700 text-xs flex items-center gap-1 transition-colors"
+                                    className="text-primary hover:text-primary/80 text-xs flex items-center gap-1 transition-colors font-medium"
                                 >
                                     <RefreshCw className="w-3 h-3" />
                                     随机生成
@@ -906,7 +910,7 @@ export const UsersPage: React.FC = () => {
                                 type="text"
                                 value={userFormData.password}
                                 onChange={(e) => setUserFormData({ ...userFormData, password: e.target.value })}
-                                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-mono"
+                                className="w-full mt-1 bg-white/50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded-lg p-3 text-gray-900 dark:text-white text-base focus:outline-none focus:border-primary backdrop-blur-sm font-mono"
                                 placeholder={editingUser ? "不修改请留空，至少 6 位" : "至少 6 位"}
                             />
                             {editingUser && (

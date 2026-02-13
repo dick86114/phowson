@@ -44,21 +44,23 @@ export const BadgeGallery: React.FC<BadgeGalleryProps> = ({ badges }) => {
     };
 
     return (
-        <div className="bg-white dark:bg-surface-dark rounded-3xl p-8 shadow-sm border border-gray-100 dark:border-surface-border">
+        <div className="glass-panel rounded-3xl p-8">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
                 <div className="flex items-center gap-2">
-                    <Trophy className="w-6 h-6 text-orange-500" />
+                    <div className="p-2 rounded-lg bg-orange-100/50 dark:bg-orange-500/10 text-orange-500 backdrop-blur-sm">
+                        <Trophy className="w-6 h-6" />
+                    </div>
                     <h2 className="text-xl font-bold text-gray-900 dark:text-white">徽章馆</h2>
                 </div>
                 
-                <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-xl w-fit">
+                <div className="flex bg-gray-100/50 dark:bg-gray-800/50 p-1 rounded-xl w-fit backdrop-blur-sm border border-white/10">
                     {(['all', 'unlocked', 'locked'] as const).map((tab) => (
                         <button
                             key={tab}
                             onClick={() => setFilter(tab)}
                             className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                                 filter === tab 
-                                    ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' 
+                                    ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-sm' 
                                     : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
                             }`}
                         >
@@ -74,12 +76,13 @@ export const BadgeGallery: React.FC<BadgeGalleryProps> = ({ badges }) => {
                 {filteredBadges.map((badge) => (
                     <div key={badge.id} className="flex flex-col items-center text-center group">
                         {/* Hexagon Shape */}
-                        <div className={`relative w-24 h-24 mb-4 transition-transform duration-300 group-hover:scale-110`}>
+                        <div className={`relative w-24 h-24 mb-4 transition-transform duration-300 group-hover:scale-110 drop-shadow-lg`}>
                             {/* Hexagon SVG Background */}
-                            <svg viewBox="0 0 100 100" className={`w-full h-full drop-shadow-md ${badge.unlocked ? 'text-orange-50 dark:text-orange-500/10' : 'text-gray-100 dark:text-gray-800'}`}>
+                            <svg viewBox="0 0 100 100" className={`w-full h-full ${badge.unlocked ? 'text-orange-50/80 dark:text-orange-500/10' : 'text-gray-100/50 dark:text-gray-800/50'}`}>
                                 <path 
                                     d="M50 0 L93.3 25 V75 L50 100 L6.7 75 V25 Z" 
                                     fill="currentColor"
+                                    className="backdrop-blur-sm"
                                 />
                             </svg>
                             

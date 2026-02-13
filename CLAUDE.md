@@ -19,3 +19,9 @@
 - 移动端筛选弹窗布局规范：移动端筛选弹窗（Bottom Sheet）内的选项列表可根据内容密度采用双列网格布局（Grid），以提高空间利用率。
 - 登录跳转规范：登录成功后必须跳转回登录前的页面（通过 URL 参数 `returnUrl` 传递），禁止默认跳转到后台管理页面。
 - 移动端弹窗滚动规范：移动端弹窗（如筛选、排序）必须使用 `createPortal` 渲染至 `document.body`，并在打开时锁定 `body` 滚动（`overflow: hidden`），以防止背景页面跟随滚动。
+- 系统设置页面（Settings）的背景容器颜色应使用柔和的浅色（如 `bg-slate-50/90`），避免使用纯白，以提升视觉舒适度。
+- 前端输入框（Input）组件必须设置清晰的边框颜色（Light模式下 `border-gray-300`，Dark模式下 `border-white/10`），以增强可见性。
+- Admin表单中的下拉选择框应优先使用 `FormSelect` 组件（模仿 DropdownFilter 样式），而非原生 `<select>`，以保持与 Glass Input 统一的视觉风格。
+- Admin页面筛选栏（DropdownFilter）若默认值不是 'all'，必须显式传递 `defaultValue` 属性，以确保默认状态下呈现为非激活样式（灰色），保持视觉统一。
+- 前端 Header 或 Overlay 区域的图标与文字，若背景为透明或动态图片，必须使用 `drop-shadow-md` 并保持 100% 不透明度（如 `text-white` 而非 `text-white/70`），以确保在各种背景下的可见性。
+- 交付代码前必须清理所有前端调试代码（如 `console.log` 和 `debugger`），仅保留必要的 `console.error`。

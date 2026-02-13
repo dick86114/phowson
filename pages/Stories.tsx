@@ -106,7 +106,7 @@ export const Stories: React.FC = () => {
 
                 <div className="grid gap-12">
                     {photos.map((photo, idx) => (
-                        <article key={photo.id} className="flex flex-col md:flex-row gap-8 items-start bg-white dark:bg-surface-dark/50 border border-gray-200 dark:border-surface-border rounded-2xl overflow-hidden hover:bg-gray-50 dark:hover:bg-surface-dark transition-colors p-6 shadow-sm hover:shadow-md">
+                        <article key={photo.id} className="glass-card flex flex-col md:flex-row gap-8 items-start rounded-2xl overflow-hidden p-6">
                             <div className="w-full md:w-1/3 aspect-[4/3] rounded-lg overflow-hidden shrink-0">
                                 <ProgressiveImage
                                     src={getPhotoUrl(photo, 'thumb')}
@@ -150,7 +150,7 @@ export const Stories: React.FC = () => {
                                 <div className="pt-4 flex items-center justify-between">
                                      <div className="flex flex-wrap gap-2">
                                         {toTags(photo.tags).slice(0,3).map(tag => (
-                                            <span key={tag} className="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-black/30 px-2 py-1 rounded">#{tag}</span>
+                                            <span key={tag} className="text-xs text-gray-500 dark:text-gray-400 bg-black/5 dark:bg-white/10 px-2 py-1 rounded backdrop-blur-sm">#{tag}</span>
                                         ))}
                                     </div>
                                     <Link 
@@ -194,7 +194,7 @@ export const Stories: React.FC = () => {
                             type="button"
                             onClick={() => fetchNextPage()}
                             disabled={isFetchingNextPage}
-                            className="inline-flex items-center justify-center px-5 py-2.5 rounded-full border border-gray-200 dark:border-surface-border bg-white dark:bg-surface-dark text-sm font-medium text-gray-700 dark:text-gray-200 hover:border-primary hover:text-primary transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                            className="glass-card inline-flex items-center justify-center px-5 py-2.5 rounded-full text-sm font-medium text-gray-700 dark:text-gray-200 hover:text-primary transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                         >
                             {isFetchingNextPage ? '加载中...' : '加载更多'}
                         </button>

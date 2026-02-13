@@ -67,9 +67,9 @@ export const GamificationHistory: React.FC = () => {
     }, [myBadges, myChallenges]);
 
     return (
-        <div className="container mx-auto px-4 py-8 max-w-4xl animate-fade-in">
+        <div className="container mx-auto px-4 py-8 max-w-4xl animate-in slide-in-from-bottom duration-500">
             <div className="flex items-center gap-4 mb-8">
-                <Link to="/gamification" className="p-2 hover:bg-gray-100 dark:hover:bg-surface-border rounded-full transition-colors">
+                <Link to="/gamification" className="p-2 hover:bg-white/50 dark:hover:bg-white/10 rounded-full transition-colors backdrop-blur-sm border border-transparent hover:border-white/20">
                     <ArrowLeft className="w-6 h-6 text-gray-700 dark:text-gray-300" />
                 </Link>
                 <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight flex items-center gap-3">

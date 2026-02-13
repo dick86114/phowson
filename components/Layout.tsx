@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Camera, Search, Menu, X, Instagram, Twitter, Mail, LogIn, Sun, Moon, Monitor, Heart, Trophy, LayoutDashboard, LogOut, ChevronDown, Image as ImageIcon, MapPin, BookOpen, Info, Upload, User, ChevronRight, Settings, MessageSquare, Users, PieChart, FileText } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { useHeaderTheme } from '../HeaderThemeContext';
 import { API_BASE_URL } from '../api';
 import { useTheme } from '../ThemeContext';
 import { useSiteSettings } from '../SiteSettingsContext';
@@ -16,6 +17,7 @@ export const Header: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
+  const { headerColorMode } = useHeaderTheme();
   const { user: currentUser, logout } = useAuth();
   const settings = useSiteSettings();
   const userMenuButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -23,6 +25,21 @@ export const Header: React.FC = () => {
   const userMenuId = useId();
   
   const avatarUrl = getAvatarUrl(currentUser);
+  const isSearchPage = new URLSearchParams(location.search).has('q');
+  const isHomeHero = location.pathname === '/' && !isSearchPage;
+
+  // Determine colors based on context and location
+  const navTextColor = isHomeHero
+      ? (headerColorMode === 'light-text' ? 'text-white drop-shadow-md' : 'text-gray-900 drop-shadow-md')
+      : 'text-gray-900 dark:text-white';
+  
+  const navHoverColor = isHomeHero
+      ? (headerColorMode === 'light-text' ? 'hover:text-white/80' : 'hover:text-gray-700')
+      : 'hover:text-primary';
+
+  const logoBgClass = isHomeHero
+      ? (headerColorMode === 'light-text' ? 'bg-white/20 text-white shadow-lg' : 'bg-black/10 text-gray-900 shadow-sm')
+      : 'text-primary bg-primary/10';
 
   const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path + '/');
 
@@ -54,7 +71,8 @@ export const Header: React.FC = () => {
         to: '/gamification', 
         icon: Trophy,
         iconBg: 'bg-yellow-50 dark:bg-yellow-500/10',
-        iconColor: 'text-yellow-600 dark:text-yellow-400'
+        iconColor: 'text-yellow-600 dark:text-yellow-400',
+        hoverClass: 'group-hover:bg-yellow-50 dark:group-hover:bg-yellow-500/10 group-hover:text-yellow-600 dark:group-hover:text-yellow-400'
       },
       { 
         key: 'my-photos', 
@@ -62,7 +80,8 @@ export const Header: React.FC = () => {
         to: '/me/albums', 
         icon: ImageIcon,
         iconBg: 'bg-blue-50 dark:bg-blue-500/10',
-        iconColor: 'text-blue-600 dark:text-blue-400'
+        iconColor: 'text-blue-600 dark:text-blue-400',
+        hoverClass: 'group-hover:bg-blue-50 dark:group-hover:bg-blue-500/10 group-hover:text-blue-600 dark:group-hover:text-blue-400'
       },
       { 
         key: 'profile', 
@@ -70,7 +89,8 @@ export const Header: React.FC = () => {
         to: '/me/profile', 
         icon: User,
         iconBg: 'bg-purple-50 dark:bg-purple-500/10',
-        iconColor: 'text-purple-600 dark:text-purple-400'
+        iconColor: 'text-purple-600 dark:text-purple-400',
+        hoverClass: 'group-hover:bg-purple-50 dark:group-hover:bg-purple-500/10 group-hover:text-purple-600 dark:group-hover:text-purple-400'
       }
     ];
 
@@ -82,7 +102,8 @@ export const Header: React.FC = () => {
           to: '/admin/manage/photos', 
           icon: ImageIcon,
           iconBg: 'bg-cyan-50 dark:bg-cyan-500/10',
-          iconColor: 'text-cyan-600 dark:text-cyan-400'
+          iconColor: 'text-cyan-600 dark:text-cyan-400',
+          hoverClass: 'group-hover:bg-cyan-50 dark:group-hover:bg-cyan-500/10 group-hover:text-cyan-600 dark:group-hover:text-cyan-400'
         },
         { 
           key: 'admin-analytics', 
@@ -90,7 +111,8 @@ export const Header: React.FC = () => {
           to: '/admin/manage/analytics', 
           icon: PieChart,
           iconBg: 'bg-emerald-50 dark:bg-emerald-500/10',
-          iconColor: 'text-emerald-600 dark:text-emerald-400'
+          iconColor: 'text-emerald-600 dark:text-emerald-400',
+          hoverClass: 'group-hover:bg-emerald-50 dark:group-hover:bg-emerald-500/10 group-hover:text-emerald-600 dark:group-hover:text-emerald-400'
         },
         { 
           key: 'admin-comments', 
@@ -98,7 +120,8 @@ export const Header: React.FC = () => {
           to: '/admin/manage/comments', 
           icon: MessageSquare,
           iconBg: 'bg-orange-50 dark:bg-orange-500/10',
-          iconColor: 'text-orange-600 dark:text-orange-400'
+          iconColor: 'text-orange-600 dark:text-orange-400',
+          hoverClass: 'group-hover:bg-orange-50 dark:group-hover:bg-orange-500/10 group-hover:text-orange-600 dark:group-hover:text-orange-400'
         },
         { 
           key: 'admin-users', 
@@ -106,7 +129,8 @@ export const Header: React.FC = () => {
           to: '/admin/manage/users', 
           icon: Users,
           iconBg: 'bg-pink-50 dark:bg-pink-500/10',
-          iconColor: 'text-pink-600 dark:text-pink-400'
+          iconColor: 'text-pink-600 dark:text-pink-400',
+          hoverClass: 'group-hover:bg-pink-50 dark:group-hover:bg-pink-500/10 group-hover:text-pink-600 dark:group-hover:text-pink-400'
         },
         { 
           key: 'admin-about', 
@@ -114,7 +138,8 @@ export const Header: React.FC = () => {
           to: '/admin/manage/about', 
           icon: FileText,
           iconBg: 'bg-teal-50 dark:bg-teal-500/10',
-          iconColor: 'text-teal-600 dark:text-teal-400'
+          iconColor: 'text-teal-600 dark:text-teal-400',
+          hoverClass: 'group-hover:bg-teal-50 dark:group-hover:bg-teal-500/10 group-hover:text-teal-600 dark:group-hover:text-teal-400'
         },
         { 
           key: 'admin-settings', 
@@ -122,7 +147,8 @@ export const Header: React.FC = () => {
           to: '/admin/manage/settings', 
           icon: Settings,
           iconBg: 'bg-slate-50 dark:bg-slate-500/10',
-          iconColor: 'text-slate-600 dark:text-slate-400'
+          iconColor: 'text-slate-600 dark:text-slate-400',
+          hoverClass: 'group-hover:bg-slate-50 dark:group-hover:bg-slate-500/10 group-hover:text-slate-600 dark:group-hover:text-slate-400'
         }
       );
     }
@@ -166,12 +192,23 @@ export const Header: React.FC = () => {
     };
   }, [isUserMenuOpen]);
 
+  const getNavLinkClass = (path: string) => {
+    const active = isActive(path);
+    if (active) return 'text-primary';
+    if (isHomeHero) {
+        return headerColorMode === 'light-text' 
+            ? 'text-white/90 hover:text-white drop-shadow-sm' 
+            : 'text-gray-700 hover:text-gray-900';
+    }
+    return 'text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white';
+  };
+
   return (
     <header 
-        className={`w-full z-[60] transition-colors duration-300 ${
-            location.pathname === '/' 
-                ? 'fixed top-0 border-none bg-transparent md:sticky md:bg-gradient-to-b md:from-white/95 md:via-white/70 md:to-transparent md:dark:from-[#111a22]/95 md:dark:via-[#111a22]/70 md:dark:to-transparent md:backdrop-blur-sm md:border-b md:border-gray-200 md:dark:border-surface-border' 
-                : 'sticky top-0 border-b border-gray-200 dark:border-surface-border bg-gradient-to-b from-white/95 via-white/70 to-transparent dark:from-[#111a22]/95 dark:via-[#111a22]/70 dark:to-transparent backdrop-blur-sm'
+        className={`w-full z-[60] transition-all duration-500 ${
+            isHomeHero
+                ? 'fixed top-0 border-none bg-transparent' 
+                : 'sticky top-0 glass-nav'
         }`}
         onDoubleClick={() => {
             if (window.innerWidth < 768) { // Only on mobile
@@ -182,46 +219,52 @@ export const Header: React.FC = () => {
       <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center">
           <div className="flex-1 flex items-center gap-2">
-            <Link to="/" className={`flex items-center gap-2 transition-colors ${location.pathname === '/' ? 'text-white md:text-gray-900 md:dark:text-white drop-shadow-md md:drop-shadow-none' : 'text-gray-900 dark:text-white hover:text-primary'}`}>
+            <Link to="/" className={`flex items-center gap-2 transition-colors ${isHomeHero ? (headerColorMode === 'light-text' ? 'text-white drop-shadow-md' : 'text-gray-900') : 'text-gray-900 dark:text-white hover:text-primary'}`}>
               {settings.siteLogo ? (
-                  <img src={toMediaUrl(settings.siteLogo)} alt="Logo" className={`w-8 h-8 object-contain ${location.pathname === '/' ? 'drop-shadow-md md:drop-shadow-none' : ''}`} />
+                  <img src={toMediaUrl(settings.siteLogo)} alt="Logo" className={`w-8 h-8 object-contain ${isHomeHero ? 'drop-shadow-md' : ''}`} />
               ) : (
-                  <div className={`size-8 flex items-center justify-center rounded-lg ${location.pathname === '/' ? 'bg-white/20 backdrop-blur-md text-white md:bg-primary/10 md:text-primary md:backdrop-blur-none shadow-lg md:shadow-none' : 'text-primary bg-primary/10'}`}>
+                  <div className={`size-8 flex items-center justify-center rounded-lg backdrop-blur-md ${logoBgClass}`}>
                     <Camera className="w-5 h-5" />
                   </div>
               )}
-              <h1 className="text-lg font-bold tracking-tight">{settings.siteName || '光影视界'}</h1>
+              <span className={`text-xl font-bold tracking-tight ${isHomeHero ? (headerColorMode === 'light-text' ? 'text-white drop-shadow-md' : 'text-gray-900') : 'text-gray-900 dark:text-white'}`}>{settings.siteName}</span>
             </Link>
           </div>
 
           {/* Desktop Nav */}
           <nav className="hidden md:flex items-center gap-8 justify-center">
-            <Link to="/" className={`text-sm font-medium transition-colors ${isActive('/') ? 'text-primary' : 'text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white'}`}>画廊</Link>
-            <Link to="/map" className={`text-sm font-medium transition-colors ${isActive('/map') ? 'text-primary' : 'text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white'}`}>地图</Link>
-            <Link to="/stories" className={`text-sm font-medium transition-colors ${isActive('/stories') ? 'text-primary' : 'text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white'}`}>故事</Link>
-            <Link to="/about" className={`text-sm font-medium transition-colors ${isActive('/about') ? 'text-primary' : 'text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white'}`}>关于</Link>
+            <Link to="/" className={`text-sm font-medium transition-colors ${getNavLinkClass('/')}`}>画廊</Link>
+            <Link to="/map" className={`text-sm font-medium transition-colors ${getNavLinkClass('/map')}`}>地图</Link>
+            <Link to="/stories" className={`text-sm font-medium transition-colors ${getNavLinkClass('/stories')}`}>故事</Link>
+            <Link to="/about" className={`text-sm font-medium transition-colors ${getNavLinkClass('/about')}`}>关于</Link>
           </nav>
 
           <div className="flex-1 flex items-center justify-end gap-4">
             <div className="hidden lg:flex relative w-64">
-              <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
-                <Search className="w-4 h-4" />
-              </span>
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={handleSearch}
                 placeholder="搜索照片 (按回车)..."
-                className="w-full rounded-full border border-gray-200 dark:border-surface-border bg-gray-100 dark:bg-surface-dark py-1.5 pl-10 pr-4 text-sm text-gray-900 dark:text-white placeholder-gray-500 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors"
+                className={`w-full rounded-full border py-1.5 pl-10 pr-4 text-sm transition-colors focus:outline-none focus:ring-1 focus:ring-primary ${
+                    isHomeHero
+                        ? (headerColorMode === 'light-text' 
+                            ? 'bg-white/10 border-white/30 text-white placeholder-white/60 focus:bg-white/20 focus:border-white/50 backdrop-blur-md' 
+                            : 'bg-black/5 border-black/10 text-gray-900 placeholder-gray-500 focus:bg-black/10 focus:border-black/20 backdrop-blur-md')
+                        : 'bg-gray-100 dark:bg-surface-dark border-gray-200 dark:border-surface-border text-gray-900 dark:text-white placeholder-gray-500 focus:border-primary'
+                }`}
               />
+              <span className={`absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none ${isHomeHero ? (headerColorMode === 'light-text' ? 'text-white drop-shadow-md' : 'text-gray-500') : 'text-gray-500 dark:text-gray-400'}`}>
+                <Search className="w-4 h-4" />
+              </span>
             </div>
 
             <button 
                 onClick={() => setIsSearchOpen(!isSearchOpen)}
                 type="button"
                 aria-label="搜索"
-                className={`md:hidden p-2 rounded-full transition-colors ${location.pathname === '/' ? 'text-white hover:bg-white/20 drop-shadow-md' : 'text-gray-600 dark:text-gray-300 hover:text-primary hover:bg-gray-100 dark:hover:bg-surface-dark'}`}
+                className={`md:hidden p-2 rounded-full transition-colors ${isHomeHero ? (headerColorMode === 'light-text' ? 'text-white hover:bg-white/20 drop-shadow-md' : 'text-gray-900 hover:bg-black/5') : 'text-gray-600 dark:text-gray-300 hover:text-primary hover:bg-gray-100 dark:hover:bg-surface-dark'}`}
             >
                 <Search className="w-5 h-5" />
             </button>
@@ -241,7 +284,11 @@ export const Header: React.FC = () => {
                   <button
                     ref={userMenuButtonRef}
                     type="button"
-                    className="flex items-center gap-2 rounded-full hover:bg-gray-100 dark:hover:bg-surface-dark px-2 py-1 transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40"
+                    className={`flex items-center gap-2 rounded-full px-2 py-1 transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40 ${
+                        isHomeHero 
+                            ? (headerColorMode === 'light-text' ? 'hover:bg-white/20' : 'hover:bg-black/5')
+                            : 'hover:bg-gray-100 dark:hover:bg-surface-dark'
+                    }`}
                     aria-haspopup="menu"
                     aria-expanded={isUserMenuOpen}
                     aria-controls={userMenuId}
@@ -258,8 +305,8 @@ export const Header: React.FC = () => {
                     }}
                     title="个人菜单"
                   >
-                    <img src={avatarUrl} alt="Profile" className="w-9 h-9 rounded-full border border-gray-200 dark:border-surface-border object-cover" />
-                    <ChevronDown className={`w-4 h-4 text-gray-500 dark:text-gray-300 transition-transform ${isUserMenuOpen ? 'rotate-180' : ''}`} />
+                    <img src={avatarUrl} alt="Profile" className={`w-9 h-9 rounded-full object-cover border ${isHomeHero ? (headerColorMode === 'light-text' ? 'border-white/50 shadow-md' : 'border-black/10 shadow-sm') : 'border-gray-200 dark:border-surface-border'}`} />
+                    <ChevronDown className={`w-4 h-4 transition-transform ${isUserMenuOpen ? 'rotate-180' : ''} ${isHomeHero ? (headerColorMode === 'light-text' ? 'text-white drop-shadow-md' : 'text-gray-500') : 'text-gray-500 dark:text-gray-300'}`} />
                   </button>
 
                   {isUserMenuOpen && (
@@ -311,6 +358,7 @@ export const Header: React.FC = () => {
                       <div className="p-2 space-y-0.5">
                          {userMenuItems.map((it) => {
                           const active = isActive(it.to);
+                          
                           return (
           <React.Fragment key={it.key}>
             {it.key === 'admin-photos' && (
@@ -330,7 +378,7 @@ export const Header: React.FC = () => {
               <div className={`p-1.5 rounded-lg transition-transform group-hover:scale-110 ${
                 active 
                 ? `${it.iconBg} ${it.iconColor}` 
-                : 'bg-gray-100 dark:bg-surface-border text-gray-500 dark:text-gray-400'
+                : `bg-gray-100 dark:bg-surface-border text-gray-500 dark:text-gray-400 ${it.hoverClass}`
               }`}>
                  <it.icon className="w-4 h-4" />
               </div>
@@ -342,8 +390,11 @@ export const Header: React.FC = () => {
         <div className="h-px bg-gray-200 dark:bg-gray-700 my-1 mx-2" />
 
         <div className="px-3 py-2">
-                            <div className="text-xs font-bold text-gray-500 dark:text-gray-400 mb-2 px-1 flex items-center gap-1.5">
-                                <Sun className="w-3.5 h-3.5" /> 主题模式
+                            <div className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 mb-2 -mx-3">
+                                <div className="p-1.5 rounded-lg bg-gray-100 dark:bg-surface-border text-gray-500 dark:text-gray-400">
+                                    <Sun className="w-4 h-4" />
+                                </div>
+                                主题模式
                             </div>
                             <div className="grid grid-cols-3 gap-1 bg-gray-100 dark:bg-surface-border/50 p-1 rounded-lg">
                                 {(['light', 'dark', 'system'] as const).map((mode) => (
@@ -377,9 +428,9 @@ export const Header: React.FC = () => {
                             logout();
                             navigate('/');
                           }}
-                          className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-xl transition-colors group"
+                          className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 dark:text-gray-200 font-medium hover:bg-red-50 dark:hover:bg-red-900/10 rounded-xl transition-colors group"
                         >
-                          <div className="p-1.5 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-500 group-hover:text-red-500 group-hover:bg-red-100 dark:group-hover:bg-red-900/20 transition-colors">
+                          <div className="p-1.5 rounded-lg bg-gray-100 dark:bg-surface-border text-gray-500 dark:text-gray-400 group-hover:text-red-500 group-hover:bg-red-100 dark:group-hover:bg-red-900/20 transition-colors group-hover:scale-110">
                               <LogOut className="w-4 h-4" />
                           </div>
                           退出登录
@@ -402,7 +453,7 @@ export const Header: React.FC = () => {
             <button 
                 type="button"
                 aria-label={isMenuOpen ? '关闭菜单' : '打开菜单'}
-                className={`md:hidden rounded-lg p-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-[#111a22] ${location.pathname === '/' ? 'text-white drop-shadow-md hover:bg-white/20' : 'text-gray-600 dark:text-gray-300'}`}
+                className={`md:hidden rounded-lg p-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-[#111a22] ${isHomeHero ? (headerColorMode === 'light-text' ? 'text-white drop-shadow-md hover:bg-white/20' : 'text-gray-900 hover:bg-black/5') : 'text-gray-600 dark:text-gray-300'}`}
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
             >
               {isMenuOpen ? <X /> : <Menu />}
@@ -439,7 +490,11 @@ export const Header: React.FC = () => {
             />
             
             {/* Sidebar */}
-            <div className="absolute right-0 top-0 bottom-0 w-[85%] max-w-[320px] bg-white/90 dark:bg-surface-dark/90 backdrop-blur-2xl shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
+            <div className="absolute right-0 top-0 bottom-0 w-[85%] max-w-[320px] glass-panel flex flex-col animate-in slide-in-from-right duration-500 overflow-hidden">
+                {/* Decorative Blob */}
+                <div className="absolute top-[-20%] right-[-20%] w-64 h-64 bg-primary/20 rounded-full blur-3xl pointer-events-none animate-pulse" />
+                <div className="absolute bottom-[-10%] left-[-10%] w-48 h-48 bg-purple-500/20 rounded-full blur-3xl pointer-events-none animate-pulse" />
+
                 {/* Close Button */}
                 <button 
                     onClick={() => setIsMenuOpen(false)}
@@ -708,28 +763,31 @@ export const MobileBottomNav: React.FC = () => {
     ];
     
     return (
-        <div className="md:hidden fixed bottom-6 left-8 right-8 z-50">
-            <div className="bg-white/80 dark:bg-[#111a22]/80 backdrop-blur-xl shadow-2xl rounded-full border border-white/40 dark:border-white/10 ring-1 ring-black/5">
-                <div className="flex items-center justify-around h-16 px-2">
+        <div className="md:hidden fixed bottom-6 left-6 right-6 z-50 animate-in slide-in-from-bottom-10 duration-700 fade-in-0">
+            <div className="glass-panel rounded-full ring-1 ring-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.12)]">
+                <div className="flex items-center justify-around h-16 px-2 relative overflow-hidden rounded-full">
+                    {/* Background sheen effect */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent pointer-events-none" />
+                    
                     {navItems.map(item => {
                         const active = isActive(item.path);
                         return (
                             <Link 
                                 key={item.path} 
                                 to={item.path}
-                                className={`relative flex flex-col items-center justify-center w-full h-full active:scale-95 transition-all duration-300 ${
+                                className={`relative flex flex-col items-center justify-center w-full h-full active:scale-90 transition-all duration-300 group ${
                                     active
                                         ? 'text-primary' 
                                         : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'
                                 }`}
                             >
-                                <div className={`relative p-1 rounded-xl transition-all duration-300 ${active ? '-translate-y-1' : ''}`}>
-                                    <item.icon className={`w-5 h-5 ${active ? 'fill-current' : ''}`} />
-                                    {active && (
-                                        <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-1 h-1 bg-primary rounded-full shadow-[0_0_8px_rgba(var(--primary-rgb),0.5)]" />
-                                    )}
+                                {active && (
+                                    <div className="absolute inset-0 bg-primary/5 dark:bg-primary/10 blur-xl rounded-full" />
+                                )}
+                                <div className={`relative p-1.5 rounded-2xl transition-all duration-300 ${active ? '-translate-y-1 bg-primary/10 dark:bg-primary/20 shadow-sm' : ''}`}>
+                                    <item.icon className={`w-5 h-5 transition-transform duration-300 ${active ? 'scale-110' : 'group-hover:scale-110'}`} />
                                 </div>
-                                <span className={`text-[10px] font-medium transition-all duration-300 ${active ? 'font-bold translate-y-0.5' : 'translate-y-0.5'}`}>
+                                <span className={`text-[10px] font-bold transition-all duration-300 ${active ? 'opacity-100 translate-y-0' : 'opacity-70 group-hover:opacity-100 translate-y-0.5'}`}>
                                     {item.label}
                                 </span>
                             </Link>

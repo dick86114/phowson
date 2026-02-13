@@ -32,7 +32,7 @@ export const About: React.FC = () => {
         <main className="flex-grow bg-background-light dark:bg-background-dark transition-colors duration-300">
             {/* Hero Section */}
             <section className="relative py-12 px-4 sm:px-6 lg:px-8 overflow-hidden">
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[500px] bg-primary/5 rounded-full blur-3xl pointer-events-none" />
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[500px] bg-primary/5 rounded-full blur-3xl pointer-events-none animate-float" />
                 <div className="max-w-4xl mx-auto text-center relative z-10">
                     <h1 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white tracking-tight mb-6">
                         {title}
@@ -48,9 +48,9 @@ export const About: React.FC = () => {
 
             {/* Profile Section */}
             <section className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <div className="bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-2xl p-6 md:p-10 shadow-sm flex flex-col md:flex-row gap-8 items-center">
+                <div className="glass-panel rounded-2xl p-6 md:p-10 flex flex-col md:flex-row gap-8 items-center">
                     <div className="shrink-0 relative">
-                        <div className="w-48 h-48 rounded-full overflow-hidden border-4 border-white dark:border-surface-border shadow-xl">
+                        <div className="w-48 h-48 rounded-full overflow-hidden border-4 border-white/20 shadow-xl">
                             <img 
                                 src={toMediaUrl(about.avatar) || generateFallbackAvatar(profileTitle)} 
                                 alt={profileTitle} 
@@ -85,7 +85,7 @@ export const About: React.FC = () => {
             {/* Dynamic Content Sections */}
             <section className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
                 {sections.map((section, idx) => (
-                    <div key={idx} className="bg-white dark:bg-surface-dark p-6 rounded-xl border border-gray-200 dark:border-surface-border hover:border-primary/30 transition-colors shadow-sm">
+                    <div key={idx} className="glass-card p-6 rounded-xl">
                         <div className="w-10 h-10 bg-primary/10 text-primary rounded-lg flex items-center justify-center mb-4">
                             <DynamicIcon name={section.icon} />
                         </div>

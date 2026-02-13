@@ -81,21 +81,23 @@ export const MapPage: React.FC = () => {
 
     if (isLoading) {
         return (
-            <div className="flex-grow flex items-center justify-center bg-gray-50 dark:bg-background-dark">
-                <div className="text-center space-y-4">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-                    <p className="text-gray-500 dark:text-gray-400">正在加载地图数据...</p>
+            <div className="flex-grow flex items-center justify-center relative">
+                <div className="glass-panel px-8 py-6 rounded-2xl flex flex-col items-center gap-4">
+                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
+                    <p className="text-gray-600 dark:text-gray-300 font-medium">正在加载地图数据...</p>
                 </div>
             </div>
         );
     }
 
     return (
-        <main className="flex-grow flex flex-col relative h-[calc(100vh-64px)]">
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] pointer-events-none">
-                <div className="bg-white/90 dark:bg-surface-dark/90 backdrop-blur-md border border-gray-200 dark:border-surface-border px-6 py-3 rounded-full shadow-xl flex items-center gap-3 pointer-events-auto">
-                    <MapIcon className="w-5 h-5 text-primary" />
-                    <span className="text-sm font-semibold text-gray-900 dark:text-white">
+        <main className="flex-grow flex flex-col relative h-[calc(100vh-64px)] overflow-hidden">
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] pointer-events-none w-full max-w-md px-4 flex justify-center">
+                <div className="glass-panel px-5 py-2.5 rounded-full flex items-center gap-3 pointer-events-auto animate-fade-in-down shadow-lg">
+                    <div className="p-1.5 bg-primary/10 rounded-full">
+                        <MapIcon className="w-5 h-5 text-primary" />
+                    </div>
+                    <span className="text-sm font-bold text-gray-800 dark:text-gray-100">
                         光影足迹 · {photosWithGps.length} 个地点
                     </span>
                 </div>
@@ -116,7 +118,7 @@ export const MapPage: React.FC = () => {
                     <Marker key={photo.id} position={[photo.lat!, photo.lng!]}>
                         <Popup className="photo-popup">
                             <div className="w-64 space-y-3 p-1">
-                                <div className="aspect-[3/2] rounded-lg overflow-hidden bg-gray-100 dark:bg-surface-dark">
+                                <div className="aspect-[3/2] rounded-lg overflow-hidden bg-white/50 dark:bg-white/5 backdrop-blur-sm">
                                     <img 
                                         src={getPhotoUrl(photo, 'thumb')} 
                                         alt={photo.title}
@@ -141,7 +143,7 @@ export const MapPage: React.FC = () => {
 
             {photosWithGps.length === 0 && (
                 <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-[1000]">
-                    <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 px-4 py-2 rounded-lg text-sm text-amber-800 dark:text-amber-200 shadow-lg">
+                    <div className="glass-panel bg-amber-50/80 dark:bg-amber-900/40 border-amber-200/50 dark:border-amber-700/30 px-4 py-2 rounded-lg text-sm text-amber-800 dark:text-amber-200 shadow-lg backdrop-blur-md">
                         ⚠️ 暂无带 GPS 信息的照片，无法在地图上展示。
                     </div>
                 </div>

@@ -165,27 +165,31 @@ export const Gamification: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-[#0b1218] transition-colors duration-300 pb-20">
-            {/* Header / Nav is handled by App Layout, but design shows sub-nav. 
-                We'll stick to App Layout's header and just implement the content area styled as requested. 
-            */}
+        <div className="min-h-screen pb-20 pt-4">
+            {/* Header / Nav is handled by App Layout */}
             
             <main className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                     {/* Left Main Content */}
                     <div className="lg:col-span-8 space-y-8">
                         {/* Level Card */}
-                        <LevelCard levelInfo={levelInfo} />
+                        <div className="animate-in slide-in-from-bottom fade-in duration-500">
+                            <LevelCard levelInfo={levelInfo} />
+                        </div>
 
                         {/* Weekly Challenges */}
-                        <WeeklyChallenges challenges={challengesDisplay} />
+                        <div className="animate-in slide-in-from-bottom fade-in duration-500 delay-100">
+                            <WeeklyChallenges challenges={challengesDisplay} />
+                        </div>
                         
                         {/* Badge Gallery */}
-                        <BadgeGallery badges={badgesDisplay} />
+                        <div className="animate-in slide-in-from-bottom fade-in duration-500 delay-200">
+                            <BadgeGallery badges={badgesDisplay} />
+                        </div>
                     </div>
 
                     {/* Right Sidebar */}
-                    <div className="lg:col-span-4 space-y-8">
+                    <div className="lg:col-span-4 space-y-8 animate-in slide-in-from-right fade-in duration-500 delay-300">
                         <MilestoneList milestones={milestones} />
                     </div>
                 </div>

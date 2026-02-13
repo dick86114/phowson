@@ -22,11 +22,11 @@ const getLevel = (count: number): HeatmapLevel => {
 
 const getColor = (level: HeatmapLevel) => {
   const colors = [
-    'bg-gray-100 dark:bg-[#1e293b]',
-    'bg-green-200 dark:bg-green-900/40',
-    'bg-green-300 dark:bg-green-800/60',
-    'bg-green-400 dark:bg-green-700',
-    'bg-green-500 dark:bg-green-600',
+    'bg-black/5 dark:bg-white/5',
+    'bg-green-500/30 dark:bg-green-500/20',
+    'bg-green-500/50 dark:bg-green-500/40',
+    'bg-green-500/70 dark:bg-green-500/60',
+    'bg-green-500 dark:bg-green-500',
   ];
   return colors[level];
 };
@@ -141,12 +141,12 @@ export const Heatmap: React.FC<HeatmapProps & { variant?: 'scroll' | 'grid' | 'c
         </div>
         
         {/* Year Switcher */}
-        <div className="flex bg-gray-100 dark:bg-surface-dark rounded-md p-0.5 border border-gray-200 dark:border-surface-border">
+        <div className="flex bg-black/5 dark:bg-white/5 rounded-md p-0.5 border border-white/10">
           <button
             onClick={() => onYearChange(currentYear - 1)}
             className={`px-2 py-0.5 text-[10px] font-medium rounded transition-all ${
               year === currentYear - 1
-                ? 'bg-white dark:bg-surface-border text-primary shadow-sm'
+                ? 'glass-card text-primary shadow-sm'
                 : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
             }`}
           >
@@ -156,7 +156,7 @@ export const Heatmap: React.FC<HeatmapProps & { variant?: 'scroll' | 'grid' | 'c
             onClick={() => onYearChange(currentYear)}
             className={`px-2 py-0.5 text-[10px] font-medium rounded transition-all ${
               year === currentYear
-                ? 'bg-white dark:bg-surface-border text-primary shadow-sm'
+                ? 'glass-card text-primary shadow-sm'
                 : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
             }`}
           >
@@ -186,9 +186,9 @@ export const Heatmap: React.FC<HeatmapProps & { variant?: 'scroll' | 'grid' | 'c
             <div 
               key={month.name}
               className={
-                variant === 'scroll' ? 'w-40 bg-white dark:bg-surface-dark rounded-lg border border-gray-200 dark:border-surface-border p-3 flex-shrink-0' :
+                variant === 'scroll' ? 'w-40 glass-card rounded-lg p-3 flex-shrink-0' :
                 variant === 'compact' ? 'w-full flex-shrink-0' :
-                'w-full bg-white dark:bg-surface-dark rounded-lg border border-gray-200 dark:border-surface-border p-3 flex-shrink-0'
+                'w-full glass-card rounded-lg p-3 flex-shrink-0'
               }
             >
               <h4 className={`font-bold text-gray-900 dark:text-white ${variant === 'compact' ? 'text-[10px] mb-1 text-center' : 'text-xs mb-2'}`}>

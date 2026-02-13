@@ -47,8 +47,8 @@ export const Login: React.FC = () => {
     return (
         <div className="min-h-screen flex items-center justify-center bg-background-light dark:bg-[#0b1219] px-4 relative overflow-hidden transition-colors duration-300">
             {/* Background Decoration */}
-            <div className="absolute top-[-20%] left-[-10%] w-[500px] h-[500px] bg-primary/10 rounded-full blur-[100px] pointer-events-none" />
-            <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] bg-blue-600/10 rounded-full blur-[100px] pointer-events-none" />
+            <div className="absolute top-[-20%] left-[-10%] w-[500px] h-[500px] bg-primary/10 rounded-full blur-[100px] pointer-events-none animate-float" />
+            <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] bg-blue-600/10 rounded-full blur-[100px] pointer-events-none animate-float" style={{ animationDelay: '-3s' }} />
 
             <div className="w-full max-w-md relative z-10">
                 <div className="text-center mb-8">
@@ -65,7 +65,7 @@ export const Login: React.FC = () => {
                     </p>
                 </div>
 
-                <div className="bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-2xl p-8 shadow-2xl backdrop-blur-sm transition-colors duration-300">
+                <div className="glass-panel rounded-2xl p-8 transition-colors duration-300">
                     {view === 'login' ? (
                         /* Login Form */
                         <form onSubmit={handleLogin} className="space-y-6">
@@ -80,7 +80,7 @@ export const Login: React.FC = () => {
                                         required
                                         value={email}
                                         onChange={(e) => setEmail(e.target.value)}
-                                        className="w-full bg-gray-50 dark:bg-[#111a22] border border-gray-200 dark:border-surface-border rounded-lg py-2.5 pl-10 pr-4 text-base text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
+                                        className="w-full bg-gray-50/50 dark:bg-slate-900/50 backdrop-blur-sm border border-gray-200 dark:border-surface-border rounded-lg py-2.5 pl-10 pr-4 text-base text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
                                         placeholder="admin@photologs.com"
                                     />
                                 </div>
@@ -106,7 +106,7 @@ export const Login: React.FC = () => {
                                         required
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
-                                        className="w-full bg-gray-50 dark:bg-[#111a22] border border-gray-200 dark:border-surface-border rounded-lg py-2.5 pl-10 pr-4 text-base text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
+                                        className="w-full bg-gray-50/50 dark:bg-slate-900/50 backdrop-blur-sm border border-gray-200 dark:border-surface-border rounded-lg py-2.5 pl-10 pr-4 text-base text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
                                         placeholder="••••••••"
                                     />
                                 </div>
@@ -152,7 +152,7 @@ export const Login: React.FC = () => {
                                                 required
                                                 value={email}
                                                 onChange={(e) => setEmail(e.target.value)}
-                                                className="w-full bg-gray-50 dark:bg-[#111a22] border border-gray-200 dark:border-surface-border rounded-lg py-2.5 pl-10 pr-4 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
+                                                className="w-full bg-gray-50/50 dark:bg-slate-900/50 backdrop-blur-sm border border-gray-200 dark:border-surface-border rounded-lg py-2.5 pl-10 pr-4 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
                                                 placeholder="输入您的注册邮箱"
                                             />
                                         </div>

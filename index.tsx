@@ -14,7 +14,6 @@ registerSW({
     window.dispatchEvent(event);
   },
   onOfflineReady() {
-    console.log('App ready to work offline');
   },
 });
 

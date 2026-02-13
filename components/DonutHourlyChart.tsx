@@ -18,18 +18,18 @@ const levelFromCount = (count: number, max: number) => {
     return Math.min(4, Math.floor(v * 4));
 };
 
-const levelColor = (level: number) => {
+const levelClass = (level: number) => {
     switch (level) {
         case 4:
-            return '#0ea5e9';
+            return 'text-sky-500 dark:text-sky-400';
         case 3:
-            return '#38bdf8';
+            return 'text-sky-500/70 dark:text-sky-400/70';
         case 2:
-            return '#7dd3fc';
+            return 'text-sky-500/50 dark:text-sky-400/50';
         case 1:
-            return '#bae6fd';
+            return 'text-sky-500/30 dark:text-sky-400/30';
         default:
-            return '#e5e7eb';
+            return 'text-gray-200 dark:text-white/10';
     }
 };
 
@@ -63,18 +63,18 @@ export const DonutHourlyChart: React.FC<DonutHourlyChartProps> = ({
         <div className="flex items-center gap-6">
             <div className="relative" style={{ width: size, height: size }}>
                 <svg width={size} height={size} role="img" aria-label={ariaLabel}>
-                    <circle cx={cx} cy={cy} r={r} stroke="#e5e7eb" strokeWidth={strokeWidth} fill="none" opacity={0.35} />
+                    <circle cx={cx} cy={cy} r={r} className="text-gray-100 dark:text-white/5" stroke="currentColor" strokeWidth={strokeWidth} fill="none" />
                     {normalized.arr.map((count, hour) => {
                         const start = hour * step + gap;
                         const end = (hour + 1) * step - gap;
                         const level = levelFromCount(count, normalized.max);
-                        const color = levelColor(level);
                         const d = describeArc(cx, cy, r, start, end);
                         return (
                             <path
                                 key={hour}
                                 d={d}
-                                stroke={color}
+                                className={levelClass(level)}
+                                stroke="currentColor"
                                 strokeWidth={strokeWidth}
                                 strokeLinecap="round"
                                 fill="none"
@@ -96,7 +96,7 @@ export const DonutHourlyChart: React.FC<DonutHourlyChartProps> = ({
                 <div className="mt-2 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
                     <span>少</span>
                     {[0, 1, 2, 3, 4].map((lvl) => (
-                        <span key={lvl} className="inline-block w-4 h-3 rounded" style={{ backgroundColor: levelColor(lvl) }} />
+                        <span key={lvl} className={`inline-block w-4 h-3 rounded ${levelClass(lvl).replace('text-', 'bg-')}`} />
                     ))}
                     <span>多</span>
                 </div>

@@ -97,9 +97,9 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
             }
           }
         }}
-        className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 border border-gray-200 dark:border-gray-700 focus:outline-none"
+        className="glass-panel rounded-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 focus:outline-none"
       >
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
           <h3 id={titleId} className="text-lg font-semibold text-gray-900 dark:text-gray-100">
             {title}
           </h3>
@@ -119,7 +119,7 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
         </div>
 
         {footer && (
-          <div className="px-6 py-4 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-100 dark:border-gray-700 flex justify-end gap-3">
+          <div className="px-6 py-4 bg-gray-50/50 dark:bg-slate-800/30 border-t border-white/10 flex justify-end gap-3">
             {footer}
           </div>
         )}

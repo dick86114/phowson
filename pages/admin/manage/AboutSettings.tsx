@@ -136,33 +136,33 @@ export const AboutSettings: React.FC = () => {
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
                 {/* Hero Section */}
-                <div className="bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-xl p-6 shadow-sm space-y-4">
-                    <h3 className="font-bold text-gray-900 dark:text-white border-b border-gray-100 dark:border-surface-border pb-2">Hero 区域</h3>
+                <div className="glass-panel p-6 space-y-4">
+                    <h3 className="font-bold text-gray-900 dark:text-white border-b border-white/10 dark:border-white/5 pb-2">Hero 区域</h3>
                     <div className="grid gap-4 md:grid-cols-2">
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-gray-700 dark:text-gray-300">主标题</label>
-                            <input {...register('about.title')} className="w-full px-3 py-2 bg-gray-50 dark:bg-surface-dark/50 border border-gray-200 dark:border-surface-border rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-primary/50" />
+                            <input {...register('about.title')} className="w-full px-3 py-2 bg-white/50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-primary/50 backdrop-blur-sm transition-all" />
                         </div>
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-gray-700 dark:text-gray-300">副标题</label>
-                            <input {...register('about.subtitle')} className="w-full px-3 py-2 bg-gray-50 dark:bg-surface-dark/50 border border-gray-200 dark:border-surface-border rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-primary/50" />
+                            <input {...register('about.subtitle')} className="w-full px-3 py-2 bg-white/50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-primary/50 backdrop-blur-sm transition-all" />
                         </div>
                         <div className="col-span-2 space-y-2">
                             <label className="text-sm font-medium text-gray-700 dark:text-gray-300">介绍文本</label>
-                            <textarea {...register('about.intro')} rows={3} className="w-full px-3 py-2 bg-gray-50 dark:bg-surface-dark/50 border border-gray-200 dark:border-surface-border rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-primary/50" />
+                            <textarea {...register('about.intro')} rows={3} className="w-full px-3 py-2 bg-white/50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-primary/50 backdrop-blur-sm transition-all" />
                         </div>
                     </div>
                 </div>
 
                 {/* Profile Section */}
-                <div className="bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-xl p-6 shadow-sm space-y-4">
-                    <h3 className="font-bold text-gray-900 dark:text-white border-b border-gray-100 dark:border-surface-border pb-2">个人资料区域</h3>
+                <div className="glass-panel p-6 space-y-4">
+                    <h3 className="font-bold text-gray-900 dark:text-white border-b border-white/10 dark:border-white/5 pb-2">个人资料区域</h3>
                     
                     {/* Avatar Upload */}
                     <div className="mb-6">
                         <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">个人头像</label>
                         <div className="flex flex-col sm:flex-row items-center gap-6">
-                            <div className="relative w-24 h-24 rounded-full overflow-hidden border-2 border-gray-200 dark:border-surface-border shadow-sm bg-gray-50 dark:bg-surface-dark/50 flex items-center justify-center shrink-0">
+                            <div className="relative w-24 h-24 rounded-full overflow-hidden border-2 border-white/20 dark:border-white/10 shadow-sm glass-card flex items-center justify-center shrink-0">
                                 {avatarUrl ? (
                                     <img 
                                         src={toMediaUrl(avatarUrl) || generateFallbackAvatar('User')} 
@@ -173,11 +173,11 @@ export const AboutSettings: React.FC = () => {
                                         }}
                                     />
                                 ) : (
-                                    <Camera className="w-8 h-8 text-gray-400" />
+                                    <Camera className="w-8 h-8 text-gray-500 dark:text-gray-400" />
                                 )}
                             </div>
                             <div className="space-y-2 flex flex-col items-center sm:items-start w-full text-center sm:text-left">
-                                <label className="cursor-pointer bg-white dark:bg-surface-border text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg text-sm border border-gray-200 dark:border-surface-border hover:bg-gray-50 dark:hover:bg-[#2a4055] transition-colors inline-flex items-center gap-2 shadow-sm">
+                                <label className="cursor-pointer bg-white/50 dark:bg-white/5 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg text-sm border border-white/20 dark:border-white/10 hover:bg-white/80 dark:hover:bg-white/10 transition-colors inline-flex items-center gap-2 shadow-sm backdrop-blur-sm">
                                     <Upload className="w-4 h-4" />
                                     上传新头像
                                     <input 
@@ -211,26 +211,26 @@ export const AboutSettings: React.FC = () => {
                     <div className="grid gap-4 md:grid-cols-2">
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-gray-700 dark:text-gray-300">问候标题</label>
-                            <input {...register('about.profileTitle')} className="w-full px-3 py-2 bg-gray-50 dark:bg-surface-dark/50 border border-gray-200 dark:border-surface-border rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-primary/50" />
+                            <input {...register('about.profileTitle')} className="w-full px-3 py-2 bg-white/50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-primary/50 backdrop-blur-sm transition-all" />
                         </div>
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-gray-700 dark:text-gray-300">位置/身份</label>
-                            <input {...register('about.profileSubtitle')} className="w-full px-3 py-2 bg-gray-50 dark:bg-surface-dark/50 border border-gray-200 dark:border-surface-border rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-primary/50" />
+                            <input {...register('about.profileSubtitle')} className="w-full px-3 py-2 bg-white/50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-primary/50 backdrop-blur-sm transition-all" />
                         </div>
                         <div className="col-span-2 space-y-2">
                             <label className="text-sm font-medium text-gray-700 dark:text-gray-300">个人简介</label>
-                            <textarea {...register('about.profileBio')} rows={4} className="w-full px-3 py-2 bg-gray-50 dark:bg-surface-dark/50 border border-gray-200 dark:border-surface-border rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-primary/50" />
+                            <textarea {...register('about.profileBio')} rows={4} className="w-full px-3 py-2 bg-white/50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-primary/50 backdrop-blur-sm transition-all" />
                         </div>
                          <div className="col-span-2 space-y-2">
                             <label className="text-sm font-medium text-gray-700 dark:text-gray-300">联系邮箱</label>
-                            <input {...register('about.contactEmail')} className="w-full px-3 py-2 bg-gray-50 dark:bg-surface-dark/50 border border-gray-200 dark:border-surface-border rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-primary/50" />
+                            <input {...register('about.contactEmail')} className="w-full px-3 py-2 bg-white/50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-primary/50 backdrop-blur-sm transition-all" />
                         </div>
                     </div>
                 </div>
 
                 {/* Dynamic Sections */}
-                <div className="bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-xl p-6 shadow-sm space-y-4">
-                    <div className="flex items-center justify-between border-b border-gray-100 dark:border-surface-border pb-2">
+                <div className="glass-panel p-6 space-y-4">
+                    <div className="flex items-center justify-between border-b border-white/10 dark:border-white/5 pb-2">
                         <h3 className="font-bold text-gray-900 dark:text-white">附加内容板块</h3>
                         <button type="button" onClick={() => append({ title: '', content: '', icon: 'Coffee' })} className="text-sm text-primary flex items-center gap-1 hover:underline">
                             <Plus className="w-4 h-4" /> 添加板块
@@ -239,14 +239,14 @@ export const AboutSettings: React.FC = () => {
                     
                     <div className="space-y-6">
                         {fields.map((field, index) => (
-                            <div key={field.id} className="relative bg-gray-50 dark:bg-surface-dark/30 p-4 rounded-lg border border-gray-200 dark:border-surface-border">
+                            <div key={field.id} className="relative glass-card p-4 rounded-lg border border-white/20 dark:border-white/10">
                                 <button type="button" onClick={() => remove(index)} className="absolute top-2 right-2 text-gray-400 hover:text-red-500 transition-colors">
                                     <Trash2 className="w-4 h-4" />
                                 </button>
                                 <div className="grid gap-4 md:grid-cols-2">
                                     <div className="space-y-2">
                                         <label className="text-sm font-medium text-gray-700 dark:text-gray-300">标题</label>
-                                        <input {...register(`about.sections.${index}.title`)} className="w-full px-3 py-2 bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-primary/50" />
+                                        <input {...register(`about.sections.${index}.title`)} className="w-full px-3 py-2 bg-white/50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-primary/50 backdrop-blur-sm transition-all" />
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-sm font-medium text-gray-700 dark:text-gray-300">图标</label>
@@ -254,7 +254,7 @@ export const AboutSettings: React.FC = () => {
                                             control={control}
                                             name={`about.sections.${index}.icon`}
                                             render={({ field: { onChange, value } }) => (
-                                                <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2 bg-white dark:bg-surface-dark p-2 rounded-lg border border-gray-200 dark:border-surface-border">
+                                                <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2 bg-white/50 dark:bg-black/20 p-2 rounded-lg border border-white/20 dark:border-white/10 backdrop-blur-sm">
                                                     {ICON_OPTIONS.map(opt => (
                                                         <button
                                                             key={opt.value}
@@ -264,7 +264,7 @@ export const AboutSettings: React.FC = () => {
                                                                 flex items-center justify-center p-2 rounded-md transition-colors aspect-square
                                                                 ${value === opt.value 
                                                                     ? 'bg-primary text-white shadow-sm' 
-                                                                    : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-surface-border'
+                                                                    : 'text-gray-500 dark:text-gray-400 hover:bg-white/50 dark:hover:bg-white/10'
                                                                 }
                                                             `}
                                                             title={opt.label}
@@ -278,7 +278,7 @@ export const AboutSettings: React.FC = () => {
                                     </div>
                                     <div className="col-span-2 space-y-2">
                                         <label className="text-sm font-medium text-gray-700 dark:text-gray-300">内容</label>
-                                        <textarea {...register(`about.sections.${index}.content`)} rows={2} className="w-full px-3 py-2 bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-primary/50" />
+                                        <textarea {...register(`about.sections.${index}.content`)} rows={2} className="w-full px-3 py-2 bg-white/50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-primary/50 backdrop-blur-sm transition-all" />
                                     </div>
                                 </div>
                             </div>
