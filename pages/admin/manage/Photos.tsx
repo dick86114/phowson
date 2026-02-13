@@ -5,7 +5,7 @@ import {
     Search, Calendar, Download, Sparkles, Tag, Trash2, 
     Edit2, Maximize2, Activity, ThumbsUp, MessageSquare, 
     Upload, Image as ImageIcon, Camera, Lock, User as UserIcon,
-    Loader2, X, Check
+    Loader2, X, Check, ArrowUp, ArrowDown
 } from 'lucide-react';
 
 const StyledCheckbox = ({ checked, onChange, label, className }: { checked: boolean, onChange: () => void, label?: string, className?: string }) => (
@@ -33,6 +33,7 @@ import { useToast } from '../../../components/Toast';
 import { Pagination } from '../../../components/Pagination';
 import { LoadingState, ErrorState } from '../../../components/States';
 import { DropdownFilter } from '../../../components/admin/DropdownFilter';
+import DateRangePicker from '../../../components/DateRangePicker';
 import { getPhotoUrl, getAvatarUrl, formatBytes } from '../../../utils/helpers';
 
 export const ManagePhotos: React.FC = () => {
@@ -52,12 +53,12 @@ export const ManagePhotos: React.FC = () => {
     }, [currentUser, isAdmin, navigate]);
 
     // States
-    const [month, setMonth] = useState<'all' | number>('all');
+    const [fromDate, setFromDate] = useState('');
+    const [toDate, setToDate] = useState('');
     const [category, setCategory] = useState<'all' | string>('all');
-    const [ownerId, setOwnerId] = useState<'all' | string>('all');
-    const [camera, setCamera] = useState<'all' | string>('all');
-    const [tags, setTags] = useState<string[]>([]);
     const [keyword, setKeyword] = useState('');
+    const [sortBy, setSortBy] = useState('createdAt');
+    const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
     const [pageSize, setPageSize] = useState(50);
     const [page, setPage] = useState(1);
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -70,37 +71,16 @@ export const ManagePhotos: React.FC = () => {
     // Reset page on filter change
     useEffect(() => {
         setPage(1);
-    }, [month, category, ownerId, camera, pageSize, tags.join('|'), keyword]);
+    }, [fromDate, toDate, category, pageSize, keyword, sortBy, sortOrder]);
 
     const [critiquePhotoId, setCritiquePhotoId] = useState<string | null>(null);
 
     // Queries
-    const { data: filters } = useQuery<{
-        tags: string[];
-        cameras: string[];
-    }>({
-        queryKey: ['admin-photos', 'filters'],
-        enabled: isAdmin,
-        queryFn: async () => {
-            const res = await api.get('/admin/photos/filters');
-            return res.data;
-        },
-    });
-
     const { data: categories = [] } = useQuery({
         queryKey: ['categories'],
         enabled: true,
         queryFn: async () => {
             const res = await api.get<{ value: string; label: string }[]>('/categories');
-            return res.data;
-        },
-    });
-
-    const { data: usersAll = [] } = useQuery({
-        queryKey: ['admin-users-all'],
-        enabled: isAdmin,
-        queryFn: async () => {
-            const res = await api.get<{ id: string; name: string }[]>('/users');
             return res.data;
         },
     });
@@ -121,24 +101,24 @@ export const ManagePhotos: React.FC = () => {
             'page',
             page,
             pageSize,
-            month,
+            fromDate,
+            toDate,
             category,
-            ownerId,
-            camera,
-            tags,
             keyword,
+            sortBy,
+            sortOrder,
         ],
         enabled: isAdmin,
         queryFn: async () => {
             const params: Record<string, any> = {
                 limit: pageSize,
                 offset: (Math.max(1, page) - 1) * pageSize,
+                sortBy,
+                order: sortOrder,
             };
-            if (month !== 'all') params.month = month;
+            if (fromDate) params.from = fromDate;
+            if (toDate) params.to = toDate;
             if (category !== 'all') params.category = category;
-            if (ownerId !== 'all') params.ownerId = ownerId;
-            if (camera !== 'all') params.camera = camera;
-            if (tags.length > 0) params.tags = tags.join(',');
             const q = keyword.trim();
             if (q) params.q = q;
             const res = await api.get('/admin/photos/page', params);
@@ -245,12 +225,12 @@ export const ManagePhotos: React.FC = () => {
             const params: Record<string, any> = {
                 limit: 10000, // Large limit to get all
                 offset: 0,
+                sortBy,
+                order: sortOrder,
             };
-            if (month !== 'all') params.month = month;
+            if (fromDate) params.from = fromDate;
+            if (toDate) params.to = toDate;
             if (category !== 'all') params.category = category;
-            if (ownerId !== 'all') params.ownerId = ownerId;
-            if (camera !== 'all') params.camera = camera;
-            if (tags.length > 0) params.tags = tags.join(',');
             const q = keyword.trim();
             if (q) params.q = q;
 
@@ -263,7 +243,7 @@ export const ManagePhotos: React.FC = () => {
             }
 
             // Generate CSV
-            const headers = ['ID', '标题', '分类', '上传者', '上传时间', '规格', '大小', '浏览', '点赞', '评论数', '相机', '标签', '私有'];
+            const headers = ['ID', '标题', '分类', '上传者', '上传时间', '宽度', '高度', '大小', '浏览', '点赞', '评论数', '相机', '标签', '私有'];
             const csvContent = [
                 headers.join(','),
                 ...items.map((item: any) => {
@@ -274,7 +254,8 @@ export const ManagePhotos: React.FC = () => {
                         item.category,
                         item.user?.name || '',
                         new Date(item.createdAt).toLocaleString(),
-                        `${item.imageWidth}x${item.imageHeight}`,
+                        item.imageWidth,
+                        item.imageHeight,
                         item.imageSizeBytes,
                         item.viewsCount,
                         item.likesCount,
@@ -335,27 +316,16 @@ export const ManagePhotos: React.FC = () => {
 
     const handleBatchCategory = () => {
         if (selectedIds.length === 0) return;
-        // Simple prompt for category for now, ideally a modal
-        // Since we don't have a complex modal ready for selection, let's use a simple prompt or just pick the first category for demo?
-        // No, that's bad UX. Let's look at categories available.
-        // We can use the confirm modal with a custom content if supported, but our confirm is simple.
-        // Let's use a standard window.prompt for now as a quick fix, or better, just show a toast that "Select category feature coming soon" if we can't do it well.
-        // But the user asked to finish tasks.
-        // Let's implementation a custom modal logic using existing Modal component if possible, or just use window.prompt for category value.
-        // Given existing patterns, I'll use window.prompt for the category VALUE (from the list) as a temporary robust solution, 
-        // or better: let's not use window.prompt.
-        // Let's assume the user wants to select a category. 
-        // I will add a small state for "batchCategoryModalOpen" and render a small modal.
         setBatchCategoryModalOpen(true);
     };
 
     const handleResetFilters = () => {
-        setMonth('all');
+        setFromDate('');
+        setToDate('');
         setCategory('all');
-        setOwnerId('all');
-        setCamera('all');
-        setTags([]);
         setKeyword('');
+        setSortBy('createdAt');
+        setSortOrder('desc');
         setPageSize(50);
         setPage(1);
         setSelectedIds([]);
@@ -364,6 +334,33 @@ export const ManagePhotos: React.FC = () => {
     if (!isAdmin) return null;
 
     const categoryLabelByValue = new Map(categories.map(c => [c.value, c.label]));
+
+    const handleSort = (field: string) => {
+        if (sortBy === field) {
+            setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortBy(field);
+            setSortOrder('desc');
+        }
+    };
+
+    const renderSortHeader = (label: string, field: string, className = "text-left") => (
+        <th 
+            className={`px-6 py-4 ${className} text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:text-gray-700 dark:hover:text-gray-200 transition-colors select-none group/header`}
+            onClick={() => handleSort(field)}
+        >
+            <div className={`flex items-center gap-1 ${className === 'text-right' ? 'justify-end' : ''}`}>
+                {label}
+                <div className="flex flex-col">
+                    {sortBy === field ? (
+                        sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-primary" /> : <ArrowDown className="w-3 h-3 text-primary" />
+                    ) : (
+                        <ArrowDown className="w-3 h-3 opacity-0 group-hover/header:opacity-30" />
+                    )}
+                </div>
+            </div>
+        </th>
+    );
 
     return (
         <div className="space-y-6 animate-in fade-in duration-300">
@@ -381,7 +378,7 @@ export const ManagePhotos: React.FC = () => {
                 <button
                     onClick={handleExport}
                     disabled={isExporting}
-                    className={`flex items-center gap-2 px-4 py-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-lg text-sm font-medium hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors shadow-sm ${isExporting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    className={`hidden md:flex items-center gap-2 px-4 py-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-lg text-sm font-medium hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors shadow-sm ${isExporting ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                     {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
                     {isExporting ? '导出中...' : '导出数据'}
@@ -391,70 +388,55 @@ export const ManagePhotos: React.FC = () => {
             {/* Filter Card */}
             <div className="glass-panel p-5 relative z-20">
                 <div className="flex flex-col md:flex-row gap-4 mb-6">
-                    <div className="flex-1 relative group">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600 dark:text-gray-400 group-focus-within:text-primary transition-colors" />
-                        <input
-                            value={keyword}
-                            onChange={(e) => setKeyword(e.target.value)}
-                            placeholder="搜索照片标题、UID 或 上传者..."
-                            className="w-full pl-10 pr-4 py-2.5 bg-white/50 dark:bg-black/20 border border-gray-200 dark:border-white/10 rounded-lg text-base focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all backdrop-blur-sm"
-                        />
+                    <div className="flex-1 flex gap-3">
+                        <div className="flex-1 relative group">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-800 dark:text-gray-200 group-focus-within:text-primary transition-colors" />
+                            <input
+                                value={keyword}
+                                onChange={(e) => setKeyword(e.target.value)}
+                                placeholder="搜索照片标题、UID..."
+                                className="w-full pl-10 pr-4 py-2.5 bg-white/50 dark:bg-black/20 border border-gray-200 dark:border-white/10 rounded-lg text-base focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all backdrop-blur-sm"
+                            />
+                        </div>
+                        <button
+                            onClick={handleExport}
+                            disabled={isExporting}
+                            className={`md:hidden flex items-center justify-center w-[46px] shrink-0 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-lg transition-colors shadow-sm ${isExporting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                            {isExporting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Download className="w-5 h-5" />}
+                        </button>
                     </div>
-                    <div className="flex flex-wrap items-center gap-3">
-                        <DropdownFilter
-                            label="分类"
-                            value={category}
-                            onChange={setCategory}
-                            options={[
-                                { label: '所有分类', value: 'all' },
-                                ...categories.map(c => ({ label: c.label, value: c.value }))
-                            ]}
-                            icon={Tag}
-                        />
-                        <DropdownFilter
-                            label="月份"
-                            value={month}
-                            onChange={(val) => setMonth(val === 'all' ? 'all' : Number(val))}
-                            options={[
-                                { label: '所有日期', value: 'all' },
-                                ...Array.from({ length: 12 }, (_, i) => ({ label: `${i + 1}月`, value: i + 1 }))
-                            ]}
-                            icon={Calendar}
-                        />
-                        <DropdownFilter
-                            label="上传者"
-                            value={ownerId}
-                            onChange={setOwnerId}
-                            options={[
-                                { label: '所有用户', value: 'all' },
-                                ...usersAll.map(u => ({ label: u.name, value: u.id }))
-                            ]}
-                            icon={UserIcon}
-                        />
-                        <DropdownFilter
-                            label="相机"
-                            value={camera}
-                            onChange={setCamera}
-                            options={[
-                                { label: '所有相机', value: 'all' },
-                                ...(filters?.cameras || []).map(c => ({ label: c, value: c }))
-                            ]}
-                            icon={Camera}
-                        />
-                        <DropdownFilter
-                            label="标签"
-                            value={tags[0] || 'all'}
-                            onChange={(val) => setTags(val === 'all' ? [] : [val])}
-                            options={[
-                                { label: '所有标签', value: 'all' },
-                                ...(filters?.tags || []).map(t => ({ label: t, value: t }))
-                            ]}
-                            icon={Tag}
-                        />
+                    <div className="grid grid-cols-[1fr_auto] gap-3 md:flex md:items-center">
+                        <div className="min-w-0 md:shrink-0">
+                            <DropdownFilter
+                                label="分类"
+                                value={category}
+                                onChange={setCategory}
+                                options={[
+                                    { label: '所有分类', value: 'all' },
+                                    ...categories.map(c => ({ label: c.label, value: c.value }))
+                                ]}
+                                icon={Tag}
+                                mobileGrid={true}
+                            />
+                        </div>
+                        
+                        <div className="col-span-2 order-3 md:order-none md:col-span-1 md:w-auto">
+                            <DateRangePicker 
+                                startDate={fromDate}
+                                endDate={toDate}
+                                onChange={(start, end) => {
+                                    setFromDate(start);
+                                    setToDate(end);
+                                }}
+                                className="w-full md:w-[240px]"
+                            />
+                        </div>
+
                         <button
                             type="button"
                             onClick={handleResetFilters}
-                            className="px-4 py-2.5 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-white/10 dark:hover:bg-white/10 transition-colors whitespace-nowrap"
+                            className="order-2 md:order-none px-4 py-2.5 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-white/10 dark:hover:bg-white/10 transition-colors whitespace-nowrap shrink-0"
                         >
                             重置筛选
                         </button>
@@ -652,11 +634,15 @@ export const ManagePhotos: React.FC = () => {
                                         />
                                     </div>
                                 </th>
-                                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">照片信息</th>
-                                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">分类</th>
-                                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">上传日期</th>
-                                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">规格</th>
-                                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">互动</th>
+                                {renderSortHeader('照片信息', 'title')}
+                                {renderSortHeader('分类', 'category')}
+                                {renderSortHeader('上传日期', 'createdAt')}
+                                {renderSortHeader('宽度', 'imageWidth')}
+                                {renderSortHeader('高度', 'imageHeight')}
+                                {renderSortHeader('大小', 'imageSizeBytes')}
+                                {renderSortHeader('浏览', 'viewsCount')}
+                                {renderSortHeader('点赞', 'likesCount')}
+                                {renderSortHeader('评论', 'commentsCount')}
                                 <th className="px-6 py-4 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">操作</th>
                             </tr>
                         </thead>
@@ -749,19 +735,23 @@ export const ManagePhotos: React.FC = () => {
                                             <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
                                                 {new Date(photo.createdAt).toLocaleDateString()}
                                             </td>
-                                            <td className="px-6 py-4">
-                                                <div className="text-xs text-gray-500 dark:text-gray-400 space-y-1">
-                                                    <div className="flex items-center gap-1"><Camera className="w-3 h-3" /> {JSON.parse(photo.exif || '{}').Model || '-'}</div>
-                                                    <div className="flex items-center gap-1"><ImageIcon className="w-3 h-3" /> {photo.imageWidth}×{photo.imageHeight}</div>
-                                                    <div className="flex items-center gap-1"><Upload className="w-3 h-3" /> {formatBytes(photo.imageSizeBytes)}</div>
-                                                </div>
+                                            <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                                                {photo.imageWidth} px
                                             </td>
-                                            <td className="px-6 py-4">
-                                                <div className="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400">
-                                                    <span className="flex items-center gap-1" title="浏览"><Activity className="w-3.5 h-3.5" /> {photo.viewsCount}</span>
-                                                    <span className="flex items-center gap-1" title="点赞"><ThumbsUp className="w-3.5 h-3.5" /> {photo.likesCount}</span>
-                                                    <span className="flex items-center gap-1" title="评论"><MessageSquare className="w-3.5 h-3.5" /> {photo.comments?.length || 0}</span>
-                                                </div>
+                                            <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                                                {photo.imageHeight} px
+                                            </td>
+                                            <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                                                {formatBytes(photo.imageSizeBytes)}
+                                            </td>
+                                            <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                                                <div className="flex items-center gap-1"><Activity className="w-3.5 h-3.5 text-gray-400" /> {photo.viewsCount}</div>
+                                            </td>
+                                            <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                                                <div className="flex items-center gap-1"><ThumbsUp className="w-3.5 h-3.5 text-gray-400" /> {photo.likesCount}</div>
+                                            </td>
+                                            <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                                                <div className="flex items-center gap-1"><MessageSquare className="w-3.5 h-3.5 text-gray-400" /> {photo.comments?.length || 0}</div>
                                             </td>
                                             <td className="px-6 py-4 text-right">
                                                 <div className="flex items-center justify-end gap-2">

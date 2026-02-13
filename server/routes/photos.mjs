@@ -15,7 +15,6 @@ import { critiqueFromImage, fillFromImage } from '../lib/ai_provider.mjs';
 import sharp from 'sharp';
 import { bumpUploadActivity } from '../db/activity_logs.mjs';
 import { checkChallengesOnUpload } from '../db/challenges.mjs';
-import { generateEmbedding, buildSemanticText } from '../lib/embedding.mjs';
 import { verifyCaptcha } from '../lib/captcha.mjs';
 import { buildMePhotosWhere, parseListParam } from '../lib/me_photos.mjs';
 import fs from 'node:fs';
@@ -81,19 +80,22 @@ export const registerPhotoRoutes = async (app) => {
     const limit = Math.max(1, Math.min(10000, Number.parseInt(String(limitRaw), 10) || 50));
     const offset = Math.max(0, Number.parseInt(String(offsetRaw), 10) || 0);
 
-    const monthRaw = q.month;
-    const month = Number.parseInt(String(monthRaw ?? ''), 10);
+    const from = String(q.from ?? '').trim();
+    const to = String(q.to ?? '').trim();
     const tags = parseListParam(q.tags);
     const camera = String(q.camera ?? '').trim();
     const category = String(q.category ?? '').trim();
     const ownerId = String(q.ownerId ?? '').trim();
     const keyword = String(q.q ?? q.keyword ?? '').trim();
+    
+    const sortBy = String(q.sortBy ?? 'createdAt').trim();
+    const order = String(q.order ?? 'desc').toLowerCase() === 'asc' ? 'asc' : 'desc';
 
     const parts = [];
     const params = [];
     let i = 1;
 
-    if (ownerId) {
+    if (ownerId && ownerId !== 'all') {
       parts.push(`p.owner_user_id = $${i++}`);
       params.push(ownerId);
     }
@@ -103,9 +105,14 @@ export const registerPhotoRoutes = async (app) => {
       params.push(category);
     }
 
-    if (Number.isFinite(month) && month >= 1 && month <= 12) {
-      parts.push(`extract(month from p.created_at) = $${i++}`);
-      params.push(month);
+    if (from) {
+      parts.push(`p.created_at >= $${i++}::date`);
+      params.push(from);
+    }
+    
+    if (to) {
+      parts.push(`p.created_at < ($${i++}::date + interval '1 day')`);
+      params.push(to);
     }
 
     if (Array.isArray(tags) && tags.length > 0) {
@@ -126,7 +133,21 @@ export const registerPhotoRoutes = async (app) => {
 
     const whereSql = parts.length ? ` where ${parts.join(' and ')}` : '';
 
-    const itemsSql = `${photoSelectSql(false)}${whereSql} order by p.created_at desc limit $${params.length + 1} offset $${params.length + 2}`;
+    // Map frontend sort fields to DB columns
+    const sortMap = {
+      'title': 'p.title',
+      'category': 'p.category',
+      'createdAt': 'p.created_at',
+      'imageWidth': 'p.image_width',
+      'imageHeight': 'p.image_height',
+      'imageSizeBytes': 'p.image_size_bytes',
+      'viewsCount': 'p.views_count',
+      'likesCount': 'p.likes_count',
+      'commentsCount': "json_array_length(coalesce(c.comments, '[]'::json))"
+    };
+    const dbSortField = sortMap[sortBy] || 'p.created_at';
+    
+    const itemsSql = `${photoSelectSql(false)}${whereSql} order by ${dbSortField} ${order} limit $${params.length + 1} offset $${params.length + 2}`;
     const itemsRes = await pool.query(itemsSql, [...params, limit, offset]);
 
     const totalSql = `select count(1)::int as total from photos p${whereSql}`;
@@ -280,51 +301,7 @@ export const registerPhotoRoutes = async (app) => {
     };
   });
 
-  // 语义搜索接口
-  app.get('/photos/semantic-search', async (req, reply) => {
-    const { query, limit = 20, threshold = 0.65 } = req.query;
 
-    if (!query || typeof query !== 'string' || query.trim().length === 0) {
-      throw badRequest('INVALID_QUERY', '搜索关键词不能为空');
-    }
-
-    try {
-      // 1. 生成查询文本的 embedding
-      const queryEmbedding = await generateEmbedding(query.trim());
-
-      // 2. 使用余弦相似度搜索
-      // 增加距离阈值过滤，避免返回不相关的结果
-      // 距离越小越相似，0.65 是一个经验值
-      const sql = `
-        SELECT 
-          p.id, p.title, p.description, p.url, p.thumb_url, p.medium_url,
-          p.tags, p.category, p.exif, p.created_at,
-          (p.embedding <=> $1::vector) as distance,
-          (1 - (p.embedding <=> $1::vector)) as similarity
-        FROM photos p
-        WHERE p.embedding IS NOT NULL
-          AND p.status = 'approved'
-          AND (p.embedding <=> $1::vector) < $3
-        ORDER BY p.embedding <=> $1::vector
-        LIMIT $2
-      `;
-
-      const result = await pool.query(sql, [
-        JSON.stringify(queryEmbedding),
-        parseInt(limit, 10),
-        parseFloat(threshold)
-      ]);
-
-      return {
-        query,
-        results: result.rows,
-        count: result.rowCount
-      };
-    } catch (error) {
-      console.error('[语义搜索] 失败:', error);
-      throw new Error(`语义搜索失败: ${error.message}`);
-    }
-  });
 
   app.get('/photos/:id', {
     schema: {
@@ -514,24 +491,7 @@ export const registerPhotoRoutes = async (app) => {
     const detail = await pool.query(`${photoSelectSql(true)} where p.id = $1`, [createdId]);
     req.log.info('Photo detail fetched, sending response');
 
-    // 异步生成 embedding（不阻塞响应）
-    (async () => {
-      try {
-        const photo = detail.rows[0];
-        const semanticText = buildSemanticText(photo);
-        
-        if (semanticText && semanticText.trim().length > 0) {
-          const embedding = await generateEmbedding(semanticText);
-          await pool.query(
-            'UPDATE photos SET embedding = $1 WHERE id = $2',
-            [JSON.stringify(embedding), createdId]
-          );
-          req.log.info({ photoId: createdId }, 'Embedding generated successfully');
-        }
-      } catch (err) {
-        req.log.error({ err, photoId: createdId }, 'Failed to generate embedding');
-      }
-    })();
+
 
     return reply.code(201).send(detail.rows[0]);
   });

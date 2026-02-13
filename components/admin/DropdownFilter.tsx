@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown, Check, X } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export interface DropdownFilterProps {
     label: string;
@@ -114,17 +115,17 @@ export const DropdownFilter = ({
                     <div className="p-1.5 space-y-0.5">
                         <button
                             className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors flex items-center justify-between ${
-                                value === 'all' 
+                                value === defaultValue 
                                     ? 'bg-primary/5 text-primary font-semibold' 
                                     : 'text-gray-700 dark:text-gray-200 hover:bg-black/5 dark:hover:bg-white/5'
                             }`}
                             onClick={() => {
-                                onChange('all');
+                                onChange(defaultValue);
                                 setIsOpen(false);
                             }}
                         >
                             <span>{label}</span>
-                            {value === 'all' && <Check className="w-4 h-4" />}
+                            {value === defaultValue && <Check className="w-4 h-4" />}
                         </button>
                         <div className="h-px bg-black/5 dark:bg-white/5 my-1" />
                         {options.map((opt) => (
@@ -148,83 +149,103 @@ export const DropdownFilter = ({
                 </div>
             )}
 
-            {/* Mobile Bottom Sheet Modal */}
-            {isOpen && createPortal(
-                <div className="md:hidden fixed inset-0 z-[100] flex items-end justify-center">
-                    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity animate-in fade-in duration-200" onClick={() => setIsOpen(false)} />
-                    <div className="relative glass-panel w-full rounded-t-3xl p-6 shadow-2xl animate-in slide-in-from-bottom duration-300 ring-1 ring-white/10 max-h-[80vh] overflow-y-auto flex flex-col">
-                        <div className="w-12 h-1.5 bg-gray-200/50 dark:bg-gray-700/50 rounded-full mx-auto mb-6 shrink-0" />
-                        
-                        <div className="flex items-center justify-between mb-4 shrink-0">
-                            <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                                {Icon && <Icon className="w-5 h-5 text-primary" />}
-                                {label}
-                            </h3>
-                            {value !== 'all' && (
-                                <button 
-                                    onClick={() => {
-                                        onChange('all');
-                                    }} 
-                                    className="text-sm font-medium text-primary hover:text-primary/80 transition-colors"
+            {/* Mobile Modal (Centered) */}
+            {createPortal(
+                <AnimatePresence>
+                    {isOpen && (
+                        <>
+                            <motion.div
+                                key="dropdown-backdrop"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[9998] md:hidden"
+                                onClick={() => setIsOpen(false)}
+                            />
+                            <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 pointer-events-none md:hidden">
+                                <motion.div
+                                    key="dropdown-panel"
+                                    initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                                    exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                                    transition={{ duration: 0.2 }}
+                                    className="w-full max-w-sm glass-panel rounded-2xl p-6 shadow-2xl ring-1 ring-white/10 max-h-[80vh] overflow-y-auto flex flex-col pointer-events-auto"
                                 >
-                                    重置
-                                </button>
-                            )}
-                        </div>
-
-                        <div className="w-full h-px bg-black/5 dark:bg-white/5 mb-6 shrink-0" />
-
-                        <div className={`mb-8 overflow-y-auto ${mobileGrid ? 'grid grid-cols-2 gap-3' : 'flex flex-col gap-3'}`}>
-                            <button
-                                onClick={() => {
-                                    onChange('all');
-                                    setTimeout(() => setIsOpen(false), 150);
-                                }}
-                                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition-all duration-200 ${
-                                    value === 'all'
-                                    ? 'bg-primary/10 border-primary text-primary shadow-sm font-bold' 
-                                    : 'bg-transparent border-transparent hover:bg-black/5 dark:hover:bg-white/5 text-gray-600 dark:text-gray-300'
-                                }`}
-                            >
-                                <div className={`p-2 rounded-lg ${
-                                    value === 'all' ? 'bg-primary text-white' : 'bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400'
-                                }`}>
-                                    <Check className="w-4 h-4" />
-                                </div>
-                                <span className="text-base">全部</span>
-                            </button>
-
-                            {options.map((opt) => (
-                                <button
-                                    key={opt.value}
-                                    onClick={() => {
-                                        onChange(opt.value);
-                                        setTimeout(() => setIsOpen(false), 150);
-                                    }}
-                                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition-all duration-200 ${
-                                        value === opt.value 
-                                        ? 'bg-primary/10 border-primary text-primary shadow-sm font-bold' 
-                                        : 'bg-transparent border-transparent hover:bg-black/5 dark:hover:bg-white/5 text-gray-600 dark:text-gray-300'
-                                    }`}
-                                >
-                                    <div className={`p-2 rounded-lg ${
-                                        value === opt.value ? 'bg-primary text-white' : 'bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400'
-                                    }`}>
-                                        {Icon ? <Icon className="w-4 h-4" /> : <Check className="w-4 h-4" />}
+                                    <div className="flex items-center justify-between mb-4 shrink-0">
+                                        <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                                            {Icon && <Icon className="w-5 h-5 text-primary" />}
+                                            {label}
+                                        </h3>
+                                        {value !== defaultValue && (
+                                            <button 
+                                                onClick={() => {
+                                                    onChange(defaultValue);
+                                                }} 
+                                                className="text-sm font-medium text-primary hover:text-primary/80 transition-colors"
+                                            >
+                                                重置
+                                            </button>
+                                        )}
                                     </div>
-                                    <span className="text-base">{opt.label}</span>
-                                </button>
-                            ))}
-                        </div>
 
-                        <button 
-                            onClick={() => setIsOpen(false)}
-                            className="w-full py-4 rounded-xl bg-gray-100/50 dark:bg-white/10 text-gray-900 dark:text-white font-bold text-lg hover:bg-gray-200/50 dark:hover:bg-white/20 transition-colors shrink-0"
-                        >
-                            取消
-                        </button>
-                    </div>
-                </div>,
+                                    <div className="w-full h-px bg-black/5 dark:bg-white/5 mb-6 shrink-0" />
+
+                                    <div className={`mb-6 overflow-y-auto ${mobileGrid ? 'grid grid-cols-2 gap-3' : 'flex flex-col gap-3'}`}>
+                                        {defaultValue === 'all' && (
+                                            <button
+                                                onClick={() => {
+                                                    onChange('all');
+                                                    setTimeout(() => setIsOpen(false), 150);
+                                                }}
+                                                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition-all duration-200 ${
+                                                    value === 'all'
+                                                    ? 'bg-primary/10 border-primary text-primary shadow-sm font-bold' 
+                                                    : 'bg-transparent border-transparent hover:bg-black/5 dark:hover:bg-white/5 text-gray-600 dark:text-gray-300'
+                                                }`}
+                                            >
+                                                <div className={`p-2 rounded-lg ${
+                                                    value === 'all' ? 'bg-primary text-white' : 'bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400'
+                                                }`}>
+                                                    <Check className="w-4 h-4" />
+                                                </div>
+                                                <span className="text-base">全部</span>
+                                            </button>
+                                        )}
+
+                                        {options.map((opt) => (
+                                            <button
+                                                key={opt.value}
+                                                onClick={() => {
+                                                    onChange(opt.value);
+                                                    setTimeout(() => setIsOpen(false), 150);
+                                                }}
+                                                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition-all duration-200 ${
+                                                    value === opt.value
+                                                    ? 'bg-primary/10 border-primary text-primary shadow-sm font-bold' 
+                                                    : 'bg-transparent border-transparent hover:bg-black/5 dark:hover:bg-white/5 text-gray-600 dark:text-gray-300'
+                                                }`}
+                                            >
+                                                <div className={`p-2 rounded-lg ${
+                                                    value === opt.value ? 'bg-primary text-white' : 'bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400'
+                                                }`}>
+                                                    {value === opt.value ? <Check className="w-4 h-4" /> : (Icon ? <Icon className="w-4 h-4" /> : <div className="w-4 h-4" />)}
+                                                </div>
+                                                <span className="text-base">{opt.label}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+
+                                    <button 
+                                        onClick={() => setIsOpen(false)}
+                                        className="w-full py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white font-bold text-base hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors mt-auto shrink-0"
+                                    >
+                                        取消
+                                    </button>
+                                </motion.div>
+                            </div>
+                        </>
+                    )}
+                </AnimatePresence>,
                 document.body
             )}
         </div>

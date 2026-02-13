@@ -171,15 +171,18 @@ export const resolveAiConfig = () => {
 
   const geminiKey = pick(process.env.GEMINI_API_KEY, process.env.GOOGLE_API_KEY);
   const geminiModel = pick(model, process.env.GEMINI_MODEL, 'gemini-3-flash');
+  const geminiEmbeddingModel = pick(process.env.GEMINI_EMBEDDING_MODEL, 'text-embedding-004');
 
   const openaiKey = pick(process.env.OPENAI_API_KEY);
   const openaiBaseUrl = pick(process.env.OPENAI_BASE_URL, 'https://api.openai.com/v1');
   const openaiModel = pick(model, process.env.OPENAI_MODEL);
+  const openaiEmbeddingModel = pick(process.env.OPENAI_EMBEDDING_MODEL, 'text-embedding-3-small');
 
   // Generic OpenAI-compatible
   const compatibleKey = pick(process.env.AI_COMPATIBLE_API_KEY, process.env.AI_API_KEY);
   const compatibleBaseUrl = pick(process.env.AI_COMPATIBLE_BASE_URL, process.env.AI_BASE_URL);
   const compatibleModel = pick(model, process.env.AI_COMPATIBLE_MODEL);
+  const compatibleEmbeddingModel = pick(process.env.AI_COMPATIBLE_EMBEDDING_MODEL, process.env.AI_EMBEDDING_MODEL, 'text-embedding-3-small');
 
   const anthropicKey = pick(process.env.ANTHROPIC_API_KEY);
   const anthropicModel = pick(model, process.env.ANTHROPIC_MODEL);
@@ -187,10 +190,12 @@ export const resolveAiConfig = () => {
   const openRouterKey = pick(process.env.OPEN_ROUTER_API_KEY);
   const openRouterBaseUrl = pick(process.env.OPEN_ROUTER_BASE_URL, 'https://openrouter.ai/api/v1');
   const openRouterModel = pick(model, process.env.OPEN_ROUTER_MODEL);
+  const openRouterEmbeddingModel = pick(process.env.OPEN_ROUTER_EMBEDDING_MODEL, 'text-embedding-3-small');
 
   const gatewayKey = pick(process.env.AI_GATEWAY_API_KEY);
   const gatewayBaseUrl = pick(process.env.AI_GATEWAY_BASE_URL);
   const gatewayModel = pick(model, process.env.AI_GATEWAY_MODEL);
+  const gatewayEmbeddingModel = pick(process.env.AI_GATEWAY_EMBEDDING_MODEL, 'text-embedding-3-small');
 
   const inferredProvider =
     provider ||
@@ -210,13 +215,87 @@ export const resolveAiConfig = () => {
 
   return {
     provider: inferredProvider,
-    gemini: { apiKey: geminiKey, model: geminiModel },
-    openai: { apiKey: openaiKey, baseUrl: openaiBaseUrl, model: openaiModel },
-    openai_compatible: { apiKey: compatibleKey, baseUrl: compatibleBaseUrl, model: compatibleModel },
+    gemini: { apiKey: geminiKey, model: geminiModel, embeddingModel: geminiEmbeddingModel },
+    openai: { apiKey: openaiKey, baseUrl: openaiBaseUrl, model: openaiModel, embeddingModel: openaiEmbeddingModel },
+    openai_compatible: { apiKey: compatibleKey, baseUrl: compatibleBaseUrl, model: compatibleModel, embeddingModel: compatibleEmbeddingModel },
     anthropic: { apiKey: anthropicKey, model: anthropicModel },
-    openrouter: { apiKey: openRouterKey, baseUrl: openRouterBaseUrl, model: openRouterModel },
-    vercelai_gateway: { apiKey: gatewayKey, baseUrl: gatewayBaseUrl, model: gatewayModel },
+    openrouter: { apiKey: openRouterKey, baseUrl: openRouterBaseUrl, model: openRouterModel, embeddingModel: openRouterEmbeddingModel },
+    vercelai_gateway: { apiKey: gatewayKey, baseUrl: gatewayBaseUrl, model: gatewayModel, embeddingModel: gatewayEmbeddingModel },
   };
+};
+
+const geminiGenerateEmbedding = async ({ apiKey, model, text }) => {
+  const ai = new GoogleGenAI({ apiKey });
+  const m = ai.getGenerativeModel({ model });
+  const result = await m.embedContent(text);
+  return result.embedding.values;
+};
+
+const openAiCompatibleGenerateEmbedding = async ({ apiKey, baseUrl, model, text }) => {
+  const url = `${String(baseUrl).replace(/\/+$/, '')}/embeddings`;
+  
+  const json = await postJson(url, {
+    headers: {
+      authorization: `Bearer ${apiKey}`,
+    },
+    body: {
+      model,
+      input: text,
+    },
+  });
+
+  const embedding = json?.data?.[0]?.embedding;
+  if (!Array.isArray(embedding)) {
+    throw new HttpError(502, 'AI_BAD_RESPONSE', 'AI Embedding 返回格式异常');
+  }
+  return embedding;
+};
+
+export const generateEmbedding = async ({ text }) => {
+  const cfg = resolveAiConfig();
+  const provider = String(cfg.provider || '').toLowerCase();
+
+  if (provider === 'gemini') {
+    if (!cfg.gemini.apiKey) throw new HttpError(501, 'AI_NOT_CONFIGURED', '未配置 GEMINI_API_KEY');
+    return geminiGenerateEmbedding({ apiKey: cfg.gemini.apiKey, model: cfg.gemini.embeddingModel, text });
+  }
+
+  if (provider === 'openai') {
+    if (!cfg.openai.apiKey) throw new HttpError(501, 'AI_NOT_CONFIGURED', '未配置 OPENAI_API_KEY');
+    return openAiCompatibleGenerateEmbedding({ apiKey: cfg.openai.apiKey, baseUrl: cfg.openai.baseUrl, model: cfg.openai.embeddingModel, text });
+  }
+
+  if (provider === 'openai_compatible') {
+    if (!cfg.openai_compatible.apiKey) throw new HttpError(501, 'AI_NOT_CONFIGURED', '未配置 AI_COMPATIBLE_API_KEY');
+    return openAiCompatibleGenerateEmbedding({ 
+      apiKey: cfg.openai_compatible.apiKey, 
+      baseUrl: cfg.openai_compatible.baseUrl, 
+      model: cfg.openai_compatible.embeddingModel, 
+      text 
+    });
+  }
+
+  if (provider === 'openrouter') {
+    if (!cfg.openrouter.apiKey) throw new HttpError(501, 'AI_NOT_CONFIGURED', '未配置 OPEN_ROUTER_API_KEY');
+    return openAiCompatibleGenerateEmbedding({ 
+      apiKey: cfg.openrouter.apiKey, 
+      baseUrl: cfg.openrouter.baseUrl, 
+      model: cfg.openrouter.embeddingModel, 
+      text 
+    });
+  }
+
+  if (provider === 'vercelai_gateway') {
+     if (!cfg.vercelai_gateway.apiKey) throw new HttpError(501, 'AI_NOT_CONFIGURED', '未配置 AI_GATEWAY_API_KEY');
+     return openAiCompatibleGenerateEmbedding({ 
+      apiKey: cfg.vercelai_gateway.apiKey, 
+      baseUrl: cfg.vercelai_gateway.baseUrl, 
+      model: cfg.vercelai_gateway.embeddingModel, 
+      text 
+    });
+  }
+
+  throw new HttpError(501, 'AI_NOT_CONFIGURED', '不支持的 Embedding Provider (Anthropic 不支持 Embedding)');
 };
 
 export const fillFromImage = async ({ imageBase64, mimeType, locationHint }) => {

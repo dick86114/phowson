@@ -1,5 +1,6 @@
 import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Camera, Search, Menu, X, Instagram, Twitter, Mail, LogIn, Sun, Moon, Monitor, Heart, Trophy, LayoutDashboard, LogOut, ChevronDown, Image as ImageIcon, MapPin, BookOpen, Info, Upload, User, ChevronRight, Settings, MessageSquare, Users, PieChart, FileText } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
@@ -72,7 +73,8 @@ export const Header: React.FC = () => {
         icon: Trophy,
         iconBg: 'bg-yellow-50 dark:bg-yellow-500/10',
         iconColor: 'text-yellow-600 dark:text-yellow-400',
-        hoverClass: 'group-hover:bg-yellow-50 dark:group-hover:bg-yellow-500/10 group-hover:text-yellow-600 dark:group-hover:text-yellow-400'
+        rowHoverClass: 'hover:bg-yellow-50 dark:hover:bg-yellow-900/10',
+        hoverClass: 'group-hover:bg-yellow-100 dark:group-hover:bg-yellow-900/20 group-hover:text-yellow-600 dark:group-hover:text-yellow-400'
       },
       { 
         key: 'my-photos', 
@@ -81,7 +83,8 @@ export const Header: React.FC = () => {
         icon: ImageIcon,
         iconBg: 'bg-blue-50 dark:bg-blue-500/10',
         iconColor: 'text-blue-600 dark:text-blue-400',
-        hoverClass: 'group-hover:bg-blue-50 dark:group-hover:bg-blue-500/10 group-hover:text-blue-600 dark:group-hover:text-blue-400'
+        rowHoverClass: 'hover:bg-blue-50 dark:hover:bg-blue-900/10',
+        hoverClass: 'group-hover:bg-blue-100 dark:group-hover:bg-blue-900/20 group-hover:text-blue-600 dark:group-hover:text-blue-400'
       },
       { 
         key: 'profile', 
@@ -90,7 +93,8 @@ export const Header: React.FC = () => {
         icon: User,
         iconBg: 'bg-purple-50 dark:bg-purple-500/10',
         iconColor: 'text-purple-600 dark:text-purple-400',
-        hoverClass: 'group-hover:bg-purple-50 dark:group-hover:bg-purple-500/10 group-hover:text-purple-600 dark:group-hover:text-purple-400'
+        rowHoverClass: 'hover:bg-purple-50 dark:hover:bg-purple-900/10',
+        hoverClass: 'group-hover:bg-purple-100 dark:group-hover:bg-purple-900/20 group-hover:text-purple-600 dark:group-hover:text-purple-400'
       }
     ];
 
@@ -103,7 +107,8 @@ export const Header: React.FC = () => {
           icon: ImageIcon,
           iconBg: 'bg-cyan-50 dark:bg-cyan-500/10',
           iconColor: 'text-cyan-600 dark:text-cyan-400',
-          hoverClass: 'group-hover:bg-cyan-50 dark:group-hover:bg-cyan-500/10 group-hover:text-cyan-600 dark:group-hover:text-cyan-400'
+          rowHoverClass: 'hover:bg-cyan-50 dark:hover:bg-cyan-900/10',
+          hoverClass: 'group-hover:bg-cyan-100 dark:group-hover:bg-cyan-900/20 group-hover:text-cyan-600 dark:group-hover:text-cyan-400'
         },
         { 
           key: 'admin-analytics', 
@@ -112,7 +117,8 @@ export const Header: React.FC = () => {
           icon: PieChart,
           iconBg: 'bg-emerald-50 dark:bg-emerald-500/10',
           iconColor: 'text-emerald-600 dark:text-emerald-400',
-          hoverClass: 'group-hover:bg-emerald-50 dark:group-hover:bg-emerald-500/10 group-hover:text-emerald-600 dark:group-hover:text-emerald-400'
+          rowHoverClass: 'hover:bg-emerald-50 dark:hover:bg-emerald-900/10',
+          hoverClass: 'group-hover:bg-emerald-100 dark:group-hover:bg-emerald-900/20 group-hover:text-emerald-600 dark:group-hover:text-emerald-400'
         },
         { 
           key: 'admin-comments', 
@@ -121,7 +127,8 @@ export const Header: React.FC = () => {
           icon: MessageSquare,
           iconBg: 'bg-orange-50 dark:bg-orange-500/10',
           iconColor: 'text-orange-600 dark:text-orange-400',
-          hoverClass: 'group-hover:bg-orange-50 dark:group-hover:bg-orange-500/10 group-hover:text-orange-600 dark:group-hover:text-orange-400'
+          rowHoverClass: 'hover:bg-orange-50 dark:hover:bg-orange-900/10',
+          hoverClass: 'group-hover:bg-orange-100 dark:group-hover:bg-orange-900/20 group-hover:text-orange-600 dark:group-hover:text-orange-400'
         },
         { 
           key: 'admin-users', 
@@ -130,7 +137,8 @@ export const Header: React.FC = () => {
           icon: Users,
           iconBg: 'bg-pink-50 dark:bg-pink-500/10',
           iconColor: 'text-pink-600 dark:text-pink-400',
-          hoverClass: 'group-hover:bg-pink-50 dark:group-hover:bg-pink-500/10 group-hover:text-pink-600 dark:group-hover:text-pink-400'
+          rowHoverClass: 'hover:bg-pink-50 dark:hover:bg-pink-900/10',
+          hoverClass: 'group-hover:bg-pink-100 dark:group-hover:bg-pink-900/20 group-hover:text-pink-600 dark:group-hover:text-pink-400'
         },
         { 
           key: 'admin-about', 
@@ -139,7 +147,8 @@ export const Header: React.FC = () => {
           icon: FileText,
           iconBg: 'bg-teal-50 dark:bg-teal-500/10',
           iconColor: 'text-teal-600 dark:text-teal-400',
-          hoverClass: 'group-hover:bg-teal-50 dark:group-hover:bg-teal-500/10 group-hover:text-teal-600 dark:group-hover:text-teal-400'
+          rowHoverClass: 'hover:bg-teal-50 dark:hover:bg-teal-900/10',
+          hoverClass: 'group-hover:bg-teal-100 dark:group-hover:bg-teal-900/20 group-hover:text-teal-600 dark:group-hover:text-teal-400'
         },
         { 
           key: 'admin-settings', 
@@ -148,7 +157,8 @@ export const Header: React.FC = () => {
           icon: Settings,
           iconBg: 'bg-slate-50 dark:bg-slate-500/10',
           iconColor: 'text-slate-600 dark:text-slate-400',
-          hoverClass: 'group-hover:bg-slate-50 dark:group-hover:bg-slate-500/10 group-hover:text-slate-600 dark:group-hover:text-slate-400'
+          rowHoverClass: 'hover:bg-slate-50 dark:hover:bg-slate-900/10',
+          hoverClass: 'group-hover:bg-slate-100 dark:group-hover:bg-slate-900/20 group-hover:text-slate-600 dark:group-hover:text-slate-400'
         }
       );
     }
@@ -369,10 +379,10 @@ export const Header: React.FC = () => {
               role="menuitem"
               tabIndex={0}
               onClick={() => closeUserMenu()}
-              className={`flex items-center gap-3 px-3 py-2.5 text-sm rounded-xl transition-colors group ${
+              className={`flex w-full items-center gap-3 px-3 py-2.5 text-sm rounded-xl transition-colors group ${
                 active 
                 ? 'bg-gray-50 dark:bg-white/10 text-gray-900 dark:text-white' 
-                : 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5'
+                : `text-gray-700 dark:text-gray-200 ${it.rowHoverClass}`
               }`}
             >
               <div className={`p-1.5 rounded-lg transition-transform group-hover:scale-110 ${
@@ -453,81 +463,165 @@ export const Header: React.FC = () => {
             <button 
                 type="button"
                 aria-label={isMenuOpen ? '关闭菜单' : '打开菜单'}
-                className={`md:hidden rounded-lg p-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-[#111a22] ${isHomeHero ? (headerColorMode === 'light-text' ? 'text-white drop-shadow-md hover:bg-white/20' : 'text-gray-900 hover:bg-black/5') : 'text-gray-600 dark:text-gray-300'}`}
+                className={`md:hidden rounded-full p-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-[#111a22] transition-colors ${isHomeHero ? (headerColorMode === 'light-text' ? 'text-white drop-shadow-md hover:bg-white/20' : 'text-gray-900 hover:bg-black/5') : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-surface-border'}`}
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
             >
-              {isMenuOpen ? <X /> : <Menu />}
+              {isMenuOpen ? (
+                  <X />
+              ) : currentUser ? (
+                  <img src={avatarUrl} alt={currentUser.name} className="w-8 h-8 rounded-full object-cover ring-2 ring-white/20 dark:ring-white/10" />
+              ) : (
+                  <Menu />
+              )}
             </button>
           </div>
         </div>
       </div>
 
-      {/* Mobile Search Bar */}
-      {isSearchOpen && (
-        <div className="md:hidden border-b border-gray-200 dark:border-surface-border bg-white dark:bg-background-dark p-4 animate-in slide-in-from-top-2">
-            <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    onKeyDown={handleSearch}
-                    autoFocus
-                    placeholder="搜索照片..."
-                    className="w-full rounded-lg border border-gray-200 dark:border-surface-border bg-gray-100 dark:bg-surface-dark py-2 pl-10 pr-4 text-sm text-gray-900 dark:text-white placeholder-gray-500 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                />
-            </div>
-        </div>
-      )}
 
-      {/* Mobile Menu */}
-      {isMenuOpen && createPortal(
-        <div className="fixed inset-0 z-[9999] md:hidden">
-            {/* Backdrop */}
-            <div 
-                className="absolute inset-0 bg-black/30 backdrop-blur-sm transition-opacity" 
-                onClick={() => setIsMenuOpen(false)} 
-            />
-            
-            {/* Sidebar */}
-            <div className="absolute right-0 top-0 bottom-0 w-[85%] max-w-[320px] glass-panel flex flex-col animate-in slide-in-from-right duration-500 overflow-hidden">
-                {/* Decorative Blob */}
-                <div className="absolute top-[-20%] right-[-20%] w-64 h-64 bg-primary/20 rounded-full blur-3xl pointer-events-none animate-pulse" />
-                <div className="absolute bottom-[-10%] left-[-10%] w-48 h-48 bg-purple-500/20 rounded-full blur-3xl pointer-events-none animate-pulse" />
-
-                {/* Close Button */}
-                <button 
-                    onClick={() => setIsMenuOpen(false)}
-                    className="absolute top-6 right-6 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors z-10"
-                >
-                    <X className="w-6 h-6 text-gray-500 dark:text-gray-400" />
-                </button>
-
-                {currentUser ? (
-                    // Logged In View
-                    <>
-                        {/* User Profile Header */}
-                        <div className="pt-20 pb-8 px-8 flex flex-col items-center border-b border-gray-100/50 dark:border-white/5 bg-gradient-to-b from-primary/5 to-transparent">
-                            <div className="relative mb-4">
-                                <img 
-                                    src={avatarUrl} 
-                                    alt={currentUser.name}
-                                    className="w-24 h-24 rounded-full object-cover shadow-xl ring-4 ring-white dark:ring-white/10" 
-                                />
-                                {currentUser.role === 'admin' && (
-                                    <div className="absolute bottom-0 right-0 bg-primary text-white text-[10px] px-2 py-0.5 rounded-full font-bold shadow-md border-2 border-white dark:border-surface-dark">
-                                        ADMIN
+      {createPortal(
+        <AnimatePresence>
+            {/* Mobile Search Overlay */}
+            {isSearchOpen && (
+                <div className="fixed inset-0 z-[9999] md:hidden">
+                    {/* Backdrop */}
+                    <motion.div 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                        onClick={() => setIsSearchOpen(false)}
+                    />
+                    
+                    {/* Search Panel */}
+                    <motion.div 
+                        initial={{ opacity: 0, y: '-100%' }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: '-100%' }}
+                        transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+                        className="absolute top-0 left-0 right-0 bg-white dark:bg-[#1a1a1a] rounded-b-3xl shadow-2xl overflow-hidden"
+                    >
+                         {/* Gradient Border Bottom */}
+                         <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-primary/50 to-transparent opacity-50" />
+                         
+                         <div className="p-5 pt-safe-top">
+                            <form 
+                                onSubmit={(e) => {
+                                    e.preventDefault();
+                                    if(searchQuery.trim()){
+                                        navigate(`/?q=${encodeURIComponent(searchQuery)}`);
+                                        setIsSearchOpen(false);
+                                    }
+                                }}
+                                className="relative flex items-center gap-3"
+                            >
+                                <div className="flex-1 relative group">
+                                    <div className="absolute inset-y-0 left-3.5 flex items-center pointer-events-none">
+                                        <Search className="w-5 h-5 text-gray-400 group-focus-within:text-primary transition-colors" />
                                     </div>
-                                )}
+                                    <input
+                                        type="text"
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        autoFocus
+                                        placeholder="搜索精彩瞬间..."
+                                        className="w-full bg-gray-100 dark:bg-black/40 border-none rounded-2xl py-3.5 pl-11 pr-4 text-base font-medium text-gray-900 dark:text-white placeholder-gray-500 focus:ring-2 focus:ring-primary/20 transition-all shadow-inner"
+                                    />
+                                </div>
+                                <button 
+                                    type="button"
+                                    onClick={() => setIsSearchOpen(false)}
+                                    className="p-2 text-gray-500 dark:text-gray-400 font-medium active:scale-95 transition-transform"
+                                >
+                                    取消
+                                </button>
+                            </form>
+                            
+                            {/* Suggestions / Tags */}
+                            <div className="mt-6 mb-2">
+                                <div className="flex items-center gap-2 mb-3 px-1">
+                                    <Trophy className="w-3.5 h-3.5 text-primary" />
+                                    <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">热门探索</span>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                    {['风景', '街拍', '人像', '建筑', '黑白', '胶片', '日落', '海边'].map(tag => (
+                                        <button 
+                                            key={tag}
+                                            onClick={() => {
+                                                setSearchQuery(tag);
+                                                navigate(`/?q=${encodeURIComponent(tag)}`);
+                                                setIsSearchOpen(false);
+                                            }}
+                                            className="px-3.5 py-2 rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 text-sm font-medium text-gray-600 dark:text-gray-300 active:scale-95 active:bg-primary/10 active:text-primary active:border-primary/20 transition-all"
+                                        >
+                                            {tag}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
-                            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-1">{currentUser.name}</h3>
-                            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">
-                                {currentUser.role === 'admin' ? '管理员' : '家庭成员'}
-                            </p>
-                        </div>
+                         </div>
+                    </motion.div>
+                </div>
+            )}
 
-                        {/* Menu Items */}
-                        <div className="flex-1 overflow-y-auto py-6 px-6 space-y-1">
+            {isMenuOpen && (
+                <div className="fixed inset-0 z-[9999] md:hidden">
+                    {/* Backdrop */}
+                    <motion.div 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="absolute inset-0 bg-black/30 backdrop-blur-sm" 
+                        onClick={() => setIsMenuOpen(false)} 
+                    />
+                    
+                    {/* Sidebar */}
+                    <motion.div 
+                        initial={{ x: '100%' }}
+                        animate={{ x: 0 }}
+                        exit={{ x: '100%' }}
+                        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                        className="absolute right-0 top-0 bottom-0 w-[85%] max-w-[320px] glass-panel flex flex-col overflow-hidden border-l border-white/20 shadow-2xl"
+                    >
+                        {/* Decorative Blob */}
+                        <div className="absolute top-[-20%] right-[-20%] w-64 h-64 bg-primary/20 rounded-full blur-3xl pointer-events-none animate-pulse" />
+                        <div className="absolute bottom-[-10%] left-[-10%] w-48 h-48 bg-purple-500/20 rounded-full blur-3xl pointer-events-none animate-pulse" />
+
+                        {/* Close Button */}
+                        <button 
+                            onClick={() => setIsMenuOpen(false)}
+                            className="absolute top-6 right-6 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors z-10"
+                        >
+                            <X className="w-6 h-6 text-gray-500 dark:text-gray-400" />
+                        </button>
+
+                        {currentUser ? (
+                            // Logged In View
+                            <>
+                                {/* User Profile Header */}
+                                <div className="pt-16 pb-4 px-6 flex items-center gap-4 border-b border-gray-100/50 dark:border-white/5 bg-gradient-to-b from-primary/5 to-transparent shrink-0">
+                                    <div className="relative shrink-0">
+                                        <img 
+                                            src={avatarUrl} 
+                                            alt={currentUser.name}
+                                            className="w-12 h-12 rounded-full object-cover shadow-md ring-2 ring-white dark:ring-white/10" 
+                                        />
+                                        {currentUser.role === 'admin' && (
+                                            <div className="absolute -bottom-1 -right-1 bg-primary text-white text-[9px] px-1.5 py-0.5 rounded-full font-bold shadow-sm border-2 border-white dark:border-surface-dark">
+                                                ADMIN
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="flex flex-col min-w-0">
+                                        <h3 className="text-base font-bold text-gray-900 dark:text-white truncate">{currentUser.name}</h3>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">
+                                            {currentUser.role === 'admin' ? '管理员' : '家庭成员'}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* Menu Items */}
+                                <div className="flex-1 overflow-y-auto py-6 px-6 space-y-1">
                              {userMenuItems.map((it) => {
                                 const active = isActive(it.to);
                                 return (
@@ -538,7 +632,7 @@ export const Header: React.FC = () => {
                                     <Link 
                                         to={it.to} 
                                         onClick={() => setIsMenuOpen(false)}
-                                        className={`flex items-center gap-4 px-4 py-3.5 rounded-xl transition-colors group ${
+                                        className={`flex w-full items-center gap-4 px-4 py-3.5 rounded-xl transition-colors group ${
                                             active 
                                             ? 'bg-gray-50 dark:bg-white/10 text-gray-900 dark:text-white' 
                                             : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5'
@@ -657,8 +751,10 @@ export const Header: React.FC = () => {
                         </div>
                     </>
                 )}
-            </div>
-        </div>,
+            </motion.div>
+        </div>
+            )}
+        </AnimatePresence>,
         document.body
       )}
     </header>

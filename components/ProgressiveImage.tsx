@@ -60,15 +60,26 @@ export const ProgressiveImage: React.FC<Props> = ({
     }
   }, [attempt, failed, loaded, onImageLoad, src]);
 
+  const [showPlaceholder, setShowPlaceholder] = useState(true);
+
+  useEffect(() => {
+    if (loaded) {
+      const t = setTimeout(() => setShowPlaceholder(false), 500); // Wait for fade out
+      return () => clearTimeout(t);
+    } else {
+      setShowPlaceholder(true);
+    }
+  }, [loaded]);
+
   return (
     <div className={twMerge('relative', className)}>
-      <div className="absolute inset-0">
-        {placeholderSrc ? (
+      <div className="absolute inset-0 overflow-hidden">
+        {showPlaceholder && placeholderSrc ? (
           <img
             src={placeholderSrc}
             alt=""
             aria-hidden="true"
-            className="w-full h-full scale-110 blur-xl opacity-70"
+            className={`w-full h-full scale-110 blur-xl ${loaded ? 'opacity-0' : 'opacity-70'} transition-opacity duration-500`}
             style={{ objectFit: fit }}
             loading="eager"
             decoding="async"

@@ -56,6 +56,26 @@ export const Heatmap: React.FC<HeatmapProps & { variant?: 'scroll' | 'grid' | 'c
   const [startX, setStartX] = useState(0);
   const [scrollLeft, setScrollLeft] = useState(0);
 
+  // Helper to determine cell size style based on variant
+  const getCellClass = () => {
+    if (variant === 'grid') return 'w-3 h-3'; // Smaller, refined for desktop modal
+    return 'w-full h-full'; // Default fluid
+  };
+
+  const getContainerClass = () => {
+    if (variant === 'scroll') return "flex gap-2 pb-2 min-w-max";
+    if (variant === 'compact') return "grid grid-cols-3 gap-x-2 gap-y-4";
+    // Grid variant (Desktop Modal): 3 columns (4 rows) or 4 columns (3 rows)
+    return "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6";
+  };
+  
+  const getCardClass = () => {
+    if (variant === 'scroll') return 'w-40 glass-card rounded-lg p-3 flex-shrink-0';
+    if (variant === 'compact') return 'w-full flex-shrink-0';
+    // Grid variant: Transparent background or very subtle
+    return 'w-full bg-gray-50/50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl p-4 flex-shrink-0 hover:border-gray-200 dark:hover:border-white/10 transition-colors';
+  };
+
   const months = useMemo(() => {
     return Array.from({ length: 12 }, (_, i) => {
       const daysInMonth = getDaysInMonth(year, i);
@@ -177,25 +197,17 @@ export const Heatmap: React.FC<HeatmapProps & { variant?: 'scroll' | 'grid' | 'c
         onMouseUp={handleMouseUp}
         onMouseMove={handleMouseMove}
       >
-        <div className={
-          variant === 'scroll' ? "flex gap-2 pb-2 min-w-max" :
-          variant === 'compact' ? "grid grid-cols-3 gap-x-2 gap-y-4" :
-          "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
-        }>
+        <div className={getContainerClass()}>
           {months.map((month) => (
             <div 
               key={month.name}
-              className={
-                variant === 'scroll' ? 'w-40 glass-card rounded-lg p-3 flex-shrink-0' :
-                variant === 'compact' ? 'w-full flex-shrink-0' :
-                'w-full glass-card rounded-lg p-3 flex-shrink-0'
-              }
+              className={getCardClass()}
             >
-              <h4 className={`font-bold text-gray-900 dark:text-white ${variant === 'compact' ? 'text-[10px] mb-1 text-center' : 'text-xs mb-2'}`}>
+              <h4 className={`font-bold text-gray-900 dark:text-white ${variant === 'compact' ? 'text-[10px] mb-1 text-center' : 'text-sm mb-3 tracking-wide pl-1'}`}>
                 {variant === 'compact' ? month.name : month.fullDate}
               </h4>
               
-              <div className="grid grid-cols-7 gap-1">
+              <div className="grid grid-cols-7 gap-1.5">
                 {/* Day Headers */}
                 {dayNames.map(d => (
                   <div key={d} className={`text-gray-400 text-center ${variant === 'compact' ? 'text-[8px] mb-0.5 scale-90' : 'text-[10px] mb-1'}`}>
@@ -205,14 +217,14 @@ export const Heatmap: React.FC<HeatmapProps & { variant?: 'scroll' | 'grid' | 'c
                 
                 {/* Days */}
                 {month.days.map((day, idx) => (
-                  <div key={idx} className="aspect-square">
+                  <div key={idx} className={variant === 'grid' ? 'flex justify-center items-center' : 'aspect-square'}>
                     {day ? (
                       <div
-                        className={`w-full h-full rounded-[1px] transition-transform hover:scale-110 ${getColor(day.level)}`}
+                        className={`${variant === 'grid' ? getCellClass() : 'w-full h-full'} rounded-[1px] transition-transform hover:scale-110 ${getColor(day.level)}`}
                         title={`${day.date}: ${day.count} 张照片`}
                       />
                     ) : (
-                      <div className="w-full h-full" />
+                      <div className={variant === 'grid' ? getCellClass() : 'w-full h-full'} />
                     )}
                   </div>
                 ))}

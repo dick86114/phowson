@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Calendar, MapPin, Camera, Grid, Image as ImageIcon, User, Plane, Flame, Heart, MessageCircle, ChevronDown, X, Search, Clock, Eye, History, ArrowUp, Check, RefreshCw } from 'lucide-react';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
@@ -8,6 +8,9 @@ import api, { API_BASE_URL } from '../api';
 import { getPhotoUrl } from '../utils/helpers';
 import { MasonryVirtual } from '../components/MasonryVirtual';
 import { Heatmap } from '../components/Heatmap';
+import { MiniHeatmap } from '../components/MiniHeatmap';
+import { HeatmapModal } from '../components/HeatmapModal';
+import { DropdownFilter } from '../components/admin/DropdownFilter';
 import { useAuth } from '../hooks/useAuth';
 import { useHeaderTheme } from '../HeaderThemeContext';
 import { getImageBrightness } from '../utils/color';
@@ -73,23 +76,20 @@ const toTags = (raw: string | undefined) => {
 
 export const Home: React.FC = () => {
     const [filter, setFilter] = useState<string>('all');
-    const [sortOpen, setSortOpen] = useState(false);
     const [sortBy, setSortBy] = useState('最新发布');
     const [searchParams, setSearchParams] = useSearchParams();
     const { user: currentUser } = useAuth();
     const { setHeaderColorMode } = useHeaderTheme();
     
-    // 语义搜索状态
-    const [searchMode, setSearchMode] = useState<'normal' | 'semantic'>('normal');
-    const [searchQuery, setSearchQuery] = useState('');
-    const [isSearching, setIsSearching] = useState(false);
+    // Search State
+    const urlSearchQuery = searchParams.get('q') || '';
+    const [localSearchInput, setLocalSearchInput] = useState(urlSearchQuery);
     
     // Mobile Modal States
     const [showMobileFilter, setShowMobileFilter] = useState(false);
     const [showMobileSort, setShowMobileSort] = useState(false);
     const [showMobileHeatmap, setShowMobileHeatmap] = useState(false);
-
-    // Heatmap State
+    const [showHeatmapModal, setShowHeatmapModal] = useState(false); // Desktop modal
     const [heatmapYear, setHeatmapYear] = useState(new Date().getFullYear());
 
     // Lock body scroll when mobile modals are open
@@ -110,19 +110,6 @@ export const Home: React.FC = () => {
         },
     });
     
-    // 语义搜索结果
-    const { data: searchResults, isLoading: isSearchLoading } = useQuery({
-        queryKey: ['semantic-search', searchQuery],
-        queryFn: async () => {
-            if (!searchQuery.trim()) return null;
-            const res = await api.get<{query: string; results: ApiPhoto[]; count: number}>(
-                `/photos/semantic-search?query=${encodeURIComponent(searchQuery)}&limit=50`
-            );
-            return res.data;
-        },
-        enabled: searchMode === 'semantic' && !!searchQuery.trim(),
-    });
-
     const { data: categories = [] } = useQuery({
         queryKey: ['categories'],
         queryFn: async () => {
@@ -150,9 +137,18 @@ export const Home: React.FC = () => {
         enabled: !!currentUser,
     });
     
-    const featuredPhoto = photos[0] || null;
+    const featuredPhoto = useMemo(() => {
+        if (!photos || photos.length === 0) return null;
+        return photos[Math.floor(Math.random() * photos.length)];
+    }, [photos]);
 
     useEffect(() => {
+        // If we are in search mode, use dark text (for light background)
+        if (urlSearchQuery) {
+            setHeaderColorMode('dark-text');
+            return;
+        }
+
         if (featuredPhoto) {
             const url = getPhotoUrl(featuredPhoto, 'medium');
             getImageBrightness(url).then(brightness => {
@@ -167,30 +163,35 @@ export const Home: React.FC = () => {
         }
         
         return () => setHeaderColorMode('light-text');
-    }, [featuredPhoto?.id, setHeaderColorMode]);
+    }, [featuredPhoto?.id, setHeaderColorMode, urlSearchQuery]);
 
-    // Search Logic
-    const urlSearchQuery = searchParams.get('q') || '';
-    const searchModeParam = searchParams.get('mode') as 'normal' | 'semantic' || 'normal';
+    // Sync local input when URL changes
+    useEffect(() => {
+        setLocalSearchInput(urlSearchQuery);
+    }, [urlSearchQuery]);
+
+    const handleSearchSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (localSearchInput.trim()) {
+            searchParams.set('q', localSearchInput.trim());
+            setSearchParams(searchParams);
+        } else {
+            searchParams.delete('q');
+            setSearchParams(searchParams);
+        }
+    };
     
     const clearSearch = () => {
         searchParams.delete('q');
-        searchParams.delete('mode');
         setSearchParams(searchParams);
-        setSearchQuery('');
+        setLocalSearchInput('');
     };
-    
-    // 同步搜索状态
-    React.useEffect(() => {
-        setSearchQuery(urlSearchQuery);
-        setSearchMode(searchModeParam);
-    }, [urlSearchQuery, searchModeParam]);
 
     const filteredPhotos = useMemo(() => {
         return photos.filter(photo => {
             if (filter !== 'all' && photo.category !== filter) return false;
 
-            if (urlSearchQuery && searchMode === 'normal') {
+            if (urlSearchQuery) {
                 const query = urlSearchQuery.toLowerCase();
                 const matchesTitle = photo.title.toLowerCase().includes(query);
                 const matchesDesc = photo.description.toLowerCase().includes(query);
@@ -203,18 +204,10 @@ export const Home: React.FC = () => {
 
             return true;
         });
-    }, [photos, filter, urlSearchQuery, searchMode]);
-    
-    // 合并普通搜索和语义搜索结果
-    const displayPhotos = useMemo(() => {
-        if (searchMode === 'semantic' && searchResults?.results) {
-            return searchResults.results;
-        }
-        return filteredPhotos;
-    }, [searchMode, searchResults, filteredPhotos]);
+    }, [photos, filter, urlSearchQuery]);
 
     const sortedPhotos = useMemo(() => {
-        const copy = [...displayPhotos];
+        const copy = [...filteredPhotos];
         if (sortBy === '最受欢迎') {
             copy.sort((a, b) => Number(b.likesCount || 0) - Number(a.likesCount || 0));
         } else if (sortBy === '最早发布') {
@@ -223,7 +216,7 @@ export const Home: React.FC = () => {
             copy.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         }
         return copy;
-    }, [displayPhotos, sortBy]);
+    }, [filteredPhotos, sortBy]);
 
     const sortOptions = ['最新发布', '最受欢迎', '最早发布'];
 
@@ -240,13 +233,8 @@ export const Home: React.FC = () => {
                     />
                     <div className="absolute inset-0 flex flex-col justify-end p-8 lg:p-16 max-w-[1920px] mx-auto w-full">
                         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-                            <div className="max-w-2xl space-y-4">
+                            <div className="max-w-2xl space-y-2 md:space-y-4">
                                 <div className="flex items-center gap-2">
-                                    <div className="inline-flex items-center gap-2 rounded-full bg-primary/20 backdrop-blur-sm border border-primary/30 px-3 py-1 text-xs font-semibold text-primary uppercase tracking-wider shrink-0">
-                                        <Flame className="w-3 h-3" />
-                                        今日精选
-                                    </div>
-                                    
                                     {/* Streak Widget - Mobile Only */}
                                     {activitySummary && (
                                         <div className="md:hidden inline-flex items-center gap-1.5 rounded-full bg-black/40 backdrop-blur-md border border-white/10 px-3 py-1 text-xs font-medium text-white shrink-0">
@@ -256,35 +244,66 @@ export const Home: React.FC = () => {
                                         </div>
                                     )}
                                 </div>
-                                <h2 className="text-4xl md:text-6xl font-black tracking-tighter text-white drop-shadow-sm">
-                                    {featuredPhoto.title}
-                                </h2>
+                                <Link to={`/photo/${featuredPhoto.id}`} className="block">
+                                    <h2 className="text-3xl sm:text-4xl md:text-6xl font-black tracking-tighter text-white drop-shadow-md hover:opacity-80 transition-opacity cursor-pointer leading-tight">
+                                        {featuredPhoto.title}
+                                    </h2>
+                                </Link>
                                 <div className="hidden md:block">
                                     <p className="text-lg text-gray-200 font-light max-w-xl line-clamp-2 shadow-black drop-shadow-md">
                                         {featuredPhoto.description}
                                     </p>
                                 </div>
-                                <div className="flex items-center gap-4 text-sm text-gray-300 pt-2">
-                                    <span className="flex items-center gap-1"><Calendar className="w-4 h-4"/> {(() => { const exif = parseExif(featuredPhoto.exif); return String(exif.date || toDateText(featuredPhoto.createdAt)); })()}</span>
-                                    <span className="flex items-center gap-1"><MapPin className="w-4 h-4"/> {(() => { const exif = parseExif(featuredPhoto.exif); return String(exif.location || ''); })()}</span>
-                                    <span className="flex items-center gap-1"><Camera className="w-4 h-4"/> {(() => { const exif = parseExif(featuredPhoto.exif); return String(exif.camera || exif.Model || ''); })()}</span>
+                                <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs sm:text-sm text-gray-200 font-medium">
+                                    <span className="flex items-center gap-1.5 whitespace-nowrap bg-black/20 backdrop-blur-md px-2.5 py-1 rounded-full border border-white/10 shadow-sm">
+                                        <Calendar className="w-3.5 h-3.5 text-white/80"/> 
+                                        {(() => { const exif = parseExif(featuredPhoto.exif); return String(exif.date || toDateText(featuredPhoto.createdAt)); })()}
+                                    </span>
+                                    {(() => {
+                                        const exif = parseExif(featuredPhoto.exif);
+                                        const loc = String(exif.location || '');
+                                        return loc ? (
+                                            <span className="flex items-center gap-1.5 whitespace-nowrap bg-black/20 backdrop-blur-md px-2.5 py-1 rounded-full border border-white/10 shadow-sm">
+                                                <MapPin className="w-3.5 h-3.5 text-white/80"/> 
+                                                {loc}
+                                            </span>
+                                        ) : null;
+                                    })()}
+                                    <span className="flex items-center gap-1.5 whitespace-nowrap bg-black/20 backdrop-blur-md px-2.5 py-1 rounded-full border border-white/10 shadow-sm">
+                                        <Camera className="w-3.5 h-3.5 text-white/80"/> 
+                                        {(() => { const exif = parseExif(featuredPhoto.exif); return String(exif.camera || exif.Model || '未知设备'); })()}
+                                    </span>
                                 </div>
                             </div>
 
                             {/* Desktop Streak Card - Right Side */}
                             {activitySummary && (
                                 <div className="hidden md:block">
-                                    <div className="bg-black/30 backdrop-blur-md border border-white/10 rounded-2xl p-5 shadow-xl min-w-[320px] transform transition-transform hover:scale-105 duration-300">
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <div className="p-1.5 rounded-lg bg-orange-500/20 text-orange-400">
-                                                <Flame className="w-5 h-5 fill-orange-500" />
+                                    <div 
+                                        onClick={() => setShowHeatmapModal(true)}
+                                        className="bg-black/30 backdrop-blur-md border border-white/10 rounded-2xl p-5 shadow-xl min-w-[340px] transform transition-transform hover:scale-105 duration-300 cursor-pointer group"
+                                    >
+                                        <div className="flex justify-between items-start gap-4">
+                                            <div>
+                                                <div className="flex items-center gap-2 mb-2">
+                                                    <div className="p-1.5 rounded-lg bg-orange-500/20 text-orange-400 group-hover:bg-orange-500/30 transition-colors">
+                                                        <Flame className="w-5 h-5 fill-orange-500" />
+                                                    </div>
+                                                    <span className="text-sm font-semibold text-gray-200 tracking-wide">每日打卡</span>
+                                                </div>
+                                                <div className="flex items-baseline gap-1.5">
+                                                    <span className="text-4xl font-extrabold text-white tracking-tight">{activitySummary.currentStreak}</span>
+                                                    <span className="text-sm font-medium text-gray-400">天连续</span>
+                                                </div>
                                             </div>
-                                            <span className="text-sm font-semibold text-gray-200 tracking-wide">每日打卡</span>
+                                            
+                                            {heatmapData && heatmapData.days && (
+                                                <div className="bg-white/5 rounded-lg p-2 border border-white/5 backdrop-blur-sm group-hover:bg-white/10 transition-colors">
+                                                    <MiniHeatmap data={heatmapData.days} />
+                                                </div>
+                                            )}
                                         </div>
-                                        <div className="flex items-baseline gap-1.5">
-                                            <span className="text-4xl font-extrabold text-white tracking-tight">{activitySummary.currentStreak}</span>
-                                            <span className="text-sm font-medium text-gray-400">天连续</span>
-                                        </div>
+
                                         <div className="mt-3 pt-3 border-t border-white/10 flex items-center justify-between text-xs">
                                             <span className="text-gray-400">最高纪录</span>
                                             <span className="text-white font-bold">{activitySummary.longestStreak} 天</span>
@@ -304,15 +323,39 @@ export const Home: React.FC = () => {
                      <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center space-y-8 relative z-10">
                         
                         <div className="space-y-4">
-                            
-                            <motion.h1 
+                            <motion.div 
                                 initial={{ y: 10, opacity: 0 }}
                                 animate={{ y: 0, opacity: 1 }}
                                 transition={{ delay: 0.1 }}
-                                className="text-3xl md:text-5xl font-black text-gray-900 dark:text-white tracking-tight"
+                                className="w-full max-w-2xl mx-auto"
                             >
-                                "{urlSearchQuery}"
-                            </motion.h1>
+                                <form onSubmit={handleSearchSubmit} className="relative group">
+                                    <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+                                        <Search className="w-5 h-5 text-gray-400 group-focus-within:text-primary transition-colors" />
+                                    </div>
+                                    <input
+                                        type="text"
+                                        value={localSearchInput}
+                                        onChange={(e) => setLocalSearchInput(e.target.value)}
+                                        placeholder="搜索照片..."
+                                        className="w-full pl-12 pr-12 py-4 bg-white/80 dark:bg-black/20 backdrop-blur-xl border border-gray-200 dark:border-white/10 rounded-2xl shadow-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-lg text-gray-900 dark:text-white placeholder-gray-400 transition-all"
+                                    />
+                                    {localSearchInput && (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setLocalSearchInput('');
+                                                // If we want to clear the search immediately:
+                                                // searchParams.delete('q');
+                                                // setSearchParams(searchParams);
+                                            }}
+                                            className="absolute inset-y-0 right-4 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+                                        >
+                                            <X className="w-5 h-5" />
+                                        </button>
+                                    )}
+                                </form>
+                            </motion.div>
                             
                             <motion.p 
                                 initial={{ y: 10, opacity: 0 }}
@@ -320,58 +363,12 @@ export const Home: React.FC = () => {
                                 transition={{ delay: 0.2 }}
                                 className="text-lg text-gray-500 dark:text-gray-400"
                             >
-                                找到 <span className="font-bold text-gray-900 dark:text-white mx-1">{isSearchLoading ? '...' : sortedPhotos.length}</span> 张
-                                {searchMode === 'semantic' ? '语义匹配' : '关键词匹配'}的照片
+                                找到 <span className="font-bold text-gray-900 dark:text-white mx-1">{sortedPhotos.length}</span> 张
+                                关键词匹配的照片
                             </motion.p>
                         </div>
 
-                        <motion.div 
-                            initial={{ y: 20, opacity: 0 }}
-                            animate={{ y: 0, opacity: 1 }}
-                            transition={{ delay: 0.3 }}
-                            className="flex flex-col sm:flex-row items-center justify-center gap-4"
-                        >
-                            {/* Mode Toggle */}
-                            <div className="bg-gray-100/80 dark:bg-white/5 p-1.5 rounded-2xl inline-flex items-center shadow-inner backdrop-blur-md">
-                                <button
-                                    onClick={() => {
-                                        searchParams.set('mode', 'normal');
-                                        setSearchParams(searchParams);
-                                    }}
-                                    className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 ${
-                                        searchMode === 'normal'
-                                            ? 'bg-white dark:bg-surface-light text-primary shadow-md shadow-gray-200/50 dark:shadow-none ring-1 ring-black/5'
-                                            : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
-                                    }`}
-                                >
-                                    关键词搜索
-                                </button>
-                                <button
-                                    onClick={() => {
-                                        searchParams.set('mode', 'semantic');
-                                        setSearchParams(searchParams);
-                                    }}
-                                    className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 flex items-center gap-2 ${
-                                        searchMode === 'semantic'
-                                            ? 'bg-white dark:bg-surface-light text-primary shadow-md shadow-gray-200/50 dark:shadow-none ring-1 ring-black/5'
-                                            : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
-                                    }`}
-                                >
-                                    <span className="text-lg leading-none">🤖</span> 语义搜索
-                                </button>
-                            </div>
 
-                            {/* Clear Button */}
-                            <button 
-                                onClick={clearSearch}
-                                className="group flex items-center gap-2 px-6 py-3 rounded-2xl border border-transparent hover:border-red-200 hover:bg-red-50 dark:hover:bg-red-500/10 text-gray-400 hover:text-red-500 transition-all duration-300"
-                            >
-                                <div className="bg-gray-100 dark:bg-white/10 rounded-full p-1 group-hover:bg-red-100 dark:group-hover:bg-red-500/20 transition-colors">
-                                    <X className="w-3 h-3" />
-                                </div>
-                                <span className="font-medium">清除搜索</span>
-                            </button>
-                        </motion.div>
                      </div>
                 </section>
             )}
@@ -415,177 +412,244 @@ export const Home: React.FC = () => {
 
             {/* Mobile Modals */}
             {/* 1. Filter Modal */}
-            {showMobileFilter && createPortal(
-                <div className="fixed inset-0 z-[100] flex items-end justify-center md:hidden">
-                    <div className="fixed inset-0 bg-black/60 backdrop-blur-md transition-opacity" onClick={() => setShowMobileFilter(false)} />
-                    <div className="relative glass-panel w-full rounded-t-3xl p-6 animate-in slide-in-from-bottom duration-500 max-h-[80vh] overflow-y-auto">
-                        <div className="w-12 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full mx-auto mb-6" />
-                        
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-xl font-bold text-gray-900 dark:text-white">选择分类</h3>
-                            <button 
-                                onClick={() => setFilter('all')} 
-                                className="text-sm font-medium text-primary hover:text-primary/80 transition-colors"
-                            >
-                                重置
-                            </button>
-                        </div>
-
-                        <div className="w-full h-px bg-gradient-to-r from-transparent via-gray-200/50 dark:via-gray-700/50 to-transparent mb-6 backdrop-blur-sm" />
-
-                        <div className="grid grid-cols-2 gap-3 mb-8">
-                            {[{ id: 'all', label: '全部主题', icon: <Grid className="w-4 h-4"/> }, ...categories
-                                .filter(c => c.value !== 'uncategorized')
-                                .map(c => ({
-                                    id: c.value,
-                                    label: c.label,
-                                    icon:
-                                        c.value === 'landscape' ? <ImageIcon className="w-4 h-4"/> :
-                                        c.value === 'portrait' ? <User className="w-4 h-4"/> :
-                                        c.value === 'travel' ? <Plane className="w-4 h-4"/> :
-                                        <ImageIcon className="w-4 h-4"/>,
-                                }))
-                            ].map(cat => (
-                                <motion.button
-                                    key={cat.id}
-                                    whileHover={{ scale: 1.02 }}
-                                    whileTap={{ scale: 0.95 }}
-                                    onClick={() => {
-                                        setFilter(cat.id);
-                                        setTimeout(() => setShowMobileFilter(false), 150);
-                                    }}
-                                    className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-all duration-200 ${
-                                        filter === cat.id 
-                                        ? 'bg-primary/10 border-primary text-primary shadow-sm font-bold' 
-                                        : 'bg-transparent border-transparent hover:bg-gray-50 dark:hover:bg-white/5 text-gray-600 dark:text-gray-300'
-                                    }`}
+            {createPortal(
+                <AnimatePresence>
+                    {showMobileFilter && (
+                        <>
+                            <motion.div
+                                key="mobile-filter-overlay"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                className="fixed inset-0 bg-black/40 backdrop-blur-md z-[9998] md:hidden"
+                                onClick={() => setShowMobileFilter(false)}
+                            />
+                            <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 pointer-events-none md:hidden">
+                                <motion.div
+                                    key="mobile-filter-panel"
+                                    initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                                    exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                                    transition={{ duration: 0.2 }}
+                                    className="w-full max-w-sm glass-panel rounded-2xl p-6 shadow-2xl ring-1 ring-white/10 max-h-[80vh] overflow-y-auto flex flex-col pointer-events-auto"
                                 >
-                                    <div className={`p-2 rounded-lg ${
-                                        filter === cat.id ? 'bg-primary text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
-                                    }`}>
-                                        {cat.icon}
+                                    <div className="flex items-center justify-between mb-4">
+                                        <h3 className="text-xl font-bold text-gray-900 dark:text-white">选择分类</h3>
+                                        <button 
+                                            onClick={() => setFilter('all')} 
+                                            className="text-sm font-medium text-primary hover:text-primary/80 transition-colors"
+                                        >
+                                            重置
+                                        </button>
                                     </div>
-                                    <span>{cat.label}</span>
-                                </motion.button>
-                            ))}
-                        </div>
 
-                        <button 
-                            onClick={() => setShowMobileFilter(false)}
-                            className="w-full py-4 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white font-bold text-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-                        >
-                            取消
-                        </button>
-                    </div>
-                </div>,
+                                    <div className="w-full h-px bg-gradient-to-r from-transparent via-gray-200/50 dark:via-gray-700/50 to-transparent mb-6 backdrop-blur-sm" />
+
+                                    <div className="grid grid-cols-2 gap-3 mb-8">
+                                        {[{ id: 'all', label: '全部主题', icon: <Grid className="w-4 h-4"/> }, ...categories
+                                            .filter(c => c.value !== 'uncategorized')
+                                            .map(c => ({
+                                                id: c.value,
+                                                label: c.label,
+                                                icon:
+                                                    c.value === 'landscape' ? <ImageIcon className="w-4 h-4"/> :
+                                                    c.value === 'portrait' ? <User className="w-4 h-4"/> :
+                                                    c.value === 'travel' ? <Plane className="w-4 h-4"/> :
+                                                    <ImageIcon className="w-4 h-4"/>,
+                                            }))
+                                        ].map(cat => (
+                                            <motion.button
+                                                key={cat.id}
+                                                whileHover={{ scale: 1.02 }}
+                                                whileTap={{ scale: 0.95 }}
+                                                onClick={() => {
+                                                    setFilter(cat.id);
+                                                    setTimeout(() => setShowMobileFilter(false), 150);
+                                                }}
+                                                className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-all duration-200 ${
+                                                    filter === cat.id 
+                                                    ? 'bg-primary/10 border-primary text-primary shadow-sm font-bold' 
+                                                    : 'bg-transparent border-transparent hover:bg-gray-50 dark:hover:bg-white/5 text-gray-600 dark:text-gray-300'
+                                                }`}
+                                            >
+                                                <div className={`p-2 rounded-lg ${
+                                                    filter === cat.id ? 'bg-primary text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
+                                                }`}>
+                                                    {cat.icon}
+                                                </div>
+                                                <span>{cat.label}</span>
+                                            </motion.button>
+                                        ))}
+                                    </div>
+
+                                    <button 
+                                        onClick={() => setShowMobileFilter(false)}
+                                        className="w-full py-4 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white font-bold text-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                                    >
+                                        取消
+                                    </button>
+                                </motion.div>
+                            </div>
+                        </>
+                    )}
+                </AnimatePresence>,
                 document.body
             )}
 
             {/* 2. Sort Modal */}
-            {showMobileSort && createPortal(
-                <div className="fixed inset-0 z-[100] flex items-end justify-center md:hidden">
-                    <div className="fixed inset-0 bg-black/60 backdrop-blur-md transition-opacity" onClick={() => setShowMobileSort(false)} />
-                    <div className="relative glass-panel w-full rounded-t-3xl p-6 animate-in slide-in-from-bottom duration-500 max-h-[80vh] overflow-y-auto">
-                        <div className="w-12 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full mx-auto mb-6" />
-                        
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-xl font-bold text-gray-900 dark:text-white">排序方式</h3>
-                            <button 
-                                onClick={() => setSortBy('最新发布')} 
-                                className="text-sm font-medium text-primary hover:text-primary/80 transition-colors"
-                            >
-                                重置
-                            </button>
-                        </div>
-                        
-                        <div className="w-full h-px bg-gray-100 dark:bg-gray-800 mb-6" />
+            {createPortal(
+                <AnimatePresence>
+                    {showMobileSort && (
+                        <>
+                            <motion.div
+                                key="mobile-sort-overlay"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                className="fixed inset-0 bg-black/40 backdrop-blur-md z-[9998] md:hidden"
+                                onClick={() => setShowMobileSort(false)}
+                            />
+                            <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 pointer-events-none md:hidden">
+                                <motion.div
+                                    key="mobile-sort-panel"
+                                    initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                                    exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                                    transition={{ duration: 0.2 }}
+                                    className="w-full max-w-sm glass-panel rounded-2xl p-6 shadow-2xl ring-1 ring-white/10 max-h-[80vh] overflow-y-auto flex flex-col pointer-events-auto"
+                                >
+                                    <div className="flex items-center justify-between mb-4">
+                                        <h3 className="text-xl font-bold text-gray-900 dark:text-white">排序方式</h3>
+                                        <button 
+                                            onClick={() => setSortBy('最新发布')} 
+                                            className="text-sm font-medium text-primary hover:text-primary/80 transition-colors"
+                                        >
+                                            重置
+                                        </button>
+                                    </div>
+                                    
+                                    <div className="w-full h-px bg-gray-100 dark:bg-gray-800 mb-6" />
 
-                        <div className="flex flex-col gap-3 mb-8">
-                            {sortOptions.map((option) => {
-                                let icon;
-                                switch(option) {
-                                    case '最新发布': 
-                                        icon = <Clock className="w-5 h-5" />; 
-                                        break;
-                                    case '最受欢迎': 
-                                        icon = <Eye className="w-5 h-5" />; 
-                                        break;
-                                    case '最早发布': 
-                                        icon = <History className="w-5 h-5" />; 
-                                        break;
-                                    default: 
-                                        icon = <Clock className="w-5 h-5" />;
-                                }
+                                    <div className="flex flex-col gap-3 mb-8">
+                                        {sortOptions.map((option) => {
+                                            let icon;
+                                            switch(option) {
+                                                case '最新发布': 
+                                                    icon = <Clock className="w-5 h-5" />; 
+                                                    break;
+                                                case '最受欢迎': 
+                                                    icon = <Eye className="w-5 h-5" />; 
+                                                    break;
+                                                case '最早发布': 
+                                                    icon = <History className="w-5 h-5" />; 
+                                                    break;
+                                                default: 
+                                                    icon = <Clock className="w-5 h-5" />;
+                                            }
 
-                                return (
-                                    <motion.button
-                                        key={option}
-                                        whileHover={{ scale: 1.02 }}
-                                        whileTap={{ scale: 0.95 }}
-                                        onClick={() => {
-                                            setSortBy(option);
-                                            // 稍微延迟关闭以展示点击反馈
-                                            setTimeout(() => setShowMobileSort(false), 150);
-                                        }}
-                                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition-all duration-200 ${
-                                            sortBy === option 
-                                            ? 'bg-primary/10 border-primary text-primary shadow-sm font-bold' 
-                                            : 'bg-transparent border-transparent hover:bg-gray-50 dark:hover:bg-white/5 text-gray-600 dark:text-gray-300'
-                                        }`}
+                                            return (
+                                                <motion.button
+                                                    key={option}
+                                                    whileHover={{ scale: 1.02 }}
+                                                    whileTap={{ scale: 0.95 }}
+                                                    onClick={() => {
+                                                        setSortBy(option);
+                                                        // 稍微延迟关闭以展示点击反馈
+                                                        setTimeout(() => setShowMobileSort(false), 150);
+                                                    }}
+                                                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition-all duration-200 ${
+                                                        sortBy === option 
+                                                        ? 'bg-primary/10 border-primary text-primary shadow-sm font-bold' 
+                                                        : 'bg-transparent border-transparent hover:bg-gray-50 dark:hover:bg-white/5 text-gray-600 dark:text-gray-300'
+                                                    }`}
+                                                >
+                                                    <div className={`p-2 rounded-lg ${
+                                                        sortBy === option ? 'bg-primary text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
+                                                    }`}>
+                                                        {icon}
+                                                    </div>
+                                                    <span className="text-base">{option}</span>
+                                                </motion.button>
+                                            );
+                                        })}
+                                    </div>
+
+                                    <button 
+                                        onClick={() => setShowMobileSort(false)}
+                                        className="w-full py-4 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white font-bold text-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                                     >
-                                        <div className={`p-2 rounded-lg ${
-                                            sortBy === option ? 'bg-primary text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
-                                        }`}>
-                                            {icon}
-                                        </div>
-                                        <span className="text-base">{option}</span>
-                                    </motion.button>
-                                );
-                            })}
-                        </div>
-
-                        <button 
-                            onClick={() => setShowMobileSort(false)}
-                            className="w-full py-4 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white font-bold text-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-                        >
-                            取消
-                        </button>
-                    </div>
-                </div>,
+                                        取消
+                                    </button>
+                                </motion.div>
+                            </div>
+                        </>
+                    )}
+                </AnimatePresence>,
                 document.body
             )}
 
             {/* 3. Heatmap Modal */}
-            {showMobileHeatmap && heatmapData && createPortal(
-                <div className="fixed inset-0 z-[100] flex items-center justify-center md:hidden p-4">
-                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onClick={() => setShowMobileHeatmap(false)} />
-                    <div className="relative glass-panel w-full max-h-[85vh] rounded-2xl p-4 animate-in zoom-in-95 duration-200 flex flex-col">
-                        <div className="flex items-center justify-between mb-4 shrink-0">
-                            <div className="flex items-center gap-2">
-                                <Flame className="w-5 h-5 text-primary" />
-                                <h3 className="text-lg font-bold text-gray-900 dark:text-white">上传热力图</h3>
-                            </div>
-                            <button onClick={() => setShowMobileHeatmap(false)} className="p-2 bg-gray-100 dark:bg-surface-border rounded-full text-gray-500 hover:bg-gray-200 dark:hover:bg-surface-border/80">
-                                <X className="w-5 h-5" />
-                            </button>
-                        </div>
-                        <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0">
-                             <Heatmap
-                                data={heatmapData.days}
-                                year={heatmapYear}
-                                onYearChange={setHeatmapYear}
-                                startDate={heatmapData.startDate}
-                                endDate={heatmapData.endDate}
-                                variant="compact" // Use compact variant for one-page view on mobile
+            {createPortal(
+                <AnimatePresence>
+                    {showMobileHeatmap && heatmapData && (
+                        <>
+                            <motion.div
+                                key="mobile-heatmap-overlay"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                className="fixed inset-0 bg-black/40 backdrop-blur-md z-[9998] md:hidden"
+                                onClick={() => setShowMobileHeatmap(false)}
                             />
-                        </div>
-                    </div>
-                </div>,
+                            <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 pointer-events-none md:hidden">
+                                <motion.div
+                                    key="mobile-heatmap-panel"
+                                    initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                                    exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                                    transition={{ duration: 0.2 }}
+                                    className="w-full max-w-sm glass-panel rounded-2xl p-4 shadow-2xl ring-1 ring-white/10 max-h-[85vh] overflow-y-auto flex flex-col pointer-events-auto"
+                                >
+                                    <div className="flex items-center justify-between mb-4 shrink-0">
+                                        <div className="flex items-center gap-2">
+                                            <Flame className="w-5 h-5 text-primary" />
+                                            <h3 className="text-lg font-bold text-gray-900 dark:text-white">上传热力图</h3>
+                                        </div>
+                                        <button onClick={() => setShowMobileHeatmap(false)} className="p-2 bg-gray-100 dark:bg-surface-border rounded-full text-gray-500 hover:bg-gray-200 dark:hover:bg-surface-border/80">
+                                            <X className="w-5 h-5" />
+                                        </button>
+                                    </div>
+                                    <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0">
+                                         <Heatmap
+                                            data={heatmapData.days}
+                                            year={heatmapYear}
+                                            onYearChange={setHeatmapYear}
+                                            startDate={heatmapData.startDate}
+                                            endDate={heatmapData.endDate}
+                                            variant="compact"
+                                        />
+                                    </div>
+                                </motion.div>
+                            </div>
+                        </>
+                    )}
+                </AnimatePresence>,
                 document.body
             )}
 
+            {/* Desktop Heatmap Modal */}
+            {heatmapData && (
+                <HeatmapModal 
+                    isOpen={showHeatmapModal}
+                    onClose={() => setShowHeatmapModal(false)}
+                    data={heatmapData.days}
+                    year={heatmapYear}
+                    onYearChange={setHeatmapYear}
+                />
+            )}
+
             {/* Filter Bar - Desktop Only */}
-            <section className="hidden md:block glass-nav transition-colors duration-300">
+            <section className="hidden md:block glass-nav transition-colors duration-300 relative z-40">
                 <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 py-4">
                     <div className="flex flex-col md:flex-row items-center justify-between gap-4">
                         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar w-full md:w-auto pb-2 md:pb-0">
@@ -616,56 +680,21 @@ export const Home: React.FC = () => {
                             ))}
                         </div>
                         
-                        {/* Custom Dropdown */}
-                        <div className="relative z-50">
-                            <button 
-                                onClick={() => setSortOpen(!sortOpen)}
-                                className="flex items-center gap-3 px-4 py-2 rounded-full text-sm font-medium bg-white/50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-800 border border-transparent hover:border-gray-200 dark:hover:border-gray-700 text-gray-600 dark:text-gray-300 min-w-[160px] justify-between group transition-all"
-                            >
-                                <span className="text-gray-400 dark:text-gray-500 text-xs font-semibold uppercase tracking-wider group-hover:text-gray-600 dark:group-hover:text-gray-400">排序</span>
-                                <span className="flex-1 text-right text-gray-900 dark:text-white">{sortBy}</span>
-                                <ChevronDown className={`w-4 h-4 text-gray-400 dark:text-gray-500 transition-transform duration-200 group-hover:text-gray-600 dark:group-hover:text-white ${sortOpen ? 'rotate-180' : ''}`} />
-                            </button>
-                            
-                            {sortOpen && (
-                                <>
-                                    <div className="fixed inset-0 z-40" onClick={() => setSortOpen(false)}></div>
-                                    <div className="absolute right-0 mt-2 w-48 glass-panel rounded-xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-100">
-                                        {sortOptions.map((option) => (
-                                            <button
-                                                key={option}
-                                                onClick={() => {
-                                                    setSortBy(option);
-                                                    setSortOpen(false);
-                                                }}
-                                                className={`w-full text-left px-4 py-3 text-sm transition-colors hover:bg-gray-100 dark:hover:bg-[#23303e] flex items-center justify-between ${
-                                                    sortBy === option ? 'text-primary bg-primary/5 font-medium' : 'text-gray-700 dark:text-gray-300'
-                                                }`}
-                                            >
-                                                {option}
-                                                {sortBy === option && <div className="w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_8px_rgba(19,127,236,0.5)]"></div>}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </>
-                            )}
+                        {/* Custom Dropdown - Replaced with DropdownFilter */}
+                        <div className="w-[180px] z-50">
+                            <DropdownFilter
+                                label="排序"
+                                value={sortBy}
+                                onChange={setSortBy}
+                                options={sortOptions.map(o => ({ label: o, value: o }))}
+                                className="w-full"
+                            />
                         </div>
                     </div>
                 </div>
             </section>
 
-            {/* Heatmap Section - Desktop Only */}
-            {heatmapData && currentUser && !searchQuery && (
-                <section className="hidden md:block max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
-                    <Heatmap
-                        data={heatmapData.days}
-                        year={heatmapYear}
-                        onYearChange={setHeatmapYear}
-                        startDate={heatmapData.startDate}
-                        endDate={heatmapData.endDate}
-                    />
-                </section>
-            )}
+            {/* Heatmap Section - Desktop Only (Removed) */}
 
             {/* Gallery Grid */}
             <section className="max-w-[1920px] mx-auto px-[10px] sm:px-6 lg:px-8 py-2 md:py-8">

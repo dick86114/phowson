@@ -118,13 +118,12 @@ export const Admin: React.FC<{ hideLayout?: boolean }> = ({ hideLayout }) => {
     // --- State & Queries for "Me" Photos ---
     const [albumMonth, setAlbumMonth] = useState<'all' | string>('all');
     const [albumCategory, setAlbumCategory] = useState<'all' | string>('all');
-    const [albumCamera, setAlbumCamera] = useState<'all' | string>('all');
     const [albumPageSize, setAlbumPageSize] = useState(24);
     const [albumPage, setAlbumPage] = useState(1);
 
     useEffect(() => {
         setAlbumPage(1);
-    }, [albumMonth, albumCamera, albumPageSize, albumCategory]);
+    }, [albumMonth, albumPageSize, albumCategory]);
 
     const { data: categories = [] } = useQuery({
         queryKey: ['categories'],
@@ -150,7 +149,7 @@ export const Admin: React.FC<{ hideLayout?: boolean }> = ({ hideLayout }) => {
         isError: mePhotosError,
         refetch: refetchMePhotos,
     } = useQuery<PageResponse<any>>({
-        queryKey: ['me-photos', 'page', albumPage, albumPageSize, albumMonth, albumCategory, albumCamera],
+        queryKey: ['me-photos', 'page', albumPage, albumPageSize, albumMonth, albumCategory],
         enabled: isMeAlbumsRoute,
         queryFn: async () => {
             const params: Record<string, any> = {
@@ -165,12 +164,30 @@ export const Admin: React.FC<{ hideLayout?: boolean }> = ({ hideLayout }) => {
                 }
             }
             if (albumCategory !== 'all') params.category = albumCategory;
-            if (albumCamera !== 'all') params.camera = albumCamera;
             
             const res = await api.get<PageResponse<any>>('/me/photos/page', params);
             return res.data;
         },
     });
+
+    // Group photos by Month for timeline view
+    const groupedPhotos = useMemo(() => {
+        if (!mePhotosPage?.items) return [];
+        const groups: { title: string; photos: any[] }[] = [];
+        
+        mePhotosPage.items.forEach((p: any) => {
+            const date = new Date(p.createdAt);
+            const title = `${date.getFullYear()}年${date.getMonth() + 1}月`;
+            
+            let lastGroup = groups[groups.length - 1];
+            if (!lastGroup || lastGroup.title !== title) {
+                lastGroup = { title, photos: [] };
+                groups.push(lastGroup);
+            }
+            lastGroup.photos.push(p);
+        });
+        return groups;
+    }, [mePhotosPage?.items]);
 
     const onThisDayLabel = useMemo(() => {
         const d = new Date();
@@ -478,21 +495,12 @@ export const Admin: React.FC<{ hideLayout?: boolean }> = ({ hideLayout }) => {
                                 className="flex-1 min-w-[100px] md:min-w-0 md:w-auto md:flex-none"
                                 mobileGrid={true}
                             />
-                            <DropdownFilter
-                                label="器材"
-                                value={albumCamera}
-                                onChange={setAlbumCamera}
-                                options={(mePhotoFilters?.cameras || []).map(c => ({ label: c, value: c }))}
-                                icon={Camera}
-                                className="flex-1 min-w-[100px] md:min-w-0 md:w-auto md:flex-none"
-                            />
                             
-                            {(albumMonth !== 'all' || albumCategory !== 'all' || albumCamera !== 'all') && (
+                            {(albumMonth !== 'all' || albumCategory !== 'all') && (
                                 <button
                                     onClick={() => {
                                         setAlbumMonth('all');
                                         setAlbumCategory('all');
-                                        setAlbumCamera('all');
                                         setAlbumPageSize(24);
                                         setAlbumPage(1);
                                     }}
@@ -572,26 +580,38 @@ export const Admin: React.FC<{ hideLayout?: boolean }> = ({ hideLayout }) => {
                             <EmptyState title="暂无照片" description="尝试调整筛选条件，或先去上传一张新照片。" />
                         ) : (
                             <>
-                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                                    {(mePhotosPage?.items || []).map((p: any) => (
-                                        <Link
-                                            key={p.id}
-                                            to={`/photo/${p.id}`}
-                                            className="group relative glass-card rounded-xl overflow-hidden aspect-square hover:ring-4 hover:ring-primary/10 transition-all"
-                                        >
-                                            <img
-                                                src={getPhotoUrl(p, 'thumb')}
-                                                alt={p.title}
-                                                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                                                loading="lazy"
-                                                decoding="async"
-                                            />
-                                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300" />
-                                            <div className="absolute bottom-0 left-0 right-0 p-3 translate-y-full group-hover:translate-y-0 transition-transform duration-300 bg-gradient-to-t from-black/60 to-transparent">
-                                                <p className="text-white text-xs font-medium truncate">{p.title}</p>
-                                                <p className="text-white/70 text-[10px]">{new Date(p.createdAt).toLocaleDateString()}</p>
+                                <div className="space-y-12">
+                                    {groupedPhotos.map((group) => (
+                                        <div key={group.title} className="space-y-4">
+                                            <div className="flex items-center gap-4 sticky top-16 md:top-20 z-10 py-2 glass-nav/80 backdrop-blur-md -mx-2 px-2 rounded-lg">
+                                                <div className="w-2 h-8 bg-primary rounded-full"></div>
+                                                <h4 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">{group.title}</h4>
+                                                <div className="h-px flex-1 bg-gradient-to-r from-gray-200/50 dark:from-white/10 to-transparent"></div>
+                                                <span className="text-sm font-medium text-gray-500 dark:text-gray-400">{group.photos.length} 张照片</span>
                                             </div>
-                                        </Link>
+                                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                                                {group.photos.map((p: any) => (
+                                                    <Link
+                                                        key={p.id}
+                                                        to={`/photo/${p.id}`}
+                                                        className="group relative glass-card rounded-xl overflow-hidden aspect-square hover:ring-4 hover:ring-primary/10 transition-all"
+                                                    >
+                                                        <img
+                                                            src={getPhotoUrl(p, 'thumb')}
+                                                            alt={p.title}
+                                                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                                                            loading="lazy"
+                                                            decoding="async"
+                                                        />
+                                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300" />
+                                                        <div className="absolute bottom-0 left-0 right-0 p-3 translate-y-full group-hover:translate-y-0 transition-transform duration-300 bg-gradient-to-t from-black/60 to-transparent">
+                                                            <p className="text-white text-xs font-medium truncate">{p.title}</p>
+                                                            <p className="text-white/70 text-[10px]">{new Date(p.createdAt).toLocaleDateString()}</p>
+                                                        </div>
+                                                    </Link>
+                                                ))}
+                                            </div>
+                                        </div>
                                     ))}
                                 </div>
 

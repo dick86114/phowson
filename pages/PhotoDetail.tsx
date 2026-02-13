@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Share2, Heart, MessageCircle, MoreHorizontal, Send, Bookmark, Maximize2, X, ZoomIn, ZoomOut, Download, RefreshCcw, Sparkles, Loader2, Monitor, HardDrive, RefreshCw, LogIn, ChevronDown, ChevronUp, MapPin, Camera, Disc, Timer, Aperture, Zap, ImageIcon } from 'lucide-react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { ArrowLeft, Share2, Heart, MessageCircle, MoreHorizontal, Send, Bookmark, Maximize2, X, ZoomIn, ZoomOut, Download, Sparkles, Loader2, Monitor, HardDrive, RefreshCw, LogIn, ChevronDown, ChevronUp, MapPin, Camera, Disc, Timer, Aperture, Zap, ImageIcon } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
+import { AnimatePresence, motion } from 'framer-motion';
 import { TransformWrapper, TransformComponent, useControls, useTransformComponent } from "react-zoom-pan-pinch";
 import api, { API_BASE_URL } from '../api';
 import { useAuth } from '../hooks/useAuth';
@@ -21,21 +22,17 @@ const formatBytes = (bytes: number) => {
 };
 
 const ZoomControls = () => {
-    const { zoomIn, zoomOut, resetTransform } = useControls();
+    const { zoomIn, zoomOut } = useControls();
     const transformState = useTransformComponent(({ state }) => state);
 
     return (
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 glass-panel px-3 py-2 rounded-full pointer-events-auto">
-            <button onClick={() => zoomOut()} className="p-2 text-gray-300 hover:text-white transition-colors" disabled={transformState.scale <= 0.5}>
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 bg-black/60 backdrop-blur-md border border-white/20 px-3 py-2 rounded-full pointer-events-auto shadow-lg">
+            <button onClick={() => zoomOut()} className="p-2 text-white/70 hover:text-white transition-colors" disabled={transformState.scale <= 0.5}>
                 <ZoomOut className="w-5 h-5" />
             </button>
-            <span className="text-sm font-mono w-14 text-center text-white select-none">{Math.round(transformState.scale * 100)}%</span>
-            <button onClick={() => zoomIn()} className="p-2 text-gray-300 hover:text-white transition-colors" disabled={transformState.scale >= 8}>
+            <span className="text-sm font-mono w-14 text-center text-white select-none drop-shadow-sm">{Math.round(transformState.scale * 100)}%</span>
+            <button onClick={() => zoomIn()} className="p-2 text-white/70 hover:text-white transition-colors" disabled={transformState.scale >= 8}>
                 <ZoomIn className="w-5 h-5" />
-            </button>
-            <div className="w-px h-4 bg-gray-600 mx-1"></div>
-            <button onClick={() => resetTransform()} className="p-2 text-gray-300 hover:text-primary transition-colors" title="重置">
-                <RefreshCcw className="w-4 h-4" />
             </button>
         </div>
     );
@@ -88,12 +85,13 @@ export const PhotoDetail: React.FC = () => {
     }, [currentUser]);
     
     // Fetch photo data
-    const { data: photo, isLoading } = useQuery({
+    const { data: photo, isLoading, isPlaceholderData } = useQuery({
         queryKey: ['photo', id],
         queryFn: async () => {
             const res = await api.get(`/photos/${id}`);
             return res.data;
-        }
+        },
+        placeholderData: keepPreviousData,
     });
 
     // Fetch all photos to handle navigation
@@ -105,10 +103,129 @@ export const PhotoDetail: React.FC = () => {
         }
     });
 
+    const currentIndex = allPhotos?.findIndex((p: any) => p.id === id) ?? -1;
+
+    const handlePrev = () => {
+        if (!allPhotos || currentIndex <= 0) return;
+        setDirection(-1);
+        const prevId = allPhotos[currentIndex - 1].id;
+        navigate(`/photo/${prevId}`, { replace: true });
+    };
+
+    const handleNext = () => {
+        if (!allPhotos || currentIndex === -1 || currentIndex >= allPhotos.length - 1) return;
+        setDirection(1);
+        const nextId = allPhotos[currentIndex + 1].id;
+        navigate(`/photo/${nextId}`, { replace: true });
+    };
+
+    // Preload next/prev images for smoother navigation
+    useEffect(() => {
+        if (!allPhotos || currentIndex === -1) return;
+        
+        const preloadImage = (url: string) => {
+            const img = new Image();
+            img.src = url;
+        };
+
+        const nextPhoto = allPhotos[currentIndex + 1];
+        const prevPhoto = allPhotos[currentIndex - 1];
+
+        if (nextPhoto) preloadImage(getPhotoUrl(nextPhoto, 'medium'));
+        if (prevPhoto) preloadImage(getPhotoUrl(prevPhoto, 'medium'));
+    }, [currentIndex, allPhotos]);
+
     const [commentText, setCommentText] = useState('');
     const [isFullScreen, setIsFullScreen] = useState(false);
     const [showShareCard, setShowShareCard] = useState(false);
     const [isAiCritiqueOpen, setIsAiCritiqueOpen] = useState(true);
+    const [isZoomed, setIsZoomed] = useState(false);
+    const [direction, setDirection] = useState(0);
+    
+    // Fullscreen navigation (Keyboard & Swipe)
+    const transformComponentRef = React.useRef<any>(null);
+    const clickTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const handleContentClick = (e: React.MouseEvent) => {
+        // Ignore clicks on buttons/controls
+        if ((e.target as HTMLElement).closest('button')) return;
+
+        if (clickTimeoutRef.current) {
+            clearTimeout(clickTimeoutRef.current);
+            clickTimeoutRef.current = null;
+            return;
+        }
+
+        clickTimeoutRef.current = setTimeout(() => {
+            setIsFullScreen(false);
+            clickTimeoutRef.current = null;
+        }, 250);
+    };
+
+    // Keyboard navigation
+    useEffect(() => {
+        if (!isFullScreen) return;
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'ArrowLeft') handlePrev();
+            if (e.key === 'ArrowRight') handleNext();
+            if (e.key === 'Escape') setIsFullScreen(false);
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isFullScreen, currentIndex, allPhotos]);
+
+    // Use capture phase for touch events to bypass TransformWrapper's stopPropagation
+    useEffect(() => {
+        if (!isFullScreen) return;
+
+        const container = document.getElementById('fullscreen-container');
+        if (!container) return;
+
+        // We need to use native event listeners with { capture: true }
+        // Because React events bubble, and the library stops propagation at bubble phase
+        // but we want to catch it before or ensure we get it.
+        // Actually, capturing phase happens BEFORE target handles it.
+        
+        let tStart: number | null = null;
+        let tEnd: number | null = null;
+
+        const handleTouchStart = (e: TouchEvent) => {
+            tEnd = null;
+            tStart = e.touches[0].clientX;
+        };
+
+        const handleTouchMove = (e: TouchEvent) => {
+            tEnd = e.touches[0].clientX;
+        };
+
+        const handleTouchEnd = (e: TouchEvent) => {
+            if (!tStart || !tEnd) return;
+            const distance = tStart - tEnd;
+            const minSwipeDistance = 50;
+
+            // Check scale
+            const scale = transformComponentRef.current?.instance.transformState.scale ?? 1;
+            if (scale > 1.1) return;
+
+            if (Math.abs(distance) > minSwipeDistance) {
+                // Prevent default if it's a swipe, though usually too late for scroll
+                if (distance > 0) handleNext();
+                else handlePrev();
+            }
+        };
+
+        container.addEventListener('touchstart', handleTouchStart, { capture: true });
+        container.addEventListener('touchmove', handleTouchMove, { capture: true });
+        container.addEventListener('touchend', handleTouchEnd, { capture: true });
+
+        return () => {
+            container.removeEventListener('touchstart', handleTouchStart, { capture: true });
+            container.removeEventListener('touchmove', handleTouchMove, { capture: true });
+            container.removeEventListener('touchend', handleTouchEnd, { capture: true });
+        };
+    }, [isFullScreen, currentIndex, allPhotos]);
+
+
     
     // Mutations
     const toggleLikeMutation = useMutation({
@@ -175,7 +292,8 @@ export const PhotoDetail: React.FC = () => {
         return () => { document.body.style.overflow = 'unset'; };
     }, [isFullScreen]);
 
-    if (isLoading) return <div className="p-8 flex items-center justify-center min-h-screen"><Loader2 className="animate-spin text-primary w-8 h-8" /></div>;
+    // Initial loading state (only when no data is available)
+    if (isLoading && !photo) return <div className="p-8 flex items-center justify-center min-h-screen"><Loader2 className="animate-spin text-primary w-8 h-8" /></div>;
     if (!photo) return <div className="p-8 text-center text-gray-500">Photo not found</div>;
 
     const exif = JSON.parse(photo.exif || '{}');
@@ -184,12 +302,32 @@ export const PhotoDetail: React.FC = () => {
         return l.userId === guestId;
     });
 
+    const slideVariants = {
+        enter: (direction: number) => ({
+            x: direction > 0 ? '100%' : '-100%',
+            opacity: 0,
+        }),
+        center: {
+            x: 0,
+            opacity: 1,
+            zIndex: 1,
+        },
+        exit: (direction: number) => ({
+            x: direction < 0 ? '100%' : '-100%',
+            opacity: 0,
+            zIndex: 0,
+        })
+    };
+
     return (
         <div className="bg-background-light dark:bg-background-dark min-h-screen pb-0 transition-colors duration-300">
             <div className="max-w-[1920px] mx-auto">
                 <div className="flex flex-col xl:flex-row h-full">
                     {/* Image Viewer (Inline) */}
-                    <div className="xl:flex-1 bg-gray-100 dark:bg-black flex items-center justify-center p-4 xl:p-8 min-h-[60vh] xl:h-[calc(100vh-8rem)] xl:sticky xl:top-32 relative group overflow-hidden transition-colors">
+                    <div 
+                        className="xl:flex-1 bg-gray-100 dark:bg-black flex items-center justify-center pt-20 xl:pt-0 xl:h-[calc(100vh-8rem)] xl:sticky xl:top-32 relative group overflow-hidden transition-colors w-full xl:aspect-auto"
+                        style={{ '--photo-ratio': photo.imageWidth && photo.imageHeight ? `${photo.imageWidth}/${photo.imageHeight}` : 'auto' } as React.CSSProperties}
+                    >
                         {/* Floating Navigation Controls */}
                         <div className="absolute top-6 left-6 z-20 flex items-center gap-3">
                             <button 
@@ -218,13 +356,13 @@ export const PhotoDetail: React.FC = () => {
                             </button>
                         </div>
 
-                        <div className="relative w-full h-full flex items-center justify-center">
+                        <div className="relative w-full xl:h-full flex items-center justify-center aspect-[var(--photo-ratio)] xl:aspect-auto">
                         <ProgressiveImage
                                 src={getPhotoUrl(photo, 'medium')}
                                 placeholderSrc={getPhotoUrl(photo, 'thumb')}
                                 alt={photo.title}
                                 className="w-full h-full"
-                                imgClassName="shadow-2xl rounded-sm cursor-zoom-in"
+                                imgClassName="cursor-zoom-in"
                                 fit="contain"
                                 loading="eager"
                                 decoding="async"
@@ -505,6 +643,7 @@ export const PhotoDetail: React.FC = () => {
             {/* FULLSCREEN OVERLAY */}
             {isFullScreen && (
                 <div 
+                    id="fullscreen-container"
                     className="fixed inset-0 z-[100] bg-black flex flex-col animate-in fade-in duration-200 overflow-hidden"
                 >
                     <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-6 py-4 bg-gradient-to-b from-black/60 to-transparent pointer-events-none">
@@ -519,33 +658,57 @@ export const PhotoDetail: React.FC = () => {
                         </button>
                     </div>
 
-                    <TransformWrapper
-                        initialScale={1}
-                        minScale={0.5}
-                        maxScale={8}
-                        centerOnInit
-                        wheel={{ step: 0.1 }}
-                    >
-                        <ZoomControls />
-                        <div className="flex-1 w-full h-full relative overflow-hidden flex items-center justify-center">
-                            <TransformComponent
-                                wrapperClass="!w-full !h-full"
-                                contentClass="!w-full !h-full flex items-center justify-center"
+                    <div className="relative flex-1 w-full h-full overflow-hidden">
+                        <AnimatePresence initial={false} custom={direction}>
+                            <motion.div
+                                key={photo.id}
+                                custom={direction}
+                                variants={slideVariants}
+                                initial="enter"
+                                animate="center"
+                                exit="exit"
+                                transition={{
+                                    x: { type: "spring", stiffness: 300, damping: 30 },
+                                    opacity: { duration: 0.2 }
+                                }}
+                                className="absolute inset-0 w-full h-full flex items-center justify-center"
                             >
-                                <ProgressiveImage
-                                src={getPhotoUrl(photo, 'medium')}
-                                placeholderSrc={getPhotoUrl(photo, 'thumb')}
-                                alt={photo.title}
-                                className="w-full h-full"
-                                imgClassName="w-full h-full"
-                                fit="contain"
-                                loading="eager"
-                                decoding="async"
-                                maxRetries={3}
-                            />
-                            </TransformComponent>
-                        </div>
-                    </TransformWrapper>
+                                <TransformWrapper
+                                    ref={transformComponentRef}
+                                    initialScale={1}
+                                    minScale={0.5}
+                                    maxScale={8}
+                                    centerOnInit
+                                    wheel={{ step: 0.1 }}
+                                    onTransfrom={(ref) => setIsZoomed(ref.state.scale > 1.01)}
+                                    panning={{ disabled: !isZoomed }}
+                                >
+                                    <ZoomControls />
+                                    <div 
+                                        className="flex-1 w-full h-full relative overflow-hidden flex items-center justify-center"
+                                        onClick={handleContentClick}
+                                    >
+                                        <TransformComponent
+                                            wrapperClass="!w-full !h-full"
+                                            contentClass="!w-full !h-full flex items-center justify-center"
+                                        >
+                                            <ProgressiveImage
+                                                src={getPhotoUrl(photo, 'medium')}
+                                                placeholderSrc={getPhotoUrl(photo, 'thumb')}
+                                                alt={photo.title}
+                                                className="w-full h-full"
+                                                imgClassName="w-full h-full"
+                                                fit="contain"
+                                                loading="eager"
+                                                decoding="async"
+                                                maxRetries={3}
+                                            />
+                                        </TransformComponent>
+                                    </div>
+                                </TransformWrapper>
+                            </motion.div>
+                        </AnimatePresence>
+                    </div>
                 </div>
             )}
 

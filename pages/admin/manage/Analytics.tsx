@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { 
     Users, Image as ImageIcon, Zap, TrendingUp, TrendingDown, 
@@ -234,6 +234,8 @@ const DonutChart = ({ data }: { data: { label: string, value: number, color: str
 };
 
 const Heatmap = ({ data }: { data: { date: string, count: number }[] }) => {
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
+
     // Generate last 365 days
     const today = new Date();
     const days = [];
@@ -246,6 +248,13 @@ const Heatmap = ({ data }: { data: { date: string, count: number }[] }) => {
 
     const dataMap = new Map(data.map(d => [d.date, d.count]));
 
+    useEffect(() => {
+        // Scroll to the end (today) on mount
+        if (scrollContainerRef.current) {
+            scrollContainerRef.current.scrollLeft = scrollContainerRef.current.scrollWidth;
+        }
+    }, []);
+
     const getColor = (count: number) => {
         if (count === 0) return 'bg-gray-100/50 dark:bg-white/5 border border-transparent';
         if (count <= 2) return 'bg-green-200/50 dark:bg-green-900/30 border border-green-200/20 dark:border-green-800/20 backdrop-blur-sm';
@@ -255,7 +264,7 @@ const Heatmap = ({ data }: { data: { date: string, count: number }[] }) => {
     };
 
     return (
-        <div className="w-full overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-700">
+        <div ref={scrollContainerRef} className="w-full overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-700">
             <div className="flex gap-1 min-w-max p-1">
                 <div className="grid grid-rows-7 grid-flow-col gap-1">
                     {days.map((date) => {
