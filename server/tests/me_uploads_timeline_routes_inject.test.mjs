@@ -32,5 +32,4 @@ const headers = {
 }
 
 await app.close();
-console.log('me_uploads_timeline_routes_inject.test.mjs: ok');
 

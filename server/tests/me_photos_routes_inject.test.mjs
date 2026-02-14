@@ -37,4 +37,3 @@ const headers = {
 }
 
 await app.close();
-console.log('me_photos_routes_inject.test.mjs: ok');

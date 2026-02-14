@@ -12,5 +12,4 @@ assert.deepEqual(resolveAdminRoute('/admin/me/profile', true), { tab: 'settings'
 
 assert.deepEqual(resolveAdminRoute('/admin/unknown', true), {});
 
-console.log('adminRoutes.test.ts: ok');
 

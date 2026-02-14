@@ -162,7 +162,6 @@ const main = async () => {
   await testStatsDays();
   await testUploadTooLarge();
   await app.close();
-  console.log('negative_suite.mjs: ok');
 };
 
 await main();

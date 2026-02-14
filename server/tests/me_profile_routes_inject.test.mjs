@@ -60,5 +60,4 @@ const headers = {
 }
 
 await app.close();
-console.log('me_profile_routes_inject.test.mjs: ok');
 

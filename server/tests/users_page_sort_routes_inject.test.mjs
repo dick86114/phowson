@@ -19,7 +19,6 @@ const user3 = `u3_${crypto.randomBytes(4).toString('hex')}@example.com`;
 const password = 'Abcdefg1';
 
 // Create users sequentially to ensure createdAt order
-console.log('Creating user 1...');
 await app.inject({
   method: 'POST',
   url: '/users',
@@ -29,7 +28,6 @@ await app.inject({
 
 await new Promise(resolve => setTimeout(resolve, 100)); // Small delay
 
-console.log('Creating user 2...');
 await app.inject({
   method: 'POST',
   url: '/users',
@@ -39,7 +37,6 @@ await app.inject({
 
 await new Promise(resolve => setTimeout(resolve, 100)); // Small delay
 
-console.log('Creating user 3...');
 await app.inject({
   method: 'POST',
   url: '/users',
@@ -104,4 +101,3 @@ await app.inject({
 }
 
 await app.close();
-console.log('users_page_sort_routes_inject.test.mjs: ok');

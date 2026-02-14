@@ -102,5 +102,4 @@ let userId = '';
 }
 
 await app.close();
-console.log('users_page_status_routes_inject.test.mjs: ok');
 

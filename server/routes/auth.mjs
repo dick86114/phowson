@@ -1,10 +1,11 @@
 import { pool } from '../db.mjs';
-import { badRequest, unauthorized } from '../lib/http_errors.mjs';
+import { HttpError, badRequest, unauthorized } from '../lib/http_errors.mjs';
 import { normalizeRole } from '../lib/roles.mjs';
 import { hashPassword, verifyPassword } from '../lib/passwords.mjs';
 import { generateToken, hashToken } from '../lib/tokens.mjs';
 import { createSession, deleteSession } from '../db/sessions.mjs';
 import { createCaptcha } from '../lib/captcha.mjs';
+import sharp from 'sharp';
 
 const getBearerToken = (req) => {
   const auth = String(req.headers.authorization ?? '').trim();
@@ -131,7 +132,21 @@ export const registerAuthRoutes = async (app) => {
     return { ok: true };
   });
 
-  app.get('/auth/captcha', async () => {
-    return createCaptcha();
+  app.get('/auth/captcha', async (req) => {
+    const q = req.query || {};
+    const format = String(q.format ?? 'svg').trim().toLowerCase();
+    const captcha = createCaptcha();
+    if (!format || format === 'svg') return captcha;
+
+    if (format === 'base64' || format === 'png' || format === 'png_base64') {
+      try {
+        const png = await sharp(Buffer.from(String(captcha.svg ?? ''), 'utf8')).png().toBuffer();
+        return { token: captcha.token, pngBase64: png.toString('base64'), mimeType: 'image/png' };
+      } catch {
+        throw new HttpError(500, 'CAPTCHA_RENDER_FAILED', '验证码图片生成失败');
+      }
+    }
+
+    throw badRequest('INVALID_CAPTCHA_FORMAT', 'format 参数不支持');
   });
 };

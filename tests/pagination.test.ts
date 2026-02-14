@@ -21,5 +21,4 @@ assert.deepEqual(m2.pageItems, [1, '...', 49, 50, 51, '...', 100]);
 const m3 = getPaginationModel(1000, 999, 10);
 assert.equal(m3.safePage, 100);
 
-console.log('pagination.test.ts: ok');
 

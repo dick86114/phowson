@@ -176,11 +176,13 @@ const makeReport = (results) => {
 const main = async () => {
   const results = []
   results.push(await runUsersSuite())
+  results.push(await runInjectSuite('验证码 base64', './auth_captcha_base64_routes_inject.test.mjs'))
   results.push(await runInjectSuite('评论筛选', './admin_comments_filters_routes_inject.test.mjs'))
   results.push(await runInjectSuite('评论批量操作', './admin_comments_batch_routes_inject.test.mjs'))
   results.push(await runInjectSuite('我的统计', './me_analytics_routes_inject.test.mjs'))
   results.push(await runInjectSuite('我的资料', './me_profile_routes_inject.test.mjs'))
   results.push(await runInjectSuite('我的时间线', './me_uploads_timeline_routes_inject.test.mjs'))
+  results.push(await runInjectSuite('公开照片增量分页', './photos_page_since_routes_inject.test.mjs'))
   results.push(await runInjectSuite('筛选工具', './me_photos.test.mjs'))
   results.push(await runInjectSuite('异常路径', './negative_suite.mjs'))
   results.push(await runSmokeSuite())

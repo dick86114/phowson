@@ -54,5 +54,4 @@ const headers = {
 }
 
 await app.close();
-console.log('me_analytics_routes_inject.test.mjs: ok');
 

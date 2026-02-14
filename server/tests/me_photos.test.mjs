@@ -20,4 +20,3 @@ assert.equal(w3.whereSql.includes('extract(month'), true);
 assert.equal(w3.whereSql.includes('extract(day'), true);
 assert.deepEqual(w3.params, ['u1', 2, 6]);
 
-console.log('me_photos.test.mjs: ok');

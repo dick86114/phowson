@@ -28,5 +28,4 @@ const headers = {
 }
 
 await app.close();
-console.log('admin_photos_page_routes_inject.test.mjs: ok');
 

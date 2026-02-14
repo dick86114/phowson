@@ -29,4 +29,3 @@ assert.ok(res.headers.location.includes('Test%20User')); // Should be encoded
 await pool.query('delete from users where id=$1', [userId]);
 
 await app.close();
-console.log('media_avatar_route.test.mjs: ok');

@@ -179,6 +179,34 @@ export const registerPhotoRoutes = async (app) => {
     const offsetRaw = q.offset ?? 0;
     const limit = Math.max(1, Math.min(50, Number.parseInt(String(limitRaw), 10) || 12));
     const offset = Math.max(0, Number.parseInt(String(offsetRaw), 10) || 0);
+    const sinceRaw = q.since;
+    let sinceIso = null;
+    if (sinceRaw !== undefined && sinceRaw !== null && String(sinceRaw).trim() !== '') {
+      const ms = Date.parse(String(sinceRaw));
+      if (!Number.isFinite(ms)) throw badRequest('INVALID_SINCE', 'since 参数格式错误');
+      sinceIso = new Date(ms).toISOString();
+    }
+
+    if (sinceIso) {
+      const itemsSql = `${photoSelectSql(false)} where p.updated_at > $1 order by p.updated_at asc, p.id asc limit $2 offset $3`;
+      const itemsRes = await pool.query(itemsSql, [sinceIso, limit, offset]);
+      const totalRes = await pool.query('select count(1)::int as total from photos where updated_at > $1', [sinceIso]);
+      const total = Number(totalRes.rows?.[0]?.total || 0);
+      const items = itemsRes.rows || [];
+      const nextOffset = offset + items.length;
+      const nextSince = items.length ? String(items[items.length - 1]?.updatedAt ?? sinceIso) : sinceIso;
+
+      return {
+        items,
+        limit,
+        offset,
+        total,
+        hasMore: nextOffset < total,
+        nextOffset,
+        since: sinceIso,
+        nextSince,
+      };
+    }
 
     const itemsSql = `${photoSelectSql(false)} order by p.created_at desc limit $1 offset $2`;
     const itemsRes = await pool.query(itemsSql, [limit, offset]);
