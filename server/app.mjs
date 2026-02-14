@@ -1,6 +1,7 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import multipart from '@fastify/multipart';
+import compress from '@fastify/compress';
 import { registerErrorHandling } from './plugins/error.mjs';
 import { registerAuth } from './plugins/auth.mjs';
 import { registerCategoryRoutes } from './routes/categories.mjs';
@@ -44,6 +45,8 @@ export const createApp = () => {
     exposedHeaders: ['x-request-id'],
     credentials: true,
   });
+
+  app.register(compress);
 
   app.register(multipart, {
     limits: {
