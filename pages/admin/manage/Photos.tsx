@@ -5,8 +5,10 @@ import {
     Search, Calendar, Download, Sparkles, Tag, Trash2, 
     Edit2, Maximize2, Activity, ThumbsUp, MessageSquare, 
     Upload, Image as ImageIcon, Camera, Lock, User as UserIcon,
-    Loader2, X, Check, ArrowUp, ArrowDown
+    Loader2, X, Check, ArrowUp, ArrowDown, Plane, HelpCircle,
+    Mountain, FileText, Building, Film
 } from 'lucide-react';
+import * as LucideIcons from 'lucide-react';
 
 const StyledCheckbox = ({ checked, onChange, label, className }: { checked: boolean, onChange: () => void, label?: string, className?: string }) => (
     <div 
@@ -80,10 +82,21 @@ export const ManagePhotos: React.FC = () => {
         queryKey: ['categories'],
         enabled: true,
         queryFn: async () => {
-            const res = await api.get<{ value: string; label: string }[]>('/categories');
+            const res = await api.get<{ value: string; label: string; icon?: string }[]>('/categories');
             return res.data;
         },
     });
+
+    // Constants & Icon Mapping
+    const CATEGORY_ICONS: Record<string, React.ReactNode> = {
+        'landscape': <Mountain className="w-4 h-4" />,
+        'portrait': <UserIcon className="w-4 h-4" />,
+        'street': <Camera className="w-4 h-4" />,
+        'documentary': <FileText className="w-4 h-4" />,
+        'architecture': <Building className="w-4 h-4" />,
+        'travel': <Plane className="w-4 h-4" />,
+        'movie': <Film className="w-4 h-4" />,
+    };
 
     const {
         data: photosPage,
@@ -378,7 +391,7 @@ export const ManagePhotos: React.FC = () => {
                 <button
                     onClick={handleExport}
                     disabled={isExporting}
-                    className={`hidden md:flex items-center gap-2 px-4 py-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-lg text-sm font-medium hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors shadow-sm ${isExporting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    className={`hidden md:flex items-center gap-2 px-4 py-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-2xl text-sm font-medium hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors shadow-sm ${isExporting ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                     {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
                     {isExporting ? '导出中...' : '导出数据'}
@@ -390,18 +403,18 @@ export const ManagePhotos: React.FC = () => {
                 <div className="flex flex-col md:flex-row gap-4 mb-6">
                     <div className="flex-1 flex gap-3">
                         <div className="flex-1 relative group">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-800 dark:text-gray-200 group-focus-within:text-primary transition-colors" />
                             <input
                                 value={keyword}
                                 onChange={(e) => setKeyword(e.target.value)}
                                 placeholder="搜索照片标题、UID..."
-                                className="w-full pl-10 pr-4 py-2.5 bg-white/50 dark:bg-black/20 border border-gray-200 dark:border-white/10 rounded-lg text-base focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all backdrop-blur-sm"
+                                className="w-full pl-10 pr-4 py-2.5 bg-white/50 dark:bg-black/20 border border-gray-200 dark:border-white/10 rounded-2xl text-base focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all backdrop-blur-sm"
                             />
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 dark:text-gray-400 pointer-events-none group-focus-within:text-primary transition-colors" />
                         </div>
                         <button
                             onClick={handleExport}
                             disabled={isExporting}
-                            className={`md:hidden flex items-center justify-center w-[46px] shrink-0 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-lg transition-colors shadow-sm ${isExporting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            className={`md:hidden flex items-center justify-center w-[46px] shrink-0 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-2xl transition-colors shadow-sm ${isExporting ? 'opacity-50 cursor-not-allowed' : ''}`}
                         >
                             {isExporting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Download className="w-5 h-5" />}
                         </button>
@@ -413,8 +426,17 @@ export const ManagePhotos: React.FC = () => {
                                 value={category}
                                 onChange={setCategory}
                                 options={[
-                                    { label: '所有分类', value: 'all' },
-                                    ...categories.map(c => ({ label: c.label, value: c.value }))
+                                    { label: '所有分类', value: 'all', icon: <Tag className="w-4 h-4"/> },
+                                    ...categories.map(c => {
+                                        let Icon = <HelpCircle className="w-4 h-4" />;
+                                        if (c.icon && (LucideIcons as any)[c.icon]) {
+                                            const IconComponent = (LucideIcons as any)[c.icon];
+                                            Icon = <IconComponent className="w-4 h-4" />;
+                                        } else if (CATEGORY_ICONS[c.value]) {
+                                            Icon = CATEGORY_ICONS[c.value];
+                                        }
+                                        return { label: c.label, value: c.value, icon: Icon };
+                                    })
                                 ]}
                                 icon={Tag}
                                 mobileGrid={true}
@@ -436,7 +458,7 @@ export const ManagePhotos: React.FC = () => {
                         <button
                             type="button"
                             onClick={handleResetFilters}
-                            className="order-2 md:order-none px-4 py-2.5 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-white/10 dark:hover:bg-white/10 transition-colors whitespace-nowrap shrink-0"
+                            className="order-2 md:order-none px-4 py-2.5 rounded-2xl text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-white/10 dark:hover:bg-white/10 transition-colors whitespace-nowrap shrink-0"
                         >
                             重置筛选
                         </button>
@@ -452,19 +474,19 @@ export const ManagePhotos: React.FC = () => {
                             <div className="flex items-center gap-2 animate-in fade-in slide-in-from-left-2 duration-200">
                                 <button 
                                     onClick={handleBatchCritique}
-                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 text-primary rounded-lg text-xs font-medium hover:bg-primary/20 transition-colors"
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 text-primary rounded-2xl text-xs font-medium hover:bg-primary/20 transition-colors"
                                 >
                                     <Sparkles className="w-3.5 h-3.5" /> 批量AI点评
                                 </button>
                                 <button 
                                     onClick={handleBatchCategory}
-                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 dark:bg-white/5 text-gray-700 dark:text-gray-200 rounded-lg text-xs font-medium hover:bg-white/20 dark:hover:bg-white/10 transition-colors"
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 dark:bg-white/5 text-gray-700 dark:text-gray-200 rounded-2xl text-xs font-medium hover:bg-white/20 dark:hover:bg-white/10 transition-colors"
                                 >
                                     <Tag className="w-3.5 h-3.5" /> 批量分类
                                 </button>
                                 <button 
                                     onClick={handleBatchDelete}
-                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/10 text-red-600 dark:text-red-400 rounded-lg text-xs font-medium hover:bg-red-500/20 transition-colors"
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/10 text-red-600 dark:text-red-400 rounded-2xl text-xs font-medium hover:bg-red-500/20 transition-colors"
                                 >
                                     <Trash2 className="w-3.5 h-3.5" /> 批量删除
                                 </button>
@@ -478,7 +500,7 @@ export const ManagePhotos: React.FC = () => {
             </div>
 
             {/* Mobile View (Cards) */}
-            <div className="md:hidden space-y-4">
+            <div className="md:hidden space-y-6">
                 <div className="glass-card p-4 flex items-center justify-between">
                     <StyledCheckbox 
                         checked={(photosPage?.items || []).length > 0 && selectedIds.length === (photosPage?.items || []).length}
@@ -529,9 +551,9 @@ export const ManagePhotos: React.FC = () => {
                                         />
                                     </div>
                                     <div
-                                        className="w-20 h-20 shrink-0 rounded-lg bg-white/5 dark:bg-white/5 overflow-hidden cursor-pointer"
+                                        className="w-20 h-20 shrink-0 rounded-2xl bg-white/5 dark:bg-white/5 overflow-hidden cursor-pointer"
                                         onClick={() => setPreviewUrl(getPhotoUrl(photo, 'medium'))}
-                                            >
+                                    >
                                                 <img 
                                                     src={getPhotoUrl(photo, 'thumb')} 
                                                     alt={photo.title} 
@@ -573,19 +595,19 @@ export const ManagePhotos: React.FC = () => {
                                                         }
                                                     }}
                                                     disabled={critiquePhotoId === photo.id}
-                                                    className="p-1.5 text-gray-400 hover:text-purple-600 bg-white/5 dark:bg-white/5 rounded-lg"
+                                                    className="p-1.5 text-gray-400 hover:text-purple-600 bg-white/5 dark:bg-white/5 rounded-2xl"
                                                 >
                                                     {critiquePhotoId === photo.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
                                                 </button>
                                                 <Link 
                                                     to={`/edit/${photo.id}`}
-                                                    className="p-1.5 text-gray-400 hover:text-primary bg-white/5 dark:bg-white/5 rounded-lg"
+                                                    className="p-1.5 text-gray-400 hover:text-primary bg-white/5 dark:bg-white/5 rounded-2xl"
                                                 >
                                                     <Edit2 className="w-4 h-4" />
                                                 </Link>
                                                 <button 
                                                     onClick={() => handleDelete(photo.id)}
-                                                    className="p-1.5 text-gray-400 hover:text-red-500 bg-white/5 dark:bg-white/5 rounded-lg"
+                                                    className="p-1.5 text-gray-400 hover:text-red-500 bg-white/5 dark:bg-white/5 rounded-2xl"
                                                 >
                                                     <Trash2 className="w-4 h-4" />
                                                 </button>
@@ -697,7 +719,7 @@ export const ManagePhotos: React.FC = () => {
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-4">
                                                     <div
-                                                        className="w-12 h-12 shrink-0 rounded-lg bg-white/5 dark:bg-white/5 overflow-hidden cursor-pointer relative group/thumb"
+                                                        className="w-12 h-12 shrink-0 rounded-2xl bg-white/5 dark:bg-white/5 overflow-hidden cursor-pointer relative group/thumb"
                                                         onClick={() => setPreviewUrl(getPhotoUrl(photo, 'medium'))}
                                             >
                                                 <img 
@@ -765,7 +787,7 @@ export const ManagePhotos: React.FC = () => {
                                                             }
                                                         }}
                                                         disabled={critiquePhotoId === photo.id}
-                                                        className={`p-1.5 rounded-lg transition-colors ${
+                                                        className={`p-1.5 rounded-xl transition-colors ${
                                                             photo.aiCritique 
                                                                 ? 'text-primary bg-primary/5 hover:bg-primary/10' 
                                                                 : 'text-gray-400 hover:text-purple-600 hover:bg-purple-500/10 dark:hover:bg-purple-900/20'
@@ -780,14 +802,14 @@ export const ManagePhotos: React.FC = () => {
                                                     </button>
                                                     <Link 
                                                         to={`/edit/${photo.id}`}
-                                                        className="p-1.5 text-gray-400 hover:text-primary hover:bg-white/10 dark:hover:bg-white/10 rounded-lg transition-colors"
+                                                        className="p-1.5 text-gray-400 hover:text-primary hover:bg-white/10 dark:hover:bg-white/10 rounded-xl transition-colors"
                                                         title="编辑"
                                                     >
                                                         <Edit2 className="w-4 h-4" />
                                                     </Link>
                                                     <button 
                                                         onClick={() => handleDelete(photo.id)}
-                                                        className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                                        className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors"
                                                         title="删除"
                                                     >
                                                         <Trash2 className="w-4 h-4" />
@@ -826,7 +848,7 @@ export const ManagePhotos: React.FC = () => {
                     <img 
                         src={previewUrl} 
                         alt="Preview" 
-                        className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+                        className="max-w-full max-h-full object-contain rounded-2xl shadow-2xl"
                         onClick={(e) => e.stopPropagation()}
                     />
                     <button 
@@ -857,7 +879,7 @@ export const ManagePhotos: React.FC = () => {
                             <select
                                 value={selectedBatchCategory}
                                 onChange={(e) => setSelectedBatchCategory(e.target.value)}
-                                className="w-full appearance-none bg-white/50 dark:bg-black/20 border border-white/20 dark:border-white/10 rounded-lg pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary cursor-pointer hover:bg-white/60 dark:hover:bg-white/5 transition-colors text-gray-900 dark:text-white"
+                                className="w-full appearance-none bg-white/50 dark:bg-black/20 border border-white/20 dark:border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary cursor-pointer hover:bg-white/60 dark:hover:bg-white/5 transition-colors text-gray-900 dark:text-white"
                             >
                                 <option value="">请选择分类...</option>
                                 {categories.map((c) => (
@@ -870,7 +892,7 @@ export const ManagePhotos: React.FC = () => {
                         <div className="flex items-center justify-end gap-3">
                             <button
                                 onClick={() => setBatchCategoryModalOpen(false)}
-                                className="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-white/10 dark:hover:bg-white/10 rounded-lg transition-colors"
+                                className="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-white/10 dark:hover:bg-white/10 rounded-xl transition-colors"
                             >
                                 取消
                             </button>
@@ -882,7 +904,7 @@ export const ManagePhotos: React.FC = () => {
                                     setSelectedBatchCategory('');
                                 }}
                                 disabled={!selectedBatchCategory}
-                                className="px-4 py-2 text-sm font-medium bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-primary/20"
+                                className="px-4 py-2 text-sm font-medium bg-primary text-white rounded-xl hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-primary/20"
                             >
                                 确认修改
                             </button>
@@ -909,7 +931,7 @@ export const ManagePhotos: React.FC = () => {
                             </h3>
                             <button 
                                 onClick={() => setCritiquePreviewId(null)}
-                                className="p-1 hover:bg-white/10 dark:hover:bg-white/10 rounded-lg transition-colors text-gray-500 hover:text-gray-700 dark:hover:text-gray-200"
+                                className="p-1 hover:bg-white/10 dark:hover:bg-white/10 rounded-xl transition-colors text-gray-500 hover:text-gray-700 dark:hover:text-gray-200"
                             >
                                 <X className="w-5 h-5" />
                             </button>

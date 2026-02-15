@@ -233,7 +233,7 @@ export const Header: React.FC = () => {
               {settings.siteLogo ? (
                   <img src={toMediaUrl(settings.siteLogo)} alt="Logo" className={`w-8 h-8 object-contain ${isHomeHero ? 'drop-shadow-md' : ''}`} />
               ) : (
-                  <div className={`size-8 flex items-center justify-center rounded-lg backdrop-blur-md ${logoBgClass}`}>
+                  <div className={`size-8 flex items-center justify-center rounded-2xl backdrop-blur-md ${logoBgClass}`}>
                     <Camera className="w-5 h-5" />
                   </div>
               )}
@@ -385,7 +385,7 @@ export const Header: React.FC = () => {
                 : `text-gray-700 dark:text-gray-200 ${it.rowHoverClass}`
               }`}
             >
-              <div className={`p-1.5 rounded-lg transition-transform group-hover:scale-110 ${
+              <div className={`p-1.5 rounded-xl transition-transform group-hover:scale-110 ${
                 active 
                 ? `${it.iconBg} ${it.iconColor}` 
                 : `bg-gray-100 dark:bg-surface-border text-gray-500 dark:text-gray-400 ${it.hoverClass}`
@@ -401,12 +401,12 @@ export const Header: React.FC = () => {
 
         <div className="px-3 py-2">
                             <div className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 mb-2 -mx-3">
-                                <div className="p-1.5 rounded-lg bg-gray-100 dark:bg-surface-border text-gray-500 dark:text-gray-400">
+                                <div className="p-1.5 rounded-xl bg-gray-100 dark:bg-surface-border text-gray-500 dark:text-gray-400">
                                     <Sun className="w-4 h-4" />
                                 </div>
                                 主题模式
                             </div>
-                            <div className="grid grid-cols-3 gap-1 bg-gray-100 dark:bg-surface-border/50 p-1 rounded-lg">
+                            <div className="grid grid-cols-3 gap-1 bg-gray-100 dark:bg-surface-border/50 p-1 rounded-xl">
                                 {(['light', 'dark', 'system'] as const).map((mode) => (
                                     <button
                                         key={mode}
@@ -415,7 +415,7 @@ export const Header: React.FC = () => {
                                             e.stopPropagation();
                                             setTheme(mode);
                                         }}
-                                        className={`py-1.5 rounded-md text-[10px] font-bold transition-all ${
+                                        className={`py-1.5 rounded-xl text-[10px] font-bold transition-all ${
                                             theme === mode 
                                             ? 'bg-white dark:bg-surface-light shadow-sm text-primary' 
                                             : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
@@ -440,7 +440,7 @@ export const Header: React.FC = () => {
                           }}
                           className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 dark:text-gray-200 font-medium hover:bg-red-50 dark:hover:bg-red-900/10 rounded-xl transition-colors group"
                         >
-                          <div className="p-1.5 rounded-lg bg-gray-100 dark:bg-surface-border text-gray-500 dark:text-gray-400 group-hover:text-red-500 group-hover:bg-red-100 dark:group-hover:bg-red-900/20 transition-colors group-hover:scale-110">
+                          <div className="p-1.5 rounded-xl bg-gray-100 dark:bg-surface-border text-gray-500 dark:text-gray-400 group-hover:text-red-500 group-hover:bg-red-100 dark:group-hover:bg-red-900/20 transition-colors group-hover:scale-110">
                               <LogOut className="w-4 h-4" />
                           </div>
                           退出登录
@@ -552,7 +552,7 @@ export const Header: React.FC = () => {
                                                 navigate(`/?q=${encodeURIComponent(tag)}`);
                                                 setIsSearchOpen(false);
                                             }}
-                                            className="px-3.5 py-2 rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 text-sm font-medium text-gray-600 dark:text-gray-300 active:scale-95 active:bg-primary/10 active:text-primary active:border-primary/20 transition-all"
+                                            className="px-3.5 py-2 rounded-2xl bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 text-sm font-medium text-gray-600 dark:text-gray-300 active:scale-95 active:bg-primary/10 active:text-primary active:border-primary/20 transition-all"
                                         >
                                             {tag}
                                         </button>
@@ -634,13 +634,13 @@ export const Header: React.FC = () => {
                                         onClick={() => setIsMenuOpen(false)}
                                         className={`flex w-full items-center gap-4 px-4 py-3.5 rounded-xl transition-colors group ${
                                             active 
-                                            ? 'bg-gray-50 dark:bg-white/10 text-gray-900 dark:text-white' 
+                                            ? 'bg-gray-50 dark:bg-white/10 text-gray-900 dark:text-white'
                                             : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5'
                                         }`}
                                     >
-                                        <div className={`p-2 rounded-lg transition-transform group-hover:scale-110 ${
+                                        <div className={`p-2 rounded-xl transition-transform group-hover:scale-110 ${
                                             active 
-                                            ? `${it.iconBg} ${it.iconColor}` 
+                                            ? it.hoverClass.replace(/group-hover:/g, '')
                                             : 'bg-gray-100 dark:bg-surface-border text-gray-500 dark:text-gray-400'
                                         }`}>
                                             <it.icon className="w-5 h-5" />
@@ -663,7 +663,7 @@ export const Header: React.FC = () => {
                                          <button
                                              key={mode}
                                              onClick={() => setTheme(mode)}
-                                             className={`py-2 rounded-lg text-xs font-medium transition-all ${
+                                             className={`py-2 rounded-xl text-xs font-medium transition-all ${
                                                  theme === mode 
                                                  ? 'bg-white dark:bg-surface-light shadow-sm text-primary' 
                                                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
@@ -684,12 +684,12 @@ export const Header: React.FC = () => {
                                     navigate('/');
                                 }}
                                 className="w-full flex items-center gap-4 px-4 py-3.5 text-gray-500 hover:text-red-500 transition-colors mt-2"
-                             >
-                                 <div className="p-2 rounded-lg bg-gray-50 dark:bg-white/5">
-                                    <LogOut className="w-5 h-5" />
-                                 </div>
-                                 <span className="font-medium text-base">退出登录</span>
-                             </button>
+                            >
+                                <div className="p-2 rounded-xl bg-gray-50 dark:bg-white/5">
+                                   <LogOut className="w-5 h-5" />
+                                </div>
+                                <span className="font-medium text-base">退出登录</span>
+                            </button>
                         </div>
 
                         {/* Bottom Action */}
@@ -726,7 +726,7 @@ export const Header: React.FC = () => {
                                          <button
                                              key={mode}
                                              onClick={() => setTheme(mode)}
-                                             className={`py-2 rounded-lg text-xs font-medium transition-all ${
+                                             className={`py-2 rounded-xl text-xs font-medium transition-all ${
                                                  theme === mode 
                                                  ? 'bg-white dark:bg-surface-light shadow-sm text-primary' 
                                                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
@@ -768,12 +768,12 @@ export const Footer: React.FC = () => {
         <footer className="bg-white dark:bg-[#111a22] border-t border-gray-200 dark:border-surface-border transition-colors duration-300 pb-28 md:pb-0">
             <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-6 md:py-12">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-4 md:mb-8">
-                    <div className="col-span-1 md:col-span-1 space-y-4 flex flex-col items-center md:items-start text-center md:text-left">
+                    <div className="col-span-1 md:col-span-1 space-y-6 flex flex-col items-center md:items-start text-center md:text-left">
                         <Link to="/" className="flex items-center gap-2 text-gray-900 dark:text-white hover:text-primary transition-colors">
                             {settings.siteLogo ? (
                                 <img src={toMediaUrl(settings.siteLogo)} alt="Logo" className="w-8 h-8 object-contain" />
                             ) : (
-                                <div className="size-8 flex items-center justify-center text-primary bg-primary/10 rounded-lg">
+                                <div className="size-8 flex items-center justify-center text-primary bg-primary/10 rounded-xl">
                                     <Camera className="w-5 h-5" />
                                 </div>
                             )}

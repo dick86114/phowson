@@ -1,300 +1,226 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate, Link, useParams } from 'react-router-dom';
 import { 
-    ArrowLeft, Upload as UploadIcon, X, MapPin, Camera, 
-    Aperture, Timer, Zap, Disc, Tag, Save, Image as ImageIcon,
-    ChevronDown, Calendar, Sparkles, AlertTriangle
+    Upload as UploadIcon, X, MapPin, Calendar, 
+    Camera, Aperture, Timer, Zap, MoveDiagonal, 
+    Image as ImageIcon, Check, Loader2, ArrowLeft,
+    Maximize2, Sliders, Save, Send, Sparkles, Tag,
+    Map as MapIcon, Trash2, RefreshCw,
+    HelpCircle, Mountain, User, Building, Plane, Film, FileText
 } from 'lucide-react';
+import * as LucideIcons from 'lucide-react';
+import { useAuth } from '../hooks/useAuth';
+import api from '../api';
+import toast from 'react-hot-toast';
 import exifr from 'exifr';
-import { useQuery } from '@tanstack/react-query';
-import api, { API_BASE_URL } from '../api';
-import { getPhotoUrl } from '../utils/helpers';
-import { useModal } from '../components/Modal';
 import DatePicker from '../components/DatePicker';
+import { getPhotoUrl } from '../utils/helpers';
+import { FormSelect } from '../components/admin/FormSelect';
+import { LocationPicker } from '../components/LocationPicker'; // Import LocationPicker
 
-type ApiCategory = {
-    value: string;
-    label: string;
-    sortOrder: number;
-};
+// Interface for Technical Details
+interface ExifData {
+    camera: string;
+    lens: string;
+    aperture: string;
+    shutterSpeed: string;
+    iso: string;
+    focalLength: string;
+    lat: number | null;
+    lng: number | null;
+}
 
-type UploadStatus = 'queued' | 'uploading' | 'success' | 'failed';
-
-type UploadItem = {
-    id: string;
-    file: File;
-    previewUrl: string;
-    title: string;
-    description: string;
-    status: UploadStatus;
-    width?: number | null;
-    height?: number | null;
-    bytes?: number | null;
-    error?: string;
-    photoId?: string;
-    exif?: any;
-};
-
-const filenameToTitle = (name: string) => {
-    const base = String(name || '').split('/').pop() || '';
-    const withoutExt = base.replace(/\.[^.]+$/, '');
-    return withoutExt.trim() || '未命名';
-};
-
-const statusText = (s: UploadStatus) => {
-    if (s === 'queued') return '排队中';
-    if (s === 'uploading') return '上传中';
-    if (s === 'success') return '完成';
-    return '失败';
-};
-
-const statusClassName = (s: UploadStatus) => {
-    if (s === 'queued') return 'bg-gray-100/50 text-gray-700 dark:bg-white/5 dark:text-gray-200 border border-gray-200/50 dark:border-white/10';
-    if (s === 'uploading') return 'bg-blue-50/50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-200 border border-blue-200/50 dark:border-blue-500/20';
-    if (s === 'success') return 'bg-green-50/50 text-green-700 dark:bg-green-900/20 dark:text-green-200 border border-green-200/50 dark:border-green-500/20';
-    return 'bg-red-50/50 text-red-700 dark:bg-red-900/20 dark:text-red-200 border border-red-200/50 dark:border-red-500/20';
-};
-
-const formatBytes = (bytes: number) => {
-    if (!Number.isFinite(bytes) || bytes <= 0) return '0B';
-    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-    const i = Math.min(units.length - 1, Math.floor(Math.log(bytes) / Math.log(1024)));
-    const v = bytes / Math.pow(1024, i);
-    const fixed = v >= 100 || i === 0 ? 0 : v >= 10 ? 1 : 2;
-    return `${v.toFixed(fixed)}${units[i]}`;
-};
-
-const getImageDimensions = (src: string) => {
-    return new Promise<{ width: number; height: number }>((resolve, reject) => {
-        const img = new Image();
-        img.onload = () => resolve({ width: img.naturalWidth || 0, height: img.naturalHeight || 0 });
-        img.onerror = () => reject(new Error('图片加载失败'));
-        img.src = src;
-    });
-};
-
-const fetchGeocode = async (lat: number, lng: number) => {
-    try {
-        const res = await api.get<{ location: string }>(`/geocode?lat=${lat}&lng=${lng}`);
-        return res.data?.location || '';
-    } catch (err) {
-        console.warn('Geocoding failed:', err);
-        return '';
-    }
-};
-
-export const Upload: React.FC = () => {
+export const Upload = () => {
+    const { user } = useAuth();
     const navigate = useNavigate();
-    const { id } = useParams<{ id: string }>(); 
+    const { id } = useParams<{ id: string }>();
     const isEditMode = !!id;
-
-    // Form State
-    const [isDragging, setIsDragging] = useState(false);
-    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-    const [selectedFile, setSelectedFile] = useState<File | null>(null);
-    const [isLoading, setIsLoading] = useState(false);
-    const [isAnalyzing, setIsAnalyzing] = useState(false);
-    const [uploadItems, setUploadItems] = useState<UploadItem[]>([]);
-    const [isUploadingQueue, setIsUploadingQueue] = useState(false);
-    const [fileMeta, setFileMeta] = useState<{ width: number | null; height: number | null; bytes: number | null } | null>(null);
     
-    // Data State
+    // State
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
-    const [category, setCategory] = useState('landscape');
-    const [location, setLocation] = useState('');
-    const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+    const [category, setCategory] = useState('uncategorized');
+    const [categories, setCategories] = useState<{ value: string; label: string; icon: React.ReactNode }[]>([]);
     const [tags, setTags] = useState<string[]>([]);
     const [tagInput, setTagInput] = useState('');
-    const [isCategoryOpen, setIsCategoryOpen] = useState(false);
-
-    const uploadItemsRef = useRef<UploadItem[]>([]);
-
-    const isQueueMode = !isEditMode && uploadItems.length > 0;
-
-    const { data: categories = [] } = useQuery({
-        queryKey: ['categories'],
-        queryFn: async () => {
-            const res = await api.get<ApiCategory[]>('/categories');
-            return res.data;
-        },
+    const [location, setLocation] = useState('');
+    const [date, setDate] = useState('');
+    const [exif, setExif] = useState<ExifData>({
+        camera: '', lens: '', aperture: '', shutterSpeed: '', iso: '', focalLength: '', lat: null, lng: null
     });
-    
-    const { data: aiStatus } = useQuery({
-        queryKey: ['ai-enabled'],
-        queryFn: async () => {
-            const res = await api.get<{ enabled: boolean; provider: string }>('/ai/enabled');
-            return res.data;
-        },
-        staleTime: 5 * 60 * 1000,
-    });
-    
-    // EXIF State
-    const [exif, setExif] = useState({
-        camera: '',
-        lens: '',
-        aperture: '',
-        shutterSpeed: '',
-        iso: '',
-        focalLength: '',
-        lat: null as number | null,
-        lng: null as number | null
-    });
+    const [isUploading, setIsUploading] = useState(false);
+    const [isDragging, setIsDragging] = useState(false);
+    const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const [showMap, setShowMap] = useState(false);
+    const [fileMeta, setFileMeta] = useState<{ width: number | null, height: number | null, bytes: number }>({ width: null, height: null, bytes: 0 });
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // Load data if edit mode
+    // Load existing data for edit mode
     useEffect(() => {
-        if (isEditMode) {
+        if (isEditMode && id) {
             const fetchPhoto = async () => {
                 try {
-                    const res = await api.get(`/photos/${id}`);
-                    const photo = res.data;
-                    setPreviewUrl(getPhotoUrl(photo, 'medium'));
-                    setTitle(photo.title);
-                    setDescription(photo.description);
-                    setCategory(photo.category);
-                    const parsedExif = JSON.parse(photo.exif || '{}');
-                    setLocation(parsedExif.location || '');
-                    setDate(parsedExif.date || photo.createdAt.split('T')[0]);
-                    setTags(photo.tags?.split(',') || []);
-                    setExif({
-                        camera: parsedExif.camera || parsedExif.Model || '',
-                        lens: parsedExif.lens || parsedExif.LensModel || '',
-                        aperture: parsedExif.aperture || (parsedExif.FNumber ? `f/${parsedExif.FNumber}` : ''),
-                        shutterSpeed: parsedExif.shutterSpeed || (parsedExif.ExposureTime ? `1/${Math.round(1/parsedExif.ExposureTime)}s` : ''),
-                        iso: parsedExif.iso?.toString?.() || parsedExif.ISO?.toString?.() || String(parsedExif.iso || parsedExif.ISO || ''),
-                        focalLength: parsedExif.focalLength || (parsedExif.FocalLength ? `${parsedExif.FocalLength}mm` : '')
-                    });
-                    setFileMeta({
-                        width: Number.isFinite(photo.imageWidth) ? photo.imageWidth : null,
-                        height: Number.isFinite(photo.imageHeight) ? photo.imageHeight : null,
-                        bytes: Number.isFinite(photo.imageSizeBytes) ? photo.imageSizeBytes : null,
-                    });
-                } catch (err) {
-                    console.error('Error fetching photo:', err);
+                    const { data } = await api.get(`/photos/${id}`);
+                    setTitle(data.title || '');
+                    setDescription(data.description || '');
+                    setCategory(data.category || 'uncategorized');
+                    setTags(data.tags ? data.tags.split(',').filter(Boolean) : []);
+                    if (data.location) setLocation(data.location);
+                    if (data.takenAt) setDate(new Date(data.takenAt).toISOString().split('T')[0]);
+                    
+                    // Set preview
+                    const pUrl = getPhotoUrl(data, 'medium');
+                    setPreviewUrl(pUrl);
+                    
+                    // Get dimensions
+                    if (pUrl) {
+                        getImageDimensions(pUrl)
+                            .then(({ width, height }) => setFileMeta(prev => ({ ...prev, width, height })))
+                            .catch(() => {});
+                    }
+                    
+                    // Set EXIF if available
+                    if (data.exif) {
+                        try {
+                            const parsedExif = typeof data.exif === 'string' ? JSON.parse(data.exif) : data.exif;
+                            setExif({
+                                camera: parsedExif.Model || '',
+                                lens: parsedExif.LensModel || '',
+                                aperture: parsedExif.FNumber ? `f/${parsedExif.FNumber}` : '',
+                                shutterSpeed: parsedExif.ExposureTime ? `${parsedExif.ExposureTime}s` : '',
+                                iso: parsedExif.ISO?.toString() || '',
+                                focalLength: parsedExif.FocalLength ? `${parsedExif.FocalLength}mm` : '',
+                                lat: parsedExif.lat || null,
+                                lng: parsedExif.lng || null
+                            });
+                        } catch (e) {
+                            console.error('Failed to parse EXIF', e);
+                        }
+                    }
+                } catch (error) {
+                    console.error('Failed to load photo', error);
+                    toast.error('加载照片信息失败');
+                    navigate('/admin/manage/photos');
                 }
             };
             fetchPhoto();
         }
-    }, [id, isEditMode]);
+    }, [isEditMode, id, navigate]);
 
-    // Handlers
-    const handleDragOver = (e: React.DragEvent) => {
-        e.preventDefault();
-        setIsDragging(true);
+    // Constants & Icon Mapping
+    const CATEGORY_ICONS: Record<string, React.ReactNode> = {
+        'uncategorized': <HelpCircle className="w-4 h-4" />,
+        'landscape': <Mountain className="w-4 h-4" />,
+        'portrait': <User className="w-4 h-4" />,
+        'street': <Camera className="w-4 h-4" />,
+        'documentary': <FileText className="w-4 h-4" />,
+        'architecture': <Building className="w-4 h-4" />,
+        'travel': <Plane className="w-4 h-4" />,
+        'movie': <Film className="w-4 h-4" />,
     };
 
-    const handleDragLeave = (e: React.DragEvent) => {
-        e.preventDefault();
-        setIsDragging(false);
-    };
-
-    const handleDrop = (e: React.DragEvent) => {
-        e.preventDefault();
-        setIsDragging(false);
-        const files = Array.from(e.dataTransfer.files || []) as File[];
-        if (files.length) {
-            handleFiles(files);
-        }
-    };
-
-    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const files = Array.from(e.target.files || []) as File[];
-        if (files.length) {
-            handleFiles(files);
-        }
-        e.target.value = '';
-    };
-
-    const addFilesToQueue = (files: File[]) => {
-        const next = files
-            .filter(f => f && f.type.startsWith('image/'))
-            .map((file) => {
-                const id = (crypto as any)?.randomUUID ? (crypto as any).randomUUID() : `${Date.now()}-${Math.random()}`;
-                const previewUrl = URL.createObjectURL(file);
-                return {
-                    id,
-                    file,
-                    previewUrl,
-                    title: filenameToTitle(file.name),
-                    description: '',
-                    status: 'queued' as const,
-                    width: null,
-                    height: null,
-                    bytes: file.size,
-                };
-            });
-
-        if (!next.length) return;
-        setUploadItems(prev => [...prev, ...next]);
-        for (const it of next) {
-            getImageDimensions(it.previewUrl)
-                .then(({ width, height }) => {
-                    setUploadItems(prev => prev.map(p => (p.id === it.id ? { ...p, width, height } : p)));
-                })
-                .catch(() => {
-                    setUploadItems(prev => prev.map(p => (p.id === it.id ? { ...p, width: null, height: null } : p)));
-                });
-            
-            // Parse EXIF for batch items
-            exifr.parse(it.file)
-                .then(async (exifData) => {
-                    if (exifData) {
-                        let loc = '';
-                        if (typeof exifData.latitude === 'number' && typeof exifData.longitude === 'number') {
-                             loc = await fetchGeocode(exifData.latitude, exifData.longitude);
-                        }
-
-                        const parsedExif = {
-                            camera: exifData.Model || '',
-                            lens: exifData.LensModel || '',
-                            aperture: exifData.FNumber ? `f/${exifData.FNumber}` : '',
-                            shutterSpeed: exifData.ExposureTime ? `1/${Math.round(1/exifData.ExposureTime)}s` : '',
-                            iso: exifData.ISO?.toString() || '',
-                            focalLength: exifData.FocalLength ? `${exifData.FocalLength}mm` : '',
-                            lat: typeof exifData.latitude === 'number' ? exifData.latitude : null,
-                            lng: typeof exifData.longitude === 'number' ? exifData.longitude : null,
-                            location: loc, // Store location in exif for batch
-                            date: exifData.DateTimeOriginal ? new Date(exifData.DateTimeOriginal).toISOString().split('T')[0] : ''
-                        };
-                        setUploadItems(prev => prev.map(p => (p.id === it.id ? { ...p, exif: parsedExif } : p)));
+    // Load categories
+    useEffect(() => {
+        const loadCategories = async () => {
+            try {
+                const res = await api.get('/categories');
+                // Ensure data is array
+                const data = Array.isArray(res) ? res : (res as any).data || [];
+                
+                const formatted = data.map((c: any) => {
+                    let Icon = <HelpCircle className="w-4 h-4" />;
+                    // Prioritize icon from DB setting
+                    if (c.icon && (LucideIcons as any)[c.icon]) {
+                         const IconComponent = (LucideIcons as any)[c.icon];
+                         Icon = <IconComponent className="w-4 h-4" />;
+                    } 
+                    // Fallback to hardcoded mapping
+                    else if (CATEGORY_ICONS[c.value]) {
+                         Icon = CATEGORY_ICONS[c.value];
                     }
-                })
-                .catch(err => console.error('Batch EXIF parsing failed:', err));
+                    
+                    return {
+                        value: c.value,
+                        label: c.label,
+                        icon: Icon
+                    };
+                });
+                setCategories(formatted);
+            } catch (err) {
+                console.error('Failed to load categories', err);
+                // Fallback
+                setCategories([
+                    { value: 'uncategorized', label: '未分类', icon: <HelpCircle className="w-4 h-4" /> }
+                ]);
+            }
+        };
+        loadCategories();
+    }, []);
+
+    // Helper: Get Image Dimensions
+    const getImageDimensions = (url: string): Promise<{ width: number, height: number }> => {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => resolve({ width: img.width, height: img.height });
+            img.onerror = reject;
+            img.src = url;
+        });
+    };
+
+    // Helper: File to Base64
+    const fileToBase64 = (file: File): Promise<string> => {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => resolve((reader.result as string).split(',')[1]);
+            reader.onerror = error => reject(error);
+        });
+    };
+
+    // Helper: Fetch Geocode
+    const fetchGeocode = async (lat: number, lng: number) => {
+        try {
+            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&accept-language=zh-CN`, {
+                headers: {
+                    'User-Agent': 'Phowson/1.0 (https://phowson.com)'
+                }
+            });
+            const data = await res.json();
+            const addr = data.address;
+            const country = addr.country || '';
+            // Remove country from city/state if present to avoid duplication (e.g. "美国;美國")
+            let city = addr.city || addr.town || addr.village || addr.county || addr.state || '';
+            if (country && city.includes(country)) {
+                city = city.replace(country, '').replace(/^[·,;\s]+|[·,;\s]+$/g, '');
+            }
+            // Clean up any remaining weird characters
+            city = city.replace(/[;；].*$/, ''); 
+            
+            return country && city ? `${country} · ${city}` : (country || city || '');
+        } catch (e) {
+            console.error('地理编码失败', e);
+            return '';
         }
     };
 
-    const handleFiles = async (files: File[]) => {
-        if (isEditMode) {
-            await handleFile(files[0]);
-            return;
-        }
-        if (files.length === 1 && uploadItems.length === 0) {
-            await handleFile(files[0]);
-            return;
-        }
-
-        setPreviewUrl(null);
-        setSelectedFile(null);
-        addFilesToQueue(files);
-    };
-
+    // Handle File Selection
     const handleFile = async (file: File) => {
         setSelectedFile(file);
         setFileMeta({ width: null, height: null, bytes: file.size });
-        try {
-            const objUrl = URL.createObjectURL(file);
-            getImageDimensions(objUrl)
-                .then(({ width, height }) => setFileMeta({ width: width || null, height: height || null, bytes: file.size }))
-                .catch(() => setFileMeta({ width: null, height: null, bytes: file.size }))
-                .finally(() => URL.revokeObjectURL(objUrl));
-        } catch {
-            setFileMeta({ width: null, height: null, bytes: file.size });
-        }
-        const reader = new FileReader();
-        reader.onloadend = () => {
-            setPreviewUrl(reader.result as string);
-        };
-        reader.readAsDataURL(file);
+        
+        // Auto set title
+        const base = String(file.name || '').split('/').pop() || '';
+        const withoutExt = base.replace(/\.[^.]+$/, '');
+        if (!title) setTitle(withoutExt.trim() || '未命名');
+
+        // Create Preview & Get Dimensions
+        const objUrl = URL.createObjectURL(file);
+        setPreviewUrl(objUrl);
+        getImageDimensions(objUrl)
+            .then(({ width, height }) => setFileMeta(prev => ({ ...prev, width, height })))
+            .catch(() => {}); // Ignore error
 
         // Parse EXIF
         try {
@@ -307,7 +233,7 @@ export const Upload: React.FC = () => {
                     camera: exifData.Model || '',
                     lens: exifData.LensModel || '',
                     aperture: exifData.FNumber ? `f/${exifData.FNumber}` : '',
-                    shutterSpeed: exifData.ExposureTime ? `1/${Math.round(1/exifData.ExposureTime)}s` : '',
+                    shutterSpeed: exifData.ExposureTime ? (exifData.ExposureTime < 1 ? `1/${Math.round(1/exifData.ExposureTime)}` : `${exifData.ExposureTime}`) + 's' : '',
                     iso: exifData.ISO?.toString() || '',
                     focalLength: exifData.FocalLength ? `${exifData.FocalLength}mm` : '',
                     lat,
@@ -315,8 +241,9 @@ export const Upload: React.FC = () => {
                 });
                 
                 if (lat != null && lng != null) {
-                    const loc = await fetchGeocode(lat, lng);
-                    if (loc) setLocation(loc);
+                    fetchGeocode(lat, lng).then(loc => {
+                        if (loc) setLocation(loc);
+                    });
                 }
 
                 if (exifData.DateTimeOriginal) {
@@ -324,760 +251,437 @@ export const Upload: React.FC = () => {
                 }
             }
         } catch (err) {
-            console.error('EXIF parsing failed:', err);
+            console.error('EXIF 解析失败:', err);
         }
     };
 
-    useEffect(() => {
-        uploadItemsRef.current = uploadItems;
-    }, [uploadItems]);
-
-    useEffect(() => {
-        return () => {
-            for (const it of uploadItemsRef.current) {
-                try {
-                    URL.revokeObjectURL(it.previewUrl);
-                } catch {
-                }
-            }
-        };
-    }, []);
-
-    const uploadConcurrency = 3;
-
-    const uploadSingleItem = async (current: UploadItem) => {
-        if (current.status !== 'queued') return;
-
-        setUploadItems(prev => prev.map(i => (i.id === current.id ? { ...i, status: 'uploading', error: undefined } : i)));
-
-        const formData = new FormData();
-        formData.append('photo', current.file);
-        formData.append('title', current.title);
-        formData.append('description', current.description);
-        formData.append('category', category);
-        formData.append('tags', tags.join(','));
-        
-        const finalExif = {
-            ...(current.exif || {}),
-            location
-        };
-        formData.append('exif', JSON.stringify(finalExif));
-        if (current.exif?.date) {
-            formData.append('created_at', current.exif.date);
-        }
-
-        try {
-            const res = await api.post<any>('/photos', formData);
-            const photoId = String((res.data as any)?.id || '');
-            setUploadItems(prev => prev.map(i => (i.id === current.id ? { ...i, status: 'success', photoId } : i)));
-        } catch (err: any) {
-            const msg = String(err?.data?.message || err?.message || '上传失败');
-            setUploadItems(prev => prev.map(i => (i.id === current.id ? { ...i, status: 'failed', error: msg } : i)));
-        }
+    // Drag & Drop Handlers
+    const handleDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        setIsDragging(false);
+        const files = Array.from(e.dataTransfer.files).filter((f: any) => f.type.startsWith('image/')) as File[];
+        if (files.length > 0) handleFile(files[0]);
     };
 
-    const pumpQueue = () => {
-        const snapshot = uploadItems;
-        const uploading = snapshot.filter(i => i.status === 'uploading').length;
-        const queued = snapshot.filter(i => i.status === 'queued');
-        if (!isUploadingQueue) return;
-        if (queued.length === 0) return;
-        if (uploading >= uploadConcurrency) return;
-
-        const toStart = queued.slice(0, uploadConcurrency - uploading);
-        for (const it of toStart) {
-            uploadSingleItem(it);
-        }
+    // Remove Photo
+    const handleRemovePhoto = () => {
+        setSelectedFile(null);
+        setPreviewUrl(null);
+        setFileMeta({ width: null, height: null, bytes: 0 });
+        setTitle('');
+        setDescription('');
+        setTags([]);
+        setLocation('');
+        setDate('');
+        setExif({ camera: '', lens: '', aperture: '', shutterSpeed: '', iso: '', focalLength: '', lat: null, lng: null });
     };
 
-    useEffect(() => {
-        if (!isQueueMode) return;
-        if (!isUploadingQueue) return;
-
-        pumpQueue();
-
-        const hasQueued = uploadItems.some(i => i.status === 'queued');
-        const hasUploading = uploadItems.some(i => i.status === 'uploading');
-        if (!hasQueued && !hasUploading) setIsUploadingQueue(false);
-    }, [uploadItems, isQueueMode, isUploadingQueue]);
-
-    useEffect(() => {
-        if (!isQueueMode) return;
-        if (isUploadingQueue) return;
-        if (uploadItems.length === 0) return;
-        const allSuccess = uploadItems.every(i => i.status === 'success');
-        if (allSuccess) {
-            navigate('/admin');
-        }
-    }, [uploadItems, isQueueMode, isUploadingQueue, navigate]);
-
-    const startQueueUpload = async () => {
-        if (!isQueueMode) return;
-        
-        // Validation for queue
-        const missingInfo = uploadItems.some(it => !it.title.trim() || !it.description.trim());
-        if (missingInfo) {
-            alert('无法上传: 队列中存在未填写标题或故事（描述）的照片，请补充完整后再上传。');
-            return;
-        }
-
-        setIsUploadingQueue(true);
-    };
-
-    const retryItem = (id: string) => {
-        setUploadItems(prev => prev.map(i => (i.id === id ? { ...i, status: 'queued', error: undefined } : i)));
-    };
-
-    const removeItem = (id: string) => {
-        setUploadItems(prev => {
-            const target = prev.find(i => i.id === id);
-            if (target) {
-                try {
-                    URL.revokeObjectURL(target.previewUrl);
-                } catch {
-                }
-            }
-            return prev.filter(i => i.id !== id);
-        });
-    };
-
-    const handleAddTag = (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter' && tagInput.trim()) {
+    // Tag Handlers
+    const handleTagKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter' || e.key === ',') {
             e.preventDefault();
-            if (!tags.includes(tagInput.trim())) {
-                setTags([...tags, tagInput.trim()]);
-            }
-            setTagInput('');
-        }
-    };
-
-    const removeTag = (tagToRemove: string) => {
-        setTags(tags.filter(tag => tag !== tagToRemove));
-    };
-
-    // AI Analysis Handler
-    const { alert, confirm } = useModal();
-    const blobToDataUrl = (blob: Blob) =>
-        new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(String(reader.result || ''));
-            reader.onerror = () => reject(new Error('读取图片失败'));
-            reader.readAsDataURL(blob);
-        });
-
-    const compressImageForAi = async (file: File) => {
-        const maxEdge = 1280;
-        const quality = 0.82;
-        const outType = 'image/jpeg';
-
-        const drawToCanvas = async (source: CanvasImageSource, width: number, height: number) => {
-            const scale = Math.min(1, maxEdge / Math.max(width, height));
-            const targetW = Math.max(1, Math.round(width * scale));
-            const targetH = Math.max(1, Math.round(height * scale));
-            const canvas = document.createElement('canvas');
-            canvas.width = targetW;
-            canvas.height = targetH;
-            const ctx = canvas.getContext('2d');
-            if (!ctx) throw new Error('浏览器不支持 Canvas');
-            ctx.drawImage(source, 0, 0, targetW, targetH);
-            const blob = await new Promise<Blob>((resolve, reject) => {
-                canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('图片压缩失败'))), outType, quality);
-            });
-            const dataUrl = await blobToDataUrl(blob);
-            const base64 = dataUrl.split(',')[1] || '';
-            return { base64, mimeType: outType };
-        };
-
-        try {
-            const bitmap = await createImageBitmap(file);
-            try {
-                return await drawToCanvas(bitmap, bitmap.width, bitmap.height);
-            } finally {
-                (bitmap as any).close?.();
-            }
-        } catch {
-            const url = URL.createObjectURL(file);
-            try {
-                const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-                    const el = new Image();
-                    el.onload = () => resolve(el);
-                    el.onerror = () => reject(new Error('加载图片失败'));
-                    el.src = url;
-                });
-                return await drawToCanvas(img, img.naturalWidth || img.width, img.naturalHeight || img.height);
-            } finally {
-                try {
-                    URL.revokeObjectURL(url);
-                } catch {
-                }
+            const newTag = tagInput.trim();
+            if (newTag && !tags.includes(newTag)) {
+                setTags([...tags, newTag]);
+                setTagInput('');
             }
         }
     };
-    const handleAnalyzePhoto = async () => {
-        if (isQueueMode) return;
-        if (!previewUrl) return;
+    const removeTag = (tagToRemove: string) => setTags(tags.filter(t => t !== tagToRemove));
+
+    // Handle AI Analysis
+    const handleAIAnalysis = async () => {
+        if (!selectedFile) return;
         setIsAnalyzing(true);
-
+        
         try {
-            let res;
-            if (String(previewUrl).startsWith('data:')) {
-                if (!selectedFile) {
-                    alert({ title: '无法识别', content: '未找到本地文件，无法用于 AI 识别。请重新选择要分析的图片。' });
-                    return;
-                }
-                const { base64, mimeType } = await compressImageForAi(selectedFile);
-                res = await api.post<any>('/ai/fill', {
-                    imageBase64: base64,
-                    mimeType,
-                    locationHint: location, // Pass current location (e.g. from GPS) as hint
-                });
-            } else if (isEditMode && id) {
-                let proceed = false;
-                await new Promise<void>((resolve) => {
-                    confirm({
-                        title: '覆盖确认',
-                        content: 'AI 智能填单会覆盖当前已填写内容，是否继续？',
-                        onConfirm: () => { proceed = true; resolve(); },
-                        onCancel: () => { proceed = false; resolve(); },
-                    });
-                });
-                if (!proceed) return;
-                res = await api.post<any>(`/photos/${id}/ai-fill`, {});
-            } else {
-                alert({ title: '无法识别', content: '当前图片不是本地选中的文件，无法用于 AI 识别。请重新选择要分析的图片。' });
-                return;
-            }
-            const data = res.data as any;
-
-            if (data.title) setTitle(data.title);
-            if (data.description) setDescription(data.description);
-            if (data.tags && Array.isArray(data.tags)) setTags(data.tags);
-            if (data.category) setCategory(data.category);
-            {
-                const hint = String(data.locationHint || '').trim();
-                if (hint) {
-                    setLocation((prev) => (String(prev || '').trim() ? prev : hint));
-                }
-            }
+            const base64 = await fileToBase64(selectedFile);
+            const res = await api.post('/ai/fill', {
+                imageBase64: base64,
+                mimeType: selectedFile.type,
+                locationHint: location
+            });
             
-            if (data.exif && typeof data.exif === 'object') {
-                setExif(prev => ({
-                    ...prev,
-                    camera: prev.camera || data.exif.camera,
-                    lens: prev.lens || data.exif.lens,
-                    aperture: prev.aperture || data.exif.aperture,
-                    shutterSpeed: prev.shutterSpeed || data.exif.shutterSpeed,
-                    iso: prev.iso || data.exif.iso,
-                    focalLength: prev.focalLength || data.exif.focalLength,
-                }));
+            const data = res.data;
+            if (data) {
+                if (data.title) setTitle(data.title);
+                if (data.description) setDescription(data.description);
+                if (data.tags && Array.isArray(data.tags)) {
+                    // Merge tags avoiding duplicates
+                    const newTags = data.tags.filter((t: string) => !tags.includes(t));
+                    if (newTags.length > 0) setTags([...tags, ...newTags]);
+                }
+                if (data.category) {
+                    // Find matching category value
+                    const match = categories.find(c => c.label === data.category || c.value === data.category);
+                    if (match) setCategory(match.value ? match.value : 'uncategorized');
+                }
+                toast.success('AI 分析完成');
             }
-
-        } catch (error) {
-            console.error("AI Analysis failed:", error);
-            const err: any = error;
-            const code = String(err?.data?.code || '');
-            const msg = String(err?.data?.message || '');
-            if (code === 'AI_NOT_CONFIGURED') {
-                alert({ title: 'AI 未配置', content: msg || 'AI 未配置（请在服务端配置环境变量），已降级为手动填写。' });
-                return;
-            }
-            alert({ title: '分析失败', content: msg || 'AI 分析失败，请手动输入。' });
+        } catch (error: any) {
+            console.error('AI Analysis failed', error);
+            toast.error(error.message || 'AI 分析失败');
         } finally {
             setIsAnalyzing(false);
         }
     };
 
-    const handleSubmit = async (e?: any) => {
-        e?.preventDefault?.();
-        if (isQueueMode) {
-            await startQueueUpload();
+    // Submit Handler
+    const handleSubmit = async () => {
+        if (!selectedFile && !isEditMode) {
+            toast.error('请选择照片');
             return;
         }
-        if (!selectedFile && !isEditMode) return;
-        
-        if (!title.trim()) {
-            alert('参数错误: 请输入照片标题');
-            return;
-        }
-        if (!description.trim()) {
-            alert('参数错误: 请输入照片故事（描述）');
+        if (!title) {
+            toast.error('请输入标题');
             return;
         }
 
-        setIsLoading(true);
-        const formData = new FormData();
+        setIsUploading(true);
+        const fd = new FormData();
         if (selectedFile) {
-            formData.append('photo', selectedFile);
+            fd.append('photo', selectedFile);
         }
-        formData.append('title', title);
-        formData.append('description', description);
-        formData.append('category', category);
-        formData.append('tags', tags.join(','));
-        formData.append('created_at', date);
-        formData.append('exif', JSON.stringify({ ...exif, location, date }));
+        fd.append('title', title);
+        fd.append('description', description);
+        fd.append('category', category);
+        fd.append('tags', tags.join(','));
+        fd.append('exif', JSON.stringify({
+            Model: exif.camera,
+            LensModel: exif.lens,
+            FNumber: exif.aperture ? parseFloat(exif.aperture.replace('f/', '')) : null,
+            ExposureTime: exif.shutterSpeed ? (exif.shutterSpeed.includes('/') ? 1/parseFloat(exif.shutterSpeed.split('/')[1].replace('s','')) : parseFloat(exif.shutterSpeed.replace('s',''))) : null,
+            ISO: parseInt(exif.iso) || null,
+            FocalLength: parseFloat(exif.focalLength.replace('mm','')) || null,
+            DateTimeOriginal: date ? new Date(date).toISOString() : null,
+            lat: exif.lat,
+            lng: exif.lng,
+            location: location
+        }));
 
         try {
-            if (isEditMode) {
-                await api.patch(`/photos/${id}`, formData);
+            if (isEditMode && id) {
+                await api.patch(`/photos/${id}`, fd);
+                toast.success('更新成功');
             } else {
-                await api.post('/photos', formData);
+                await api.post('/photos', fd);
+                toast.success('发布成功');
             }
             navigate(-1);
-        } catch (error) {
-            console.error('Upload failed:', error);
-            const err: any = error;
-            const msg = String(err?.data?.message || '');
-            const requestId = String(err?.data?.requestId || '');
-            alert({ title: '上传失败', content: msg ? `${msg}${requestId ? `\n请求ID: ${requestId}` : ''}` : '上传失败，请重试' });
+        } catch (err: any) {
+            toast.error(err.message || '操作失败');
         } finally {
-            setIsLoading(false);
+            setIsUploading(false);
         }
     };
 
+    const formatBytes = (bytes: number) => {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    };
+
     return (
-        <div className="min-h-screen pb-20 transition-colors duration-300">
-            {/* Top Bar */}
-            <div className="sticky top-0 z-30 glass-nav border-b border-white/20 dark:border-white/10 px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between backdrop-blur-md">
-                <div className="flex items-center gap-4">
+        <div className="min-h-screen bg-white dark:bg-black flex flex-col md:flex-row">
+            {/* Hidden Input for File Replacement */}
+            <input 
+                ref={fileInputRef} 
+                type="file" 
+                className="hidden" 
+                accept="image/*" 
+                onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])} 
+            />
+
+            {/* Left Column: Preview */}
+            <div className="w-full md:w-[55%] lg:w-[60%] bg-gray-50 dark:bg-gray-900/50 p-6 md:p-8 flex flex-col h-[50vh] md:h-screen relative border-r border-gray-200 dark:border-gray-800">
+                {/* Header */}
+                <div className="absolute top-6 left-6 z-10">
                     <button 
                         onClick={() => navigate(-1)}
-                        className="p-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-white/10 rounded-full transition-colors"
+                        className="group flex items-center gap-2 px-4 py-2 bg-white/50 dark:bg-gray-800/50 backdrop-blur-md border border-gray-200/50 dark:border-gray-700/50 rounded-full text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-white dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white transition-all shadow-sm hover:shadow-md"
                     >
-                        <ArrowLeft className="w-5 h-5" />
+                        <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
+                        返回
                     </button>
-                    <h1 className="text-lg font-bold text-gray-900 dark:text-white">{isEditMode ? '编辑照片' : '上传新照片'}</h1>
                 </div>
-                <div className="flex items-center gap-3">
+
+                {/* Main Preview Area */}
+                <div 
+                    className={`flex-1 flex items-center justify-center relative rounded-2xl overflow-hidden transition-all duration-300 ${
+                        isDragging ? 'ring-4 ring-primary/20 bg-primary/5 scale-[0.99]' : ''
+                    }`}
+                    onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                    onDragLeave={() => setIsDragging(false)}
+                    onDrop={handleDrop}
+                >
+                    {previewUrl ? (
+                        <>
+                            {/* Image Actions: AI, Replace, Remove */}
+                            <div className="absolute top-4 right-4 flex gap-2 z-20">
+                                <button 
+                                    onClick={handleAIAnalysis}
+                                    disabled={isAnalyzing}
+                                    className="glass-panel px-4 py-2 rounded-2xl text-sm font-bold flex items-center gap-2 hover:bg-white/80 transition-all shadow-sm text-primary disabled:opacity-70 disabled:cursor-not-allowed"
+                                >
+                                    {isAnalyzing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                                    AI 智能分析
+                                </button>
+                                <button 
+                                    onClick={() => fileInputRef.current?.click()}
+                                    className="glass-panel p-2 rounded-2xl text-gray-600 hover:text-primary hover:bg-white/80 transition-all shadow-sm"
+                                    title="更换照片"
+                                >
+                                    <RefreshCw className="w-5 h-5" />
+                                </button>
+                                <button 
+                                    onClick={handleRemovePhoto}
+                                    className="glass-panel p-2 rounded-2xl text-gray-600 hover:text-red-500 hover:bg-white/80 transition-all shadow-sm"
+                                    title="移除照片"
+                                >
+                                    <Trash2 className="w-5 h-5" />
+                                </button>
+                            </div>
+
+                            <img 
+                                src={previewUrl} 
+                                alt="Preview" 
+                                className="max-w-full max-h-full object-contain shadow-2xl rounded-2xl"
+                            />
+
+                            {/* Image Metadata Footer */}
+                            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 glass-panel px-4 py-2 rounded-full flex items-center gap-4 text-xs font-medium text-gray-600 dark:text-gray-300 shadow-lg whitespace-nowrap">
+                                <span>{selectedFile?.name || title || '未命名'}</span>
+                                <span className="w-1 h-1 rounded-full bg-gray-300 dark:bg-gray-600" />
+                                <span>{fileMeta.width && fileMeta.height ? `${fileMeta.width} × ${fileMeta.height}` : '计算中...'}</span>
+                                <span className="w-1 h-1 rounded-full bg-gray-300 dark:bg-gray-600" />
+                                <span>{formatBytes(fileMeta.bytes)}</span>
+                            </div>
+                        </>
+                    ) : (
+                        <div 
+                            className="w-full h-full flex flex-col items-center justify-center text-center cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800/50 transition-colors"
+                            onClick={() => fileInputRef.current?.click()}
+                        >
+                            <div className="w-20 h-20 rounded-full bg-gray-200 dark:bg-gray-800 flex items-center justify-center mx-auto mb-6">
+                                <UploadIcon className="w-8 h-8 text-gray-400" />
+                            </div>
+                            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">拖拽照片到此处</h3>
+                            <p className="text-sm text-gray-500 mb-6">支持 JPEG, PNG, WEBP 格式</p>
+                            <button className="btn-primary cursor-pointer inline-flex pointer-events-none">
+                                浏览文件
+                            </button>
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* Right Column: Form */}
+            <div className="w-full md:w-[45%] lg:w-[40%] bg-white dark:bg-black h-auto md:h-screen overflow-y-auto flex flex-col">
+                <div className="flex-1 p-6 md:p-10 max-w-2xl mx-auto w-full space-y-6">
+
+                    <div>
+                        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+                            {isEditMode ? '编辑照片' : '发布新作品'}
+                        </h1>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                            {isEditMode ? '更新照片信息' : '分享你的摄影作品'}
+                        </p>
+                    </div>
+                    
+                    {/* General Information */}
+                    <section className="space-y-6">
+                        <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                            <ImageIcon className="w-5 h-5 text-primary" />
+                            基本信息
+                        </h2>
+                        
+                        <div className="space-y-6">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                    标题
+                                </label>
+                                <input
+                                    type="text"
+                                    value={title}
+                                    onChange={(e) => setTitle(e.target.value)}
+                                    placeholder="为照片起个标题..."
+                                    className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-primary/20 transition-all outline-none"
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">照片故事</label>
+                                <textarea
+                                    value={description}
+                                    onChange={(e) => setDescription(e.target.value)}
+                                    placeholder="这张照片背后有什么故事？"
+                                    className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl px-4 py-3 text-sm font-medium min-h-[120px] resize-none focus:ring-2 focus:ring-primary/20 transition-all outline-none"
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">拍摄地点</label>
+                                <div className="relative flex items-center gap-2">
+                                    <div className="relative flex-1">
+                                        <MapPin className="absolute left-4 top-3.5 w-5 h-5 text-gray-400" />
+                                        <input
+                                            type="text"
+                                            value={location}
+                                            onChange={(e) => setLocation(e.target.value)}
+                                            placeholder="添加地点"
+                                            className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl pl-12 pr-4 py-3 text-sm font-medium focus:ring-2 focus:ring-primary/20 transition-all outline-none"
+                                        />
+                                    </div>
+                                    <button 
+                                        onClick={() => setShowMap(true)}
+                                        className="p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-gray-500 dark:text-gray-400"
+                                        title="在地图上选择"
+                                    >
+                                        <MapIcon className="w-5 h-5" />
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">分类</label>
+                                    <FormSelect
+                                        value={category}
+                                        onChange={setCategory}
+                                        options={categories}
+                                        placeholder="选择分类"
+                                        mobileGrid={true}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">拍摄日期</label>
+                                    <DatePicker
+                                        value={date}
+                                        onChange={setDate}
+                                        placeholder="选择日期"
+                                        className="w-full"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* EXIF Data */}
+                    <section className="space-y-6">
+                        <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                            <Camera className="w-5 h-5 text-primary" />
+                            拍摄参数（EXIF）
+                        </h2>
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                            {[
+                                { icon: Camera, label: '相机', value: exif.camera, key: 'camera' },
+                                { icon: Aperture, label: '镜头', value: exif.lens, key: 'lens' },
+                                { icon: Timer, label: '快门', value: exif.shutterSpeed, key: 'shutterSpeed' },
+                                { icon: MoveDiagonal, label: '光圈', value: exif.aperture, key: 'aperture' },
+                                { icon: Zap, label: 'ISO', value: exif.iso, key: 'iso' },
+                                { icon: MoveDiagonal, label: '焦距', value: exif.focalLength, key: 'focalLength' },
+                            ].map((item) => (
+                                <div key={item.label} className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 flex items-center gap-4 hover:border-primary/20 transition-colors shadow-sm">
+                                    <div className="w-10 h-10 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center shrink-0">
+                                        <item.icon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                                    </div>
+                                    <div className="overflow-hidden flex-1 group/input">
+                                        <div className="text-xs font-medium text-gray-400 mb-0.5 group-focus-within/input:text-primary transition-colors">{item.label}</div>
+                                        {/* Editable Input for EXIF */}
+                                        <textarea
+                                            value={item.value}
+                                            onChange={(e) => {
+                                                setExif({ ...exif, [item.key]: e.target.value });
+                                                // Auto-resize
+                                                e.target.style.height = 'auto';
+                                                e.target.style.height = e.target.scrollHeight + 'px';
+                                            }}
+                                            placeholder="-"
+                                            rows={1}
+                                            className="w-full bg-transparent border-none p-0 text-sm font-bold text-gray-900 dark:text-white focus:ring-0 focus:outline-none placeholder:font-normal placeholder:text-gray-300 transition-all resize-none overflow-hidden whitespace-pre-wrap break-words"
+                                            style={{ minHeight: '1.5em', height: 'auto' }}
+                                            onFocus={(e) => {
+                                                 e.target.style.height = 'auto';
+                                                 e.target.style.height = e.target.scrollHeight + 'px';
+                                            }}
+                                        />
+                                        <div className="h-0.5 w-0 bg-primary group-focus-within/input:w-full transition-all duration-300 ease-out" />
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </section>
+
+                    {/* Discovery Tags */}
+                    <section className="space-y-6 pb-20">
+                        <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                            <Tag className="w-5 h-5 text-primary" />
+                            发现标签
+                        </h2>
+                        
+                        <div className="space-y-6">
+                            <div className="flex flex-wrap gap-2">
+                                {tags.map(tag => (
+                                    <span key={tag} className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300">
+                                        #{tag}
+                                        <button onClick={() => removeTag(tag)} className="ml-1.5 hover:text-blue-900 dark:hover:text-blue-100">
+                                            <X className="w-3.5 h-3.5" />
+                                        </button>
+                                    </span>
+                                ))}
+                            </div>
+                            <div className="relative">
+                                <input
+                                    type="text"
+                                    value={tagInput}
+                                    onChange={(e) => setTagInput(e.target.value)}
+                                    onKeyDown={handleTagKeyDown}
+                                    placeholder="+ 添加标签 (按回车或逗号)"
+                                    className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-primary/20 transition-all outline-none"
+                                />
+                            </div>
+                        </div>
+                    </section>
+
+                </div>
+
+                {/* Sticky Footer */}
+                <div className="sticky bottom-0 bg-white/80 dark:bg-black/80 backdrop-blur-md border-t border-gray-100 dark:border-gray-800 p-6 md:px-10 flex items-center justify-end gap-4 z-10">
                     <button 
                         onClick={() => navigate(-1)}
-                        className="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors"
+                        className="px-6 py-3 rounded-2xl text-gray-600 dark:text-gray-400 font-bold hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                     >
                         取消
                     </button>
                     <button 
                         onClick={handleSubmit}
-                        disabled={isQueueMode ? uploadItems.length === 0 || isUploadingQueue : isLoading || !previewUrl}
-                        className="glass-button-primary flex items-center gap-2 px-6 py-2 rounded-full font-medium transition-all shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95"
+                        disabled={isUploading}
+                        className="px-8 py-3 rounded-2xl bg-gradient-to-r from-primary to-blue-600 text-white text-base font-bold hover:shadow-lg hover:shadow-primary/30 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none"
                     >
-                        {isQueueMode ? (
-                            isUploadingQueue ? (
-                                <>
-                                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-                                    上传中...
-                                </>
-                            ) : (
-                                <>
-                                    <Save className="w-4 h-4" />
-                                    开始上传
-                                </>
-                            )
-                        ) : isLoading ? (
-                            <>
-                                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-                                保存中...
-                            </>
-                        ) : (
-                            <>
-                                <Save className="w-4 h-4" />
-                                发布
-                            </>
-                        )}
+                        {isUploading ? <Loader2 className="w-5 h-5 animate-spin" /> : (isEditMode ? <Save className="w-5 h-5" /> : <Send className="w-5 h-5" />)}
+                        {isUploading ? (isEditMode ? '保存中...' : '发布中...') : (isEditMode ? '保存修改' : '立即发布')}
                     </button>
                 </div>
             </div>
 
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <div className="flex flex-col lg:flex-row gap-8">
-                    {/* Left: Image Upload & Preview */}
-                    <div className="lg:w-2/3 space-y-6">
-                        <div 
-                            className={`
-                                relative aspect-[4/3] rounded-2xl border-2 border-dashed transition-all overflow-hidden flex flex-col items-center justify-center
-                                ${isDragging 
-                                    ? 'border-primary bg-primary/10' 
-                                    : 'border-white/30 dark:border-white/10 glass-panel shadow-sm'
-                                }
-                                ${!previewUrl && !isQueueMode ? 'cursor-pointer hover:border-primary/50 hover:shadow-md' : ''}
-                            `}
-                            onDragOver={handleDragOver}
-                            onDragLeave={handleDragLeave}
-                            onDrop={handleDrop}
-                        >
-                            {isQueueMode ? (
-                                <div className="w-full h-full p-4 flex flex-col">
-                                    <div className="flex items-center justify-between gap-3">
-                                        <div className="text-sm font-bold text-gray-700 dark:text-gray-200">
-                                            已添加 {uploadItems.length} 张
-                                        </div>
-                                        <label className="glass-button px-3 py-2 text-sm font-medium rounded-lg cursor-pointer transition-colors hover:bg-white/50 dark:hover:bg-white/10">
-                                            继续添加
-                                            <input type="file" className="hidden" onChange={handleFileSelect} accept="image/*" multiple />
-                                        </label>
-                                    </div>
-
-                                    <div className="mt-4 flex-1 overflow-auto rounded-xl border border-white/20 dark:border-white/10 bg-white/30 dark:bg-black/20 backdrop-blur-sm custom-scrollbar">
-                                        <div className="divide-y divide-white/20 dark:divide-white/10">
-                                            {uploadItems.map((it) => (
-                                                <div key={it.id} className="flex items-center gap-3 p-3 hover:bg-white/10 dark:hover:bg-white/5 transition-colors">
-                                                    <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100 dark:bg-surface-dark border border-white/10 shrink-0 shadow-sm">
-                                                        <img src={it.previewUrl} alt={it.title} className="w-full h-full object-cover" />
-                                                    </div>
-                                                    <div className="flex-1 min-w-0 space-y-2">
-                                                        <input
-                                                            type="text"
-                                                            value={it.title}
-                                                            placeholder="照片标题"
-                                                            disabled={it.status === 'uploading' || it.status === 'success' || isUploadingQueue}
-                                                            onChange={(e) => setUploadItems(prev => prev.map(p => (p.id === it.id ? { ...p, title: e.target.value } : p)))}
-                                                            className="w-full bg-white/50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded-lg px-3 py-1.5 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50 truncate disabled:opacity-70 transition-all"
-                                                        />
-                                                        <input
-                                                            type="text"
-                                                            value={it.description}
-                                                            placeholder="照片故事（描述）"
-                                                            disabled={it.status === 'uploading' || it.status === 'success' || isUploadingQueue}
-                                                            onChange={(e) => setUploadItems(prev => prev.map(p => (p.id === it.id ? { ...p, description: e.target.value } : p)))}
-                                                            className="w-full bg-white/50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded-lg px-3 py-1.5 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50 truncate disabled:opacity-70 transition-all"
-                                                        />
-                                                        <div className="flex items-center justify-between">
-                                                            <div className="text-xs text-gray-500 dark:text-gray-400 truncate flex items-center gap-2">
-                                                                <span className="bg-white/30 dark:bg-white/10 px-1.5 py-0.5 rounded">
-                                                                    {it.width && it.height ? `${it.width}×${it.height}` : '未知分辨率'}
-                                                                </span>
-                                                                <span className="bg-white/30 dark:bg-white/10 px-1.5 py-0.5 rounded">
-                                                                    {it.bytes ? formatBytes(it.bytes) : ''}
-                                                                </span>
-                                                            </div>
-                                                            <div className="flex items-center gap-2">
-                                                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium backdrop-blur-sm shadow-sm ${statusClassName(it.status)}`}>{statusText(it.status)}</span>
-                                                                {it.error ? <span className="text-xs text-red-600 dark:text-red-300 truncate">{it.error}</span> : null}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex items-center gap-2 flex-col justify-center">
-                                                        {it.status === 'failed' && !isUploadingQueue ? (
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => retryItem(it.id)}
-                                                                className="p-2 text-xs font-medium bg-white/50 dark:bg-white/10 border border-white/20 rounded-lg hover:bg-white/80 dark:hover:bg-white/20 transition-colors"
-                                                                title="重试"
-                                                            >
-                                                                <Sparkles className="w-4 h-4 text-blue-500" />
-                                                            </button>
-                                                        ) : null}
-                                                        {it.status !== 'uploading' && !isUploadingQueue ? (
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => removeItem(it.id)}
-                                                                className="p-2 text-xs font-medium text-red-600 dark:text-red-300 bg-white/50 dark:bg-white/10 border border-white/20 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                                                                title="移除"
-                                                            >
-                                                                <X className="w-4 h-4" />
-                                                            </button>
-                                                        ) : null}
-                                                        {it.status === 'uploading' ? <span className="w-4 h-4 border-2 border-primary/40 border-t-primary rounded-full animate-spin" /> : null}
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-
-                                    <div className="mt-3 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                                        <div>
-                                            已完成 {uploadItems.filter(i => i.status === 'success').length} / {uploadItems.length}
-                                        </div>
-                                        <div>
-                                            失败 {uploadItems.filter(i => i.status === 'failed').length}
-                                        </div>
-                                    </div>
-                                </div>
-                            ) : previewUrl ? (
-                                <div className="relative w-full h-full group">
-                                    <img src={previewUrl} alt="Preview" className="w-full h-full object-contain bg-black/5 dark:bg-black/20" />
-                                    {fileMeta ? (
-                                        <div className="absolute bottom-4 left-4 bg-black/55 backdrop-blur-sm text-white text-xs px-3 py-1.5 rounded-full flex items-center gap-3 border border-white/10">
-                                            <span className="inline-flex items-center gap-1.5">
-                                                <ImageIcon className="w-3.5 h-3.5" />
-                                                {fileMeta.width && fileMeta.height ? `${fileMeta.width}×${fileMeta.height}` : '未知分辨率'}
-                                            </span>
-                                            <span className="inline-flex items-center gap-1.5">
-                                                <Disc className="w-3.5 h-3.5" />
-                                                {fileMeta.bytes ? formatBytes(fileMeta.bytes) : '未知大小'}
-                                            </span>
-                                        </div>
-                                    ) : null}
-                                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
-                                        <button 
-                                            onClick={() => {
-                                                setPreviewUrl(null);
-                                                setSelectedFile(null);
-                                                setFileMeta(null);
-                                            }}
-                                            className="p-3 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-lg"
-                                            title="移除照片"
-                                        >
-                                            <X className="w-6 h-6" />
-                                        </button>
-                                        <label className="p-3 bg-white text-gray-900 rounded-full hover:bg-gray-100 transition-colors shadow-lg cursor-pointer">
-                                            <UploadIcon className="w-6 h-6" />
-                                            <input type="file" className="hidden" onChange={handleFileSelect} accept="image/*" multiple={!isEditMode} />
-                                        </label>
-                                    </div>
-                                    
-                                    {/* AI Analyze Button */}
-                                    <button 
-                                        onClick={handleAnalyzePhoto}
-                                        disabled={isAnalyzing || aiStatus?.enabled === false}
-                                        className="absolute bottom-4 right-4 flex items-center gap-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-2 rounded-full shadow-lg hover:shadow-xl transition-all disabled:opacity-70 font-medium text-sm"
-                                    >
-                                        {isAnalyzing ? (
-                                            <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-                                        ) : (
-                                            <Sparkles className="w-4 h-4" />
-                                        )}
-                                        {isAnalyzing ? 'AI 识别中...' : (aiStatus?.enabled === false ? 'AI 未配置' : 'AI 智能识别')}
-                                    </button>
-                                </div>
-                            ) : (
-                                <label className="flex flex-col items-center justify-center w-full h-full cursor-pointer">
-                                    <div className="p-4 bg-primary/10 rounded-full text-primary mb-4">
-                                        <UploadIcon className="w-8 h-8" />
-                                    </div>
-                                    <h3 className="text-lg font-medium text-gray-900 dark:text-white">拖放照片至此，或点击上传</h3>
-                                    <p className="text-gray-500 dark:text-gray-400 text-sm mt-2">支持 JPG, PNG, WEBP (最大 20MB)</p>
-                                    <input type="file" className="hidden" onChange={handleFileSelect} accept="image/*" multiple={!isEditMode} />
-                                </label>
-                            )}
-                        </div>
-
-                        {!isQueueMode ? (
-                            <div className="glass-panel p-6">
-                                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
-                                    <Camera className="w-5 h-5 text-primary" />
-                                    拍摄参数 (EXIF)
-                                </h3>
-                                <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-bold text-gray-600 dark:text-gray-400 uppercase flex items-center gap-1">
-                                            <Camera className="w-3 h-3" /> 机身
-                                        </label>
-                                        <input 
-                                            type="text" 
-                                            value={exif.camera}
-                                            onChange={e => setExif({...exif, camera: e.target.value})}
-                                            className="w-full bg-white/50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50 backdrop-blur-sm transition-all"
-                                            placeholder="Sony A7R V"
-                                        />
-                                    </div>
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-gray-600 dark:text-gray-400 uppercase flex items-center gap-1">
-                                        <Disc className="w-3 h-3" /> 镜头
-                                    </label>
-                                    <input 
-                                        type="text" 
-                                        value={exif.lens}
-                                        onChange={e => setExif({...exif, lens: e.target.value})}
-                                        className="w-full bg-white/50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50 backdrop-blur-sm transition-all"
-                                        placeholder="FE 35mm F1.4 GM"
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-gray-600 dark:text-gray-400 uppercase flex items-center gap-1">
-                                        <Aperture className="w-3 h-3" /> 光圈
-                                    </label>
-                                    <input 
-                                        type="text" 
-                                        value={exif.aperture}
-                                        onChange={e => setExif({...exif, aperture: e.target.value})}
-                                        className="w-full bg-white/50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50 backdrop-blur-sm transition-all"
-                                        placeholder="f/1.4"
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-gray-600 dark:text-gray-400 uppercase flex items-center gap-1">
-                                        <Timer className="w-3 h-3" /> 快门
-                                    </label>
-                                    <input 
-                                        type="text" 
-                                        value={exif.shutterSpeed}
-                                        onChange={e => setExif({...exif, shutterSpeed: e.target.value})}
-                                        className="w-full bg-white/50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50 backdrop-blur-sm transition-all"
-                                        placeholder="1/200s"
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-gray-600 dark:text-gray-400 uppercase flex items-center gap-1">
-                                        <Zap className="w-3 h-3" /> ISO
-                                    </label>
-                                    <input 
-                                        type="text" 
-                                        value={exif.iso}
-                                        onChange={e => setExif({...exif, iso: e.target.value})}
-                                        className="w-full bg-white/50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50 backdrop-blur-sm transition-all"
-                                        placeholder="100"
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-gray-600 dark:text-gray-400 uppercase flex items-center gap-1">
-                                        <ImageIcon className="w-3 h-3" /> 焦段
-                                    </label>
-                                    <input 
-                                        type="text" 
-                                        value={exif.focalLength}
-                                        onChange={e => setExif({...exif, focalLength: e.target.value})}
-                                        className="w-full bg-white/50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50 backdrop-blur-sm transition-all"
-                                        placeholder="35mm"
-                                    />
-                                </div>
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="glass-panel p-6">
-                                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
-                                    <Camera className="w-5 h-5 text-primary" />
-                                    批量上传
-                                </h3>
-                                <p className="text-sm text-gray-600 dark:text-gray-300">
-                                    批量模式下会按右侧的分类/标签/地点统一应用。EXIF 归一与更完整的批量表单会在后续阶段补齐。
-                                </p>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Right: Info Form */}
-                    <div className="lg:w-1/3 space-y-6">
-                        <div className="glass-panel p-6 space-y-6 relative z-10">
-                            {!isQueueMode ? (
-                                <>
-                                    <div className="space-y-2">
-                                        <label className="text-sm font-bold text-gray-700 dark:text-gray-200">标题</label>
-                                        <input 
-                                            type="text" 
-                                            value={title}
-                                            onChange={e => setTitle(e.target.value)}
-                                            className="w-full bg-white/50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded-lg px-4 py-2.5 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50 backdrop-blur-sm placeholder-gray-400 dark:placeholder-gray-500 transition-all"
-                                            placeholder="给照片起个好听的名字"
-                                        />
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <label className="text-sm font-bold text-gray-700 dark:text-gray-200">描述 / 故事</label>
-                                        <textarea 
-                                            value={description}
-                                            onChange={e => setDescription(e.target.value)}
-                                            rows={5}
-                                            className="w-full bg-white/50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded-lg px-4 py-2.5 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50 backdrop-blur-sm placeholder-gray-400 dark:placeholder-gray-500 resize-none transition-all"
-                                            placeholder="讲述这张照片背后的故事..."
-                                        />
-                                    </div>
-                                </>
-                            ) : (
-                                <div className="bg-primary/10 border border-primary/20 p-4 rounded-xl text-sm text-gray-700 dark:text-gray-200 backdrop-blur-sm">
-                                    标题默认取文件名，可在左侧列表逐张修改。分类/标签/地点会统一应用到本次批量上传。
-                                </div>
-                            )}
-
-                            <div className="grid grid-cols-2 gap-4">
-                                {!isQueueMode ? (
-                                    <div className="space-y-2">
-                                        <label className="text-sm font-bold text-gray-700 dark:text-gray-200">拍摄日期</label>
-                                        <DatePicker 
-                                            value={date} 
-                                            onChange={setDate}
-                                            placeholder="选择日期"
-                                        />
-                                    </div>
-                                ) : (
-                                    <div />
-                                )}
-                                <div className="space-y-2">
-                                    <label className="text-sm font-bold text-gray-700 dark:text-gray-200">拍摄地点</label>
-                                    <div className="relative">
-                                        <input 
-                                            type="text" 
-                                            value={location}
-                                            onChange={e => setLocation(e.target.value)}
-                                            className="w-full bg-white/50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded-lg pl-10 pr-3 py-2.5 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50 backdrop-blur-sm text-sm transition-all"
-                                            placeholder="城市, 国家"
-                                        />
-                                        <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-900 dark:text-gray-400 pointer-events-none" />
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="space-y-2 relative z-20">
-                                <label className="text-sm font-bold text-gray-700 dark:text-gray-200">分类</label>
-                                <div className="relative">
-                                    <button
-                                        type="button"
-                                        onClick={() => setIsCategoryOpen(!isCategoryOpen)}
-                                        className="w-full bg-white/50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded-lg px-4 py-2.5 text-left text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50 backdrop-blur-sm transition-all flex items-center justify-between"
-                                    >
-                                        <span>
-                                            {categories.find(c => c.value === category)?.label || category}
-                                        </span>
-                                        <ChevronDown className={`w-4 h-4 text-gray-900 dark:text-gray-400 transition-transform ${isCategoryOpen ? 'rotate-180' : ''}`} />
-                                    </button>
-                                    
-                                    {isCategoryOpen && (
-                                        <>
-                                            <div 
-                                                className="fixed inset-0 z-10" 
-                                                onClick={() => setIsCategoryOpen(false)}
-                                            />
-                                            <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white/90 dark:bg-gray-900/90 border border-white/20 dark:border-white/10 rounded-lg shadow-lg backdrop-blur-md overflow-hidden max-h-60 overflow-y-auto custom-scrollbar">
-                                                {categories.map(cat => (
-                                                    <button
-                                                        key={cat.value}
-                                                        type="button"
-                                                        onClick={() => {
-                                                            setCategory(cat.value);
-                                                            setIsCategoryOpen(false);
-                                                        }}
-                                                        className={`w-full text-left px-4 py-2.5 text-sm transition-colors hover:bg-primary/10 dark:hover:bg-white/10 ${category === cat.value ? 'bg-primary/5 text-primary font-medium' : 'text-gray-700 dark:text-gray-200'}`}
-                                                    >
-                                                        {cat.label}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        </>
-                                    )}
-                                </div>
-                            </div>
-
-                            <div className="space-y-2">
-                                <label className="text-sm font-bold text-gray-700 dark:text-gray-200">标签</label>
-                                <div className="bg-white/50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded-lg p-2 min-h-[80px] flex flex-wrap gap-2 items-start backdrop-blur-sm transition-all focus-within:ring-2 focus-within:ring-primary/50">
-                                    {tags.map(tag => (
-                                        <span key={tag} className="inline-flex items-center gap-1 bg-white/60 dark:bg-white/10 text-gray-800 dark:text-gray-200 px-2 py-1 rounded text-xs border border-white/20 shadow-sm backdrop-blur-md">
-                                            #{tag}
-                                            <button onClick={() => removeTag(tag)} className="hover:text-red-500 transition-colors"><X className="w-3 h-3" /></button>
-                                        </span>
-                                    ))}
-                                    <input 
-                                        type="text"
-                                        value={tagInput}
-                                        onChange={e => setTagInput(e.target.value)}
-                                        onKeyDown={handleAddTag}
-                                        className="bg-transparent text-sm min-w-[100px] flex-1 outline-none text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-500"
-                                        placeholder="输入标签按回车..."
-                                    />
-                                </div>
-                            </div>
-                        </div>
-
-                        {!previewUrl && !isQueueMode && (
-                            <div className="glass-panel bg-yellow-50/50 dark:bg-yellow-900/20 border-yellow-200/50 dark:border-yellow-700/30 p-4 rounded-xl flex gap-3">
-                                <AlertTriangle className="w-5 h-5 text-yellow-600 dark:text-yellow-500 shrink-0" />
-                                <div className="text-sm text-yellow-800 dark:text-yellow-200">
-                                    <p className="font-bold">提示</p>
-                                    <p className="mt-1">上传照片后，您可以点击 "AI 智能填单" 让系统自动识别照片内容、生成标题、描述和标签。</p>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </div>
+            {/* Map Picker Modal */}
+            {showMap && (
+                <LocationPicker 
+                    initialLat={exif.lat}
+                    initialLng={exif.lng}
+                    onSelect={(lat, lng, addr) => {
+                        setExif(prev => ({ ...prev, lat, lng }));
+                        if (addr) setLocation(addr);
+                        setShowMap(false);
+                    }}
+                    onClose={() => setShowMap(false)}
+                />
+            )}
         </div>
     );
 };
+
+export default Upload;

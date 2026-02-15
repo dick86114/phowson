@@ -59,9 +59,9 @@ export const registerStatsRoutes = async (app) => {
       dates AS (
         SELECT 
           NOW() as curr_end,
-          NOW() - (p.days || ' days')::interval as curr_start,
-          NOW() - (p.days || ' days')::interval as prev_end,
-          NOW() - (2 * p.days || ' days')::interval as prev_start
+          NOW() - (p.days::text || ' days')::interval as curr_start,
+          NOW() - (p.days::text || ' days')::interval as prev_end,
+          NOW() - ((2 * p.days)::text || ' days')::interval as prev_start
         FROM params p
       ),
       -- 1. Total Counts (Snapshots)
@@ -163,11 +163,12 @@ export const registerStatsRoutes = async (app) => {
       FROM totals t, period_counts pc, dau_calc d, growth_rates g
     `, [daysNum]);
 
-    // 2. 分类分布 (Category Distribution) - Top 5 + Others
+    // 2. 分类分布 (Category Distribution) - 当前周期
     const dist = await pool.query(`
-      SELECT category, COUNT(*)::int as count 
-      FROM photos 
-      GROUP BY category 
+      SELECT category, COUNT(*)::int as count
+      FROM photos
+      WHERE created_at > NOW() - INTERVAL '${daysNum} days'
+      GROUP BY category
       ORDER BY count DESC
     `);
 

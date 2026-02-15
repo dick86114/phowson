@@ -5,6 +5,9 @@ import { loadEnvIfNeeded } from '../lib/load_env.mjs';
 
 loadEnvIfNeeded();
 
+let baseUrl = String(process.env.API_BASE_URL || '').trim();
+baseUrl = baseUrl.replace(/\/$/, '');
+
 const baseHeadersAdminJson = {
   'x-user-id': 'admin',
   'x-user-name': '管理员',
@@ -78,17 +81,17 @@ const testCommentsCaptchaSpam = async (app) => {
   fd.append('tags', 'x');
   fd.append('exif', JSON.stringify({}));
   const created = await (async () => {
-    const res = await fetch('http://localhost:3001/photos', { method: 'POST', headers: baseHeadersAdminFetch, body: fd });
+    const res = await fetch(`${baseUrl}/photos`, { method: 'POST', headers: baseHeadersAdminFetch, body: fd });
     assert.equal(res.status, 201);
     return res.json();
   })();
   const id = created.id;
   {
-    const captchaRes = await fetch('http://localhost:3001/auth/captcha');
+    const captchaRes = await fetch(`${baseUrl}/auth/captcha`);
     assert.equal(captchaRes.status, 200);
     const captchaBody = await captchaRes.json();
     // 用错误验证码
-    const guestRes = await fetch(`http://localhost:3001/photos/${id}/comment`, {
+    const guestRes = await fetch(`${baseUrl}/photos/${id}/comment`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
@@ -105,7 +108,7 @@ const testCommentsCaptchaSpam = async (app) => {
     assert.equal(body.code, 'CAPTCHA_INVALID');
   }
   {
-    const adminRes = await fetch(`http://localhost:3001/photos/${id}/comment`, {
+    const adminRes = await fetch(`${baseUrl}/photos/${id}/comment`, {
       method: 'POST',
       headers: { ...baseHeadersAdminFetch, 'content-type': 'application/json' },
       body: JSON.stringify({ content: '请关注我 https://spam.example.com' }),
@@ -119,7 +122,7 @@ const testCommentsCaptchaSpam = async (app) => {
 
 const testStatsDays = async () => {
   const check = async (days) => {
-    const res = await fetch(`http://localhost:3001/stats/summary?days=${days}`);
+    const res = await fetch(`${baseUrl}/stats/summary?days=${days}`);
     assert.equal(res.status, 200);
     const body = await res.json();
     assert.ok(typeof body?.summary?.total_photos === 'number');
@@ -144,7 +147,7 @@ const testUploadTooLarge = async () => {
   tooLargeFd.append('category', 'uncategorized');
   tooLargeFd.append('tags', 'a');
   tooLargeFd.append('exif', JSON.stringify({ camera: 'neg' }));
-  const tooLargeRes = await fetch('http://localhost:3001/photos', {
+  const tooLargeRes = await fetch(`${baseUrl}/photos`, {
     method: 'POST',
     headers: baseHeadersAdminFetch,
     body: tooLargeFd,
@@ -157,6 +160,10 @@ const testUploadTooLarge = async () => {
 const main = async () => {
   const app = createApp();
   await app.ready();
+  if (!baseUrl) {
+    baseUrl = await app.listen({ port: 0, host: '127.0.0.1' });
+    baseUrl = baseUrl.replace(/\/$/, '');
+  }
   await testUsersDuplicateWeakSelfDisable(app);
   await testCommentsCaptchaSpam(app);
   await testStatsDays();

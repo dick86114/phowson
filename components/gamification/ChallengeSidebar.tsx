@@ -11,7 +11,7 @@ export const ChallengeStatsCard: React.FC<StatsCardProps> = ({ totalCompleted, w
     return (
         <div className="glass-panel rounded-3xl p-6">
             <div className="flex items-center gap-2 mb-6">
-                <div className="p-2 rounded-lg bg-blue-100/50 dark:bg-blue-500/10 text-blue-600 backdrop-blur-sm">
+                <div className="p-2 rounded-xl bg-blue-100/50 dark:bg-blue-500/10 text-blue-600 backdrop-blur-sm">
                     <BarChart3 className="w-5 h-5" />
                 </div>
                 <h3 className="font-bold text-gray-900 dark:text-white">个人挑战统计</h3>
@@ -39,16 +39,16 @@ export const RecentRewardsCard: React.FC<RecentRewardProps> = ({ badges }) => {
     return (
         <div className="glass-panel rounded-3xl p-6">
             <div className="flex items-center gap-2 mb-6">
-                <div className="p-2 rounded-lg bg-blue-100/50 dark:bg-blue-500/10 text-blue-600 backdrop-blur-sm">
+                <div className="p-2 rounded-xl bg-blue-100/50 dark:bg-blue-500/10 text-blue-600 backdrop-blur-sm">
                     <Trophy className="w-5 h-5" />
                 </div>
                 <h3 className="font-bold text-gray-900 dark:text-white">最近获得的奖励</h3>
             </div>
 
-            <div className="space-y-4 mb-6">
+            <div className="space-y-6 mb-6">
                 {badges.slice(0, 2).map((badge) => (
-                    <div key={badge.id} className="flex items-center gap-3 p-3 glass-card rounded-xl">
-                        <div className="w-10 h-10 bg-white/50 dark:bg-white/10 rounded-lg flex items-center justify-center shadow-sm text-2xl backdrop-blur-md">
+                    <div key={badge.id} className="flex items-center gap-3 p-3 glass-card">
+                        <div className="w-10 h-10 bg-white/50 dark:bg-white/10 rounded-xl flex items-center justify-center shadow-sm text-2xl backdrop-blur-md">
                             {badge.icon || '🏆'}
                         </div>
                         <div className="flex-1 min-w-0">
@@ -66,7 +66,7 @@ export const RecentRewardsCard: React.FC<RecentRewardProps> = ({ badges }) => {
 
             <Link 
                 to="/gamification/history"
-                className="w-full py-3 bg-blue-100/50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 font-bold rounded-xl text-sm hover:bg-blue-200/50 dark:hover:bg-blue-500/20 transition-colors text-center block backdrop-blur-sm"
+                className="w-full py-3 bg-blue-100/50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 font-bold rounded-2xl text-sm hover:bg-blue-200/50 dark:hover:bg-blue-500/20 transition-colors text-center block backdrop-blur-sm"
             >
                 查看详细挑战报告
             </Link>
@@ -82,7 +82,7 @@ export const ChallengeTipsCard: React.FC = () => {
             
             <div className="relative z-10">
                 <div className="flex items-center gap-2 mb-4">
-                    <div className="p-1.5 rounded-lg bg-white/20 backdrop-blur-sm">
+                    <div className="p-1.5 rounded-xl bg-white/20 backdrop-blur-sm">
                         <Lightbulb className="w-5 h-5 text-yellow-300" />
                     </div>
                     <h3 className="font-bold text-lg">挑战小贴士</h3>

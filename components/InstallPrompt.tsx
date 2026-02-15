@@ -89,9 +89,9 @@ export const InstallPrompt: React.FC = () => {
     <div className="fixed inset-x-4 bottom-6 z-[9999] md:hidden animate-in slide-in-from-bottom-10 fade-in duration-300">
       <div className="glass-panel rounded-2xl p-4 flex items-center gap-3">
         {logo ? (
-          <img src={logo} alt="App Icon" className="w-12 h-12 rounded-xl border border-white/20 object-cover shadow-sm" />
+          <img src={logo} alt="App Icon" className="w-12 h-12 rounded-2xl border border-white/20 object-cover shadow-sm" />
         ) : (
-          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+          <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
               <Download className="w-6 h-6" />
           </div>
         )}
@@ -114,7 +114,7 @@ export const InstallPrompt: React.FC = () => {
               <button
                 type="button"
                 onClick={handleInstall}
-                className="px-3 py-1.5 rounded-lg bg-primary text-white text-xs font-bold hover:bg-primary/90 active:scale-95 transition-all shadow-lg shadow-primary/20"
+                className="px-3 py-1.5 rounded-xl bg-primary text-white text-xs font-bold hover:bg-primary/90 active:scale-95 transition-all shadow-lg shadow-primary/20"
               >
                 安装
               </button>
@@ -122,7 +122,7 @@ export const InstallPrompt: React.FC = () => {
             <button
               type="button"
               onClick={handleDismiss}
-              className="p-1.5 rounded-lg bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/20 transition-colors"
+              className="p-1.5 rounded-xl bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/20 transition-colors"
             >
               <X className="w-4 h-4" />
             </button>

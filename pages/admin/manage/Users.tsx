@@ -6,7 +6,8 @@ import { Navigate } from 'react-router-dom';
 import { 
     Users, Plus, Search, Filter, MoreHorizontal, Edit2, 
     Trash2, Ban, Check, Key, Shield, User as UserIcon, Mail,
-    Activity, Clock, FileText, Upload, RefreshCw, X, ChevronRight, ChevronDown, Camera
+    Activity, Clock, FileText, Upload, RefreshCw, X, ChevronRight, ChevronDown, Camera,
+    Download, Loader2
 } from 'lucide-react';
 import api from '../../../api';
 import { useAuth } from '../../../hooks/useAuth';
@@ -76,7 +77,7 @@ const PlatformOverview: React.FC = () => {
         }
     });
 
-    if (isLoading) return <div className="animate-pulse h-40 bg-gray-100 dark:bg-surface-border rounded-lg"></div>;
+    if (isLoading) return <div className="animate-pulse h-40 bg-gray-100 dark:bg-surface-border rounded-2xl"></div>;
     if (!stats) return null;
 
     return (
@@ -86,7 +87,7 @@ const PlatformOverview: React.FC = () => {
                 平台概览
             </h3>
             
-            <div className="space-y-4">
+            <div className="space-y-6">
                 <div className="p-4 glass-card flex items-center justify-between group hover:border-blue-200 dark:hover:border-blue-800 transition-colors">
                     <div>
                         <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">总用户数</div>
@@ -222,13 +223,13 @@ const OperationLogsDrawer: React.FC<{ userId: string; onClose: () => void }> = (
                 <div className="absolute left-9 top-6 bottom-6 w-0.5 bg-gray-200/50 dark:bg-white/10"></div>
 
                 {isLoading ? (
-                    <div className="space-y-8 pl-10">
-                        {[1,2,3].map(i => <div key={i} className="h-16 bg-white/10 animate-pulse rounded-lg"></div>)}
+                    <div className="space-y-6 pl-10">
+                        {[1,2,3].map(i => <div key={i} className="h-16 bg-white/10 animate-pulse rounded-2xl"></div>)}
                     </div>
                 ) : logs?.length === 0 ? (
                     <div className="text-center text-gray-500 dark:text-gray-400 py-10 pl-4">暂无操作日志</div>
                 ) : (
-                    <div className="space-y-8">
+                    <div className="space-y-6">
                         {logs?.map((log, index) => {
                             const config = getLogConfig(log.action, log.details);
                             const LogIcon = config.icon;
@@ -252,7 +253,7 @@ const OperationLogsDrawer: React.FC<{ userId: string; onClose: () => void }> = (
                                             })}
                                         </div>
                                         {config.desc && (
-                                            <div className="text-sm text-gray-600 dark:text-gray-300 glass-card p-3 rounded-lg border border-white/10 group-hover:border-white/20 transition-colors">
+                                            <div className="text-sm text-gray-600 dark:text-gray-300 glass-card p-3 border border-white/10 group-hover:border-white/20 transition-colors">
                                                 {config.desc}
                                             </div>
                                         )}
@@ -269,8 +270,8 @@ const OperationLogsDrawer: React.FC<{ userId: string; onClose: () => void }> = (
 
             {/* High Activity Card (Mock based on screenshot) */}
             <div className="p-6 border-t border-white/10 bg-white/5 dark:bg-black/20">
-                <div className="bg-orange-50/50 dark:bg-orange-900/20 border border-orange-100/50 dark:border-orange-900/30 rounded-xl p-4 flex items-center gap-4 backdrop-blur-sm">
-                    <div className="w-10 h-10 bg-orange-100/50 dark:bg-orange-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
+                <div className="bg-orange-50/50 dark:bg-orange-900/20 border border-orange-100/50 dark:border-orange-900/30 rounded-2xl p-4 flex items-center gap-4 backdrop-blur-sm">
+                    <div className="w-10 h-10 bg-orange-100/50 dark:bg-orange-900/30 rounded-2xl flex items-center justify-center flex-shrink-0">
                         <Activity className="w-6 h-6 text-orange-600 dark:text-orange-500" />
                     </div>
                     <div>
@@ -418,8 +419,67 @@ export const UsersPage: React.FC = () => {
     const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
     const [userModalError, setUserModalError] = useState('');
     const [showLogsUserId, setShowLogsUserId] = useState<string | null>(null);
+    const [isExporting, setIsExporting] = useState(false);
 
     // Handlers
+    const handleExport = async () => {
+        if (isExporting) return;
+        setIsExporting(true);
+        try {
+            const params = new URLSearchParams();
+            const q = keyword.trim();
+            if (q) params.set('q', q);
+            params.set('role', role);
+            params.set('status', status);
+            params.set('sort', sort);
+            params.set('limit', '10000');
+            params.set('offset', '0');
+            
+            const res = await api.get(`/users/page?${params.toString()}`);
+            const items = res.data.items || [];
+
+            if (items.length === 0) {
+                error('暂无数据可导出');
+                return;
+            }
+
+            const headers = ['ID', '用户名', '邮箱', '角色', '状态', '注册时间', '最后登录', '活跃天数'];
+            const csvContent = [
+                headers.join(','),
+                ...items.map((item: ApiUser) => {
+                    const row = [
+                        item.id,
+                        `"${(item.name || '').replace(/"/g, '""')}"`,
+                        `"${(item.email || '').replace(/"/g, '""')}"`,
+                        item.role === 'admin' ? '管理员' : '家庭成员',
+                        item.disabledAt ? '已禁用' : '正常',
+                        item.createdAt ? new Date(item.createdAt).toLocaleString() : '',
+                        item.lastLoginAt ? new Date(item.lastLoginAt).toLocaleString() : '',
+                        calculateActiveDays(item.createdAt)
+                    ];
+                    return row.join(',');
+                })
+            ].join('\n');
+
+            const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `users_export_${new Date().toISOString().slice(0, 10)}.csv`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            
+            success(`成功导出 ${items.length} 条数据`);
+        } catch (err) {
+            console.error('Export failed:', err);
+            error('导出失败，请重试');
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
     const handleOpenUserModal = (user?: ApiUser) => {
         setUserModalError('');
         setAvatarFile(null);
@@ -513,26 +573,45 @@ export const UsersPage: React.FC = () => {
                         <Users className="w-8 h-8 text-primary" />
                         用户管理
                     </h1>
-                    <button
-                        onClick={() => handleOpenUserModal()}
-                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2 transition-colors shadow-sm"
-                    >
-                        <Plus className="w-4 h-4" />
-                        <span>新增用户</span>
-                    </button>
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={handleExport}
+                            disabled={isExporting}
+                            className="hidden sm:flex items-center gap-2 px-4 py-2 bg-white dark:bg-white/10 text-gray-700 dark:text-white border border-gray-200 dark:border-white/10 rounded-2xl hover:bg-gray-50 dark:hover:bg-white/20 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                            <span>导出 CSV</span>
+                        </button>
+                        <button
+                            onClick={() => handleOpenUserModal()}
+                            className="px-4 py-2 bg-green-600 text-white rounded-2xl hover:bg-green-700 flex items-center gap-2 transition-colors shadow-sm"
+                        >
+                            <Plus className="w-4 h-4" />
+                            <span>新增用户</span>
+                        </button>
+                    </div>
                 </div>
 
                 {/* Filters */}
                 <div className="flex flex-col sm:flex-row gap-4 glass-panel p-4 relative z-20">
-                    <div className="relative flex-1">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600 dark:text-gray-400" />
-                        <input
-                            type="text"
-                            placeholder="搜索用户..."
-                            value={keyword}
-                            onChange={(e) => setKeyword(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-white/50 dark:bg-black/20 border border-gray-300 dark:border-white/10 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 backdrop-blur-sm transition-all text-sm text-gray-900 dark:text-white placeholder-gray-400"
-                        />
+                    <div className="flex-1 flex gap-3">
+                        <div className="relative flex-1 group">
+                            <input
+                                type="text"
+                                placeholder="搜索用户..."
+                                value={keyword}
+                                onChange={(e) => setKeyword(e.target.value)}
+                                className="w-full pl-10 pr-4 py-2.5 bg-white/50 dark:bg-black/20 border border-gray-200 dark:border-white/10 backdrop-blur-sm rounded-2xl text-base focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-sm text-gray-900 dark:text-white placeholder-gray-400"
+                            />
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 dark:text-gray-400 pointer-events-none group-focus-within:text-primary transition-colors" />
+                        </div>
+                        <button
+                            onClick={handleExport}
+                            disabled={isExporting}
+                            className="sm:hidden flex items-center justify-center w-[46px] shrink-0 bg-white dark:bg-white/10 text-gray-700 dark:text-white border border-gray-200 dark:border-white/10 rounded-2xl transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {isExporting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Download className="w-5 h-5" />}
+                        </button>
                     </div>
                     <div className="grid grid-cols-2 sm:flex gap-3">
                         <div className="col-span-2 sm:col-span-1">
@@ -646,14 +725,14 @@ export const UsersPage: React.FC = () => {
                                                 <div className="flex items-center justify-end gap-2">
                                                     <button 
                                                         onClick={() => setShowLogsUserId(u.id)}
-                                                        className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:text-gray-400 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                                                        className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:text-gray-400 dark:hover:bg-blue-900/20 rounded-xl transition-colors"
                                                         title="查看日志"
                                                     >
                                                         <FileText className="w-4 h-4" />
                                                     </button>
                                                     <button 
                                                         onClick={() => handleOpenUserModal(u)}
-                                                        className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                                                        className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl transition-colors"
                                                         title="编辑用户"
                                                     >
                                                         <Edit2 className="w-4 h-4" />
@@ -666,7 +745,7 @@ export const UsersPage: React.FC = () => {
                                                                     <div className="space-y-2">
                                                                         <p>您正在尝试删除用户 <span className="font-bold text-gray-900 dark:text-white">{u.name}</span>。</p>
                                                                         <p className="text-red-600 font-bold">此操作是不可逆的，一旦执行无法撤销！</p>
-                                                                        <ul className="list-disc list-inside text-sm text-gray-600 dark:text-gray-300 space-y-1 bg-red-50 dark:bg-red-900/20 p-3 rounded-lg border border-red-100 dark:border-red-900/30">
+                                                                        <ul className="list-disc list-inside text-sm text-gray-600 dark:text-gray-300 space-y-1 bg-red-50 dark:bg-red-900/20 p-3 rounded-xl border border-red-100 dark:border-red-900/30">
                                                                             <li>该用户的登录账号将被永久注销</li>
                                                                             <li>该用户的所有个人数据（相册、评论、设置等）将被清除</li>
                                                                             <li>与其关联的操作日志将被保留但标记为已删除用户</li>
@@ -678,7 +757,7 @@ export const UsersPage: React.FC = () => {
                                                                 confirmVariant: 'danger',
                                                                 onConfirm: () => deleteUserMutation.mutate(u.id),
                                                             })}
-                                                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors"
                                                             title="删除用户"
                                                         >
                                                             <Trash2 className="w-4 h-4" />
@@ -693,19 +772,22 @@ export const UsersPage: React.FC = () => {
                         </div>
 
                         {/* Mobile Cards */}
-                        <div className="md:hidden divide-y divide-gray-100/50 dark:divide-white/5">
+                        <div className="md:hidden space-y-4 p-4">
                             {usersPage?.items.map((u) => (
-                                <div key={u.id} className="p-4 space-y-4">
-                                    <div className="flex items-start justify-between">
+                                <div key={u.id} className="glass-card p-5 hover:shadow-lg transition-all duration-300">
+                                    <div className="flex items-start justify-between mb-4">
                                         <div className="flex items-center gap-3">
-                                            <UserAvatar url={u.avatar} name={u.name} />
+                                            <UserAvatar url={u.avatar} name={u.name} className="w-12 h-12 text-lg" />
                                             <div>
-                                                <div className="font-medium text-gray-900 dark:text-white">{u.name}</div>
-                                                <div className="text-sm text-gray-500 dark:text-gray-400 font-mono">{u.email}</div>
+                                                <div className="font-bold text-gray-900 dark:text-white text-base">{u.name}</div>
+                                                <div className="text-sm text-gray-500 dark:text-gray-400 font-mono flex items-center gap-1 mt-0.5">
+                                                    <Mail className="w-3 h-3" />
+                                                    {u.email}
+                                                </div>
                                             </div>
                                         </div>
                                         <span className={`
-                                            inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border
+                                            inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border
                                             ${u.role === 'admin' 
                                                 ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400 border-purple-100 dark:border-purple-900/30' 
                                                 : 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border-blue-100 dark:border-blue-900/30'
@@ -716,31 +798,40 @@ export const UsersPage: React.FC = () => {
                                         </span>
                                     </div>
 
-                                    <div className="flex items-center justify-between text-sm">
-                                        <div className="flex items-center gap-4 text-gray-500 dark:text-gray-400">
-                                            <div className="flex items-center gap-2">
+                                    <div className="grid grid-cols-2 gap-3 mb-4">
+                                        <div className="p-3 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-100 dark:border-white/5">
+                                             <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">账号状态</div>
+                                             <div className="flex items-center gap-2">
                                                 <Switch 
                                                     checked={!u.disabledAt} 
                                                     onChange={(checked) => setUserStatusMutation.mutate({ id: u.id, disabled: !checked })}
                                                     disabled={u.id === user?.id}
                                                 />
-                                                <span>{u.disabledAt ? '已禁用' : '正常'}</span>
-                                            </div>
-                                            <div>活跃 {calculateActiveDays(u.createdAt)} 天</div>
+                                                <span className={`text-sm font-medium ${u.disabledAt ? 'text-gray-400' : 'text-green-600 dark:text-green-400'}`}>
+                                                    {u.disabledAt ? '已禁用' : '正常'}
+                                                </span>
+                                             </div>
+                                        </div>
+                                        <div className="p-3 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-100 dark:border-white/5">
+                                             <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">活跃天数</div>
+                                             <div className="font-bold text-gray-900 dark:text-white flex items-center gap-1">
+                                                <Activity className="w-3.5 h-3.5 text-primary" />
+                                                {calculateActiveDays(u.createdAt)} 天
+                                             </div>
                                         </div>
                                     </div>
 
-                                    <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-50 dark:border-surface-border">
+                                    <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-100 dark:border-white/5">
                                         <button 
                                             onClick={() => setShowLogsUserId(u.id)}
-                                            className="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-surface-dark/50 rounded-lg hover:bg-gray-100 dark:hover:bg-surface-border transition-colors flex items-center gap-1.5"
+                                            className="px-3 py-2 text-sm text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-white/5 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 transition-colors flex items-center gap-1.5 font-medium"
                                         >
                                             <FileText className="w-3.5 h-3.5" />
                                             日志
                                         </button>
                                         <button 
                                             onClick={() => handleOpenUserModal(u)}
-                                            className="px-3 py-1.5 text-sm text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors flex items-center gap-1.5"
+                                            className="px-3 py-2 text-sm text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 rounded-xl hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors flex items-center gap-1.5 font-medium"
                                         >
                                             <Edit2 className="w-3.5 h-3.5" />
                                             编辑
@@ -753,7 +844,7 @@ export const UsersPage: React.FC = () => {
                                                         <div className="space-y-2">
                                                             <p>您正在尝试删除用户 <span className="font-bold text-gray-900 dark:text-white">{u.name}</span>。</p>
                                                             <p className="text-red-600 font-bold">此操作是不可逆的，一旦执行无法撤销！</p>
-                                                            <ul className="list-disc list-inside text-sm text-gray-600 dark:text-gray-300 space-y-1 bg-red-50 dark:bg-red-900/20 p-3 rounded-lg border border-red-100 dark:border-red-900/30">
+                                                            <ul className="list-disc list-inside text-sm text-gray-600 dark:text-gray-300 space-y-1 bg-red-50 dark:bg-red-900/20 p-3 rounded-xl border border-red-100 dark:border-red-900/30">
                                                                 <li>该用户的登录账号将被永久注销</li>
                                                                 <li>该用户的所有个人数据（相册、评论、设置等）将被清除</li>
                                                                 <li>与其关联的操作日志将被保留但标记为已删除用户</li>
@@ -765,7 +856,7 @@ export const UsersPage: React.FC = () => {
                                                     confirmVariant: 'danger',
                                                     onConfirm: () => deleteUserMutation.mutate(u.id),
                                                 })}
-                                                className="px-3 py-1.5 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors flex items-center gap-1.5"
+                                                className="px-3 py-2 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 rounded-xl hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors flex items-center gap-1.5 font-medium"
                                             >
                                                 <Trash2 className="w-3.5 h-3.5" />
                                                 删除
@@ -781,10 +872,10 @@ export const UsersPage: React.FC = () => {
                     {usersPage && usersPage.total > limit && (
                         <div className="p-4 border-t border-gray-100 dark:border-surface-border">
                             <Pagination 
-                                current={page}
+                                page={page}
                                 total={usersPage.total}
                                 pageSize={limit}
-                                onChange={setPage}
+                                onPageChange={setPage}
                             />
                         </div>
                     )}
@@ -813,22 +904,22 @@ export const UsersPage: React.FC = () => {
                     <div className="flex justify-end gap-3">
                         <button
                             onClick={() => setIsUserModalOpen(false)}
-                            className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                            className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-xl transition-colors"
                         >
                             取消
                         </button>
                         <button
                             onClick={handleSaveUser}
-                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-sm transition-colors"
+                            className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 shadow-sm transition-colors"
                         >
                             保存
                         </button>
                     </div>
                 }
             >
-                <div className="space-y-4">
+                <div className="space-y-6">
                     {userModalError && (
-                        <div className="p-3 bg-red-50 text-red-600 rounded-lg text-sm border border-red-100">
+                        <div className="p-3 bg-red-50 text-red-600 rounded-xl text-sm border border-red-100">
                             {userModalError}
                         </div>
                     )}
@@ -864,7 +955,7 @@ export const UsersPage: React.FC = () => {
                             type="text"
                             value={userFormData.name}
                             onChange={(e) => setUserFormData({ ...userFormData, name: e.target.value })}
-                            className="w-full mt-1 bg-white/50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded-lg p-3 text-gray-900 dark:text-white text-base focus:outline-none focus:border-primary backdrop-blur-sm"
+                            className="w-full mt-1 bg-white/50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded-2xl p-3 text-gray-900 dark:text-white text-base focus:outline-none focus:border-primary backdrop-blur-sm"
                             placeholder="请输入用户名"
                         />
                     </div>
@@ -875,7 +966,7 @@ export const UsersPage: React.FC = () => {
                             type="email"
                             value={userFormData.email}
                             onChange={(e) => setUserFormData({ ...userFormData, email: e.target.value })}
-                            className="w-full mt-1 bg-white/50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded-lg p-3 text-gray-900 dark:text-white text-base focus:outline-none focus:border-primary backdrop-blur-sm"
+                            className="w-full mt-1 bg-white/50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded-2xl p-3 text-gray-900 dark:text-white text-base focus:outline-none focus:border-primary backdrop-blur-sm"
                             placeholder="请输入邮箱"
                         />
                     </div>
@@ -910,7 +1001,7 @@ export const UsersPage: React.FC = () => {
                                 type="text"
                                 value={userFormData.password}
                                 onChange={(e) => setUserFormData({ ...userFormData, password: e.target.value })}
-                                className="w-full mt-1 bg-white/50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded-lg p-3 text-gray-900 dark:text-white text-base focus:outline-none focus:border-primary backdrop-blur-sm font-mono"
+                                className="w-full mt-1 bg-white/50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded-xl p-3 text-gray-900 dark:text-white text-base focus:outline-none focus:border-primary backdrop-blur-sm font-mono"
                                 placeholder={editingUser ? "不修改请留空，至少 6 位" : "至少 6 位"}
                             />
                             {editingUser && (

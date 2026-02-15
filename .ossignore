@@ -1,0 +1,12 @@
+private/
+.env.local
+server/.env.local
+backend.log
+frontend.log
+reports/
+dist/
+dist-oss/
+node_modules/
+.git/
+.trae/
+.qoder/

@@ -70,10 +70,10 @@ export const Heatmap: React.FC<HeatmapProps & { variant?: 'scroll' | 'grid' | 'c
   };
   
   const getCardClass = () => {
-    if (variant === 'scroll') return 'w-40 glass-card rounded-lg p-3 flex-shrink-0';
+    if (variant === 'scroll') return 'w-40 glass-card rounded-2xl p-3 flex-shrink-0';
     if (variant === 'compact') return 'w-full flex-shrink-0';
     // Grid variant: Transparent background or very subtle
-    return 'w-full bg-gray-50/50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl p-4 flex-shrink-0 hover:border-gray-200 dark:hover:border-white/10 transition-colors';
+    return 'w-full bg-gray-50/50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-2xl p-4 flex-shrink-0 hover:border-gray-200 dark:hover:border-white/10 transition-colors';
   };
 
   const months = useMemo(() => {

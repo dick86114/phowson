@@ -56,9 +56,9 @@ export const useAuth = () => {
     const admin: AuthUser = {
       id: 'admin',
       name: '管理员',
-      avatar: 'https://coreva-normal.trae.ai/api/ide/v1/text_to_image?prompt=portrait%20photo%2C%20minimalist%20admin%20avatar%2C%20soft%20light%2C%20neutral%20background%2C%20modern%20design%2C%20high%20detail&image_size=square',
+      avatar: '/media/avatars/admin',
       role: 'admin',
-      email: 'admin@phowson.com',
+      email: 'admin@example.com',
     };
     writeUser(admin);
     setUser(admin);

@@ -52,7 +52,7 @@ export const ChallengeListCard: React.FC<ChallengeListCardProps> = ({ challenge,
                 </div>
 
                 {/* Content Area */}
-                <div className="flex-1 space-y-4">
+                <div className="flex-1 space-y-6">
                     <div className="flex justify-between items-start">
                         <div>
                             <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-1 group-hover:text-primary transition-colors">{challenge.title}</h3>

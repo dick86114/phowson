@@ -44,21 +44,21 @@ export const BadgeGallery: React.FC<BadgeGalleryProps> = ({ badges }) => {
     };
 
     return (
-        <div className="glass-panel rounded-3xl p-8">
+        <div className="glass-panel rounded-2xl p-8">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
                 <div className="flex items-center gap-2">
-                    <div className="p-2 rounded-lg bg-orange-100/50 dark:bg-orange-500/10 text-orange-500 backdrop-blur-sm">
+                    <div className="p-2 rounded-xl bg-orange-100/50 dark:bg-orange-500/10 text-orange-500 backdrop-blur-sm">
                         <Trophy className="w-6 h-6" />
                     </div>
                     <h2 className="text-xl font-bold text-gray-900 dark:text-white">徽章馆</h2>
                 </div>
                 
-                <div className="flex bg-gray-100/50 dark:bg-gray-800/50 p-1 rounded-xl w-fit backdrop-blur-sm border border-white/10">
+                <div className="flex bg-gray-100/50 dark:bg-gray-800/50 p-1 rounded-2xl w-fit backdrop-blur-sm border border-white/10">
                     {(['all', 'unlocked', 'locked'] as const).map((tab) => (
                         <button
                             key={tab}
                             onClick={() => setFilter(tab)}
-                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                            className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
                                 filter === tab 
                                     ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-sm' 
                                     : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'

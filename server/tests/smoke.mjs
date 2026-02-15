@@ -13,7 +13,7 @@ if (String(process.env.SMOKE_USE_S3 || '').toLowerCase() !== 'true') {
   delete process.env.S3_FORCE_PATH_STYLE;
 }
 
-const baseUrl = process.env.API_BASE_URL || 'http://localhost:3001';
+const baseUrl = process.env.API_BASE_URL || 'http://localhost:2615';
 
 const headers = {
   'x-user-id': 'admin',

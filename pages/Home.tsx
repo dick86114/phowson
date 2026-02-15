@@ -2,7 +2,8 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Calendar, MapPin, Camera, Grid, Image as ImageIcon, User, Plane, Flame, Heart, MessageCircle, ChevronDown, X, Search, Clock, Eye, History, ArrowUp, Check, RefreshCw } from 'lucide-react';
+import { Calendar, MapPin, Camera, Grid, Image as ImageIcon, User, Plane, Flame, Heart, MessageCircle, ChevronDown, X, Search, Clock, Eye, History, ArrowUp, Check, RefreshCw, HelpCircle } from 'lucide-react';
+import * as LucideIcons from 'lucide-react';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import api, { API_BASE_URL } from '../api';
 import { getPhotoUrl } from '../utils/helpers';
@@ -35,6 +36,7 @@ type ApiCategory = {
     value: string;
     label: string;
     sortOrder: number;
+    icon?: string;
 };
 
 type ActivitySummary = {
@@ -233,7 +235,7 @@ export const Home: React.FC = () => {
                     />
                     <div className="absolute inset-0 flex flex-col justify-end p-8 lg:p-16 max-w-[1920px] mx-auto w-full">
                         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-                            <div className="max-w-2xl space-y-2 md:space-y-4">
+                            <div className="max-w-2xl space-y-2 md:space-y-6">
                                 <div className="flex items-center gap-2">
                                     {/* Streak Widget - Mobile Only */}
                                     {activitySummary && (
@@ -286,7 +288,7 @@ export const Home: React.FC = () => {
                                         <div className="flex justify-between items-start gap-4">
                                             <div>
                                                 <div className="flex items-center gap-2 mb-2">
-                                                    <div className="p-1.5 rounded-lg bg-orange-500/20 text-orange-400 group-hover:bg-orange-500/30 transition-colors">
+                                                    <div className="p-1.5 rounded-xl bg-orange-500/20 text-orange-400 group-hover:bg-orange-500/30 transition-colors">
                                                         <Flame className="w-5 h-5 fill-orange-500" />
                                                     </div>
                                                     <span className="text-sm font-semibold text-gray-200 tracking-wide">每日打卡</span>
@@ -298,7 +300,7 @@ export const Home: React.FC = () => {
                                             </div>
                                             
                                             {heatmapData && heatmapData.days && (
-                                                <div className="bg-white/5 rounded-lg p-2 border border-white/5 backdrop-blur-sm group-hover:bg-white/10 transition-colors">
+                                                <div className="bg-white/5 rounded-xl p-2 border border-white/5 backdrop-blur-sm group-hover:bg-white/10 transition-colors">
                                                     <MiniHeatmap data={heatmapData.days} />
                                                 </div>
                                             )}
@@ -322,7 +324,7 @@ export const Home: React.FC = () => {
                 <section className="relative overflow-hidden py-12 md:py-16 bg-gradient-to-b from-gray-50/50 to-white/50 dark:from-surface-dark/50 dark:to-background-dark/50 backdrop-blur-sm border-b border-gray-100 dark:border-white/5">
                      <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center space-y-8 relative z-10">
                         
-                        <div className="space-y-4">
+                        <div className="space-y-6">
                             <motion.div 
                                 initial={{ y: 10, opacity: 0 }}
                                 animate={{ y: 0, opacity: 1 }}
@@ -448,15 +450,23 @@ export const Home: React.FC = () => {
                                     <div className="grid grid-cols-2 gap-3 mb-8">
                                         {[{ id: 'all', label: '全部主题', icon: <Grid className="w-4 h-4"/> }, ...categories
                                             .filter(c => c.value !== 'uncategorized')
-                                            .map(c => ({
-                                                id: c.value,
-                                                label: c.label,
-                                                icon:
-                                                    c.value === 'landscape' ? <ImageIcon className="w-4 h-4"/> :
-                                                    c.value === 'portrait' ? <User className="w-4 h-4"/> :
-                                                    c.value === 'travel' ? <Plane className="w-4 h-4"/> :
-                                                    <ImageIcon className="w-4 h-4"/>,
-                                            }))
+                                            .map(c => {
+                                                let IconNode: React.ReactNode = <ImageIcon className="w-4 h-4" />;
+                                                if (c.icon && (LucideIcons as any)[c.icon]) {
+                                                    const IconComponent = (LucideIcons as any)[c.icon];
+                                                    IconNode = <IconComponent className="w-4 h-4" />;
+                                                } else {
+                                                    // Fallback mappings
+                                                    if (c.value === 'landscape') IconNode = <ImageIcon className="w-4 h-4"/>;
+                                                    else if (c.value === 'portrait') IconNode = <User className="w-4 h-4"/>;
+                                                    else if (c.value === 'travel') IconNode = <Plane className="w-4 h-4"/>;
+                                                }
+                                                return {
+                                                    id: c.value,
+                                                    label: c.label,
+                                                    icon: IconNode,
+                                                };
+                                            })
                                         ].map(cat => (
                                             <motion.button
                                                 key={cat.id}
@@ -466,13 +476,13 @@ export const Home: React.FC = () => {
                                                     setFilter(cat.id);
                                                     setTimeout(() => setShowMobileFilter(false), 150);
                                                 }}
-                                                className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-all duration-200 ${
+                                                className={`flex items-center gap-3 px-4 py-3 rounded-2xl border transition-all duration-200 ${
                                                     filter === cat.id 
                                                     ? 'bg-primary/10 border-primary text-primary shadow-sm font-bold' 
                                                     : 'bg-transparent border-transparent hover:bg-gray-50 dark:hover:bg-white/5 text-gray-600 dark:text-gray-300'
                                                 }`}
                                             >
-                                                <div className={`p-2 rounded-lg ${
+                                                <div className={`p-2 rounded-xl ${
                                                     filter === cat.id ? 'bg-primary text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
                                                 }`}>
                                                     {cat.icon}
@@ -484,7 +494,7 @@ export const Home: React.FC = () => {
 
                                     <button 
                                         onClick={() => setShowMobileFilter(false)}
-                                        className="w-full py-4 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white font-bold text-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                                        className="w-full py-4 rounded-2xl bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white font-bold text-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                                     >
                                         取消
                                     </button>
@@ -557,13 +567,13 @@ export const Home: React.FC = () => {
                                                         // 稍微延迟关闭以展示点击反馈
                                                         setTimeout(() => setShowMobileSort(false), 150);
                                                     }}
-                                                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition-all duration-200 ${
+                                                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border transition-all duration-200 ${
                                                         sortBy === option 
                                                         ? 'bg-primary/10 border-primary text-primary shadow-sm font-bold' 
                                                         : 'bg-transparent border-transparent hover:bg-gray-50 dark:hover:bg-white/5 text-gray-600 dark:text-gray-300'
                                                     }`}
                                                 >
-                                                    <div className={`p-2 rounded-lg ${
+                                                    <div className={`p-2 rounded-xl ${
                                                         sortBy === option ? 'bg-primary text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
                                                     }`}>
                                                         {icon}
@@ -576,7 +586,7 @@ export const Home: React.FC = () => {
 
                                     <button 
                                         onClick={() => setShowMobileSort(false)}
-                                        className="w-full py-4 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white font-bold text-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                                        className="w-full py-4 rounded-2xl bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white font-bold text-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                                     >
                                         取消
                                     </button>
@@ -655,15 +665,23 @@ export const Home: React.FC = () => {
                         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar w-full md:w-auto pb-2 md:pb-0">
                             {[{ id: 'all', label: '全部主题', icon: <Grid className="w-4 h-4"/> }, ...categories
                                 .filter(c => c.value !== 'uncategorized')
-                                .map(c => ({
-                                    id: c.value,
-                                    label: c.label,
-                                    icon:
-                                        c.value === 'landscape' ? <ImageIcon className="w-4 h-4"/> :
-                                        c.value === 'portrait' ? <User className="w-4 h-4"/> :
-                                        c.value === 'travel' ? <Plane className="w-4 h-4"/> :
-                                        <ImageIcon className="w-4 h-4"/>,
-                                }))
+                                .map(c => {
+                                    let IconNode: React.ReactNode = <ImageIcon className="w-4 h-4" />;
+                                    if (c.icon && (LucideIcons as any)[c.icon]) {
+                                        const IconComponent = (LucideIcons as any)[c.icon];
+                                        IconNode = <IconComponent className="w-4 h-4" />;
+                                    } else {
+                                        // Fallback mappings
+                                        if (c.value === 'landscape') IconNode = <ImageIcon className="w-4 h-4"/>;
+                                        else if (c.value === 'portrait') IconNode = <User className="w-4 h-4"/>;
+                                        else if (c.value === 'travel') IconNode = <Plane className="w-4 h-4"/>;
+                                    }
+                                    return {
+                                        id: c.value,
+                                        label: c.label,
+                                        icon: IconNode,
+                                    };
+                                })
                             ].map(cat => (
                                 <button
                                     key={cat.id}
@@ -694,7 +712,8 @@ export const Home: React.FC = () => {
                 </div>
             </section>
 
-            {/* Heatmap Section - Desktop Only (Removed) */}
+            {/* Page Header - Removed per user request */}
+
 
             {/* Gallery Grid */}
             <section className="max-w-[1920px] mx-auto px-[10px] sm:px-6 lg:px-8 py-2 md:py-8">

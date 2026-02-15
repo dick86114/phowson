@@ -6,7 +6,7 @@ import { createApp } from '../app.mjs'
 
 loadEnvIfNeeded()
 
-const baseUrl = process.env.API_BASE_URL || 'http://localhost:3001'
+const baseUrl = process.env.API_BASE_URL || 'http://localhost:2615'
 const adminHeaders = {
   'x-user-id': 'admin',
   'x-user-name': '管理员',
@@ -179,9 +179,12 @@ const main = async () => {
   results.push(await runInjectSuite('验证码 base64', './auth_captcha_base64_routes_inject.test.mjs'))
   results.push(await runInjectSuite('评论筛选', './admin_comments_filters_routes_inject.test.mjs'))
   results.push(await runInjectSuite('评论批量操作', './admin_comments_batch_routes_inject.test.mjs'))
+  results.push(await runInjectSuite('全站统计', './stats_summary_routes_inject.test.mjs'))
   results.push(await runInjectSuite('我的统计', './me_analytics_routes_inject.test.mjs'))
   results.push(await runInjectSuite('我的资料', './me_profile_routes_inject.test.mjs'))
   results.push(await runInjectSuite('我的时间线', './me_uploads_timeline_routes_inject.test.mjs'))
+  results.push(await runInjectSuite('环境变量覆盖', './load_env_override.test.mjs'))
+  results.push(await runInjectSuite('私有扩展加载', './private_extensions_loader_routes_inject.test.mjs'))
   results.push(await runInjectSuite('公开照片增量分页', './photos_page_since_routes_inject.test.mjs'))
   results.push(await runInjectSuite('筛选工具', './me_photos.test.mjs'))
   results.push(await runInjectSuite('异常路径', './negative_suite.mjs'))
@@ -190,7 +193,7 @@ const main = async () => {
   await fs.mkdir('reports', { recursive: true })
   const file = `reports/test-report-${nowIso}.md`
   await fs.writeFile(file, report, 'utf8')
-  console.log(file)
+  process.stdout.write(`${file}\n`)
 }
 
 await main()

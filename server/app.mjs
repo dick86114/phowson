@@ -16,6 +16,7 @@ import { registerAiRoutes } from './routes/ai.mjs';
 import { registerActivityRoutes } from './routes/activity.mjs';
 import { registerGamificationRoutes } from './routes/gamification.mjs';
 import { registerGeocodeRoutes } from './routes/geocode.mjs';
+import { registerPrivateExtensions } from './plugins/private_extensions.mjs';
 
 const isAllowedOrigin = (origin) => {
   if (!origin) return true;
@@ -69,6 +70,7 @@ export const createApp = () => {
   app.register(registerActivityRoutes);
   app.register(registerGamificationRoutes);
   app.register(registerGeocodeRoutes);
+  app.register(registerPrivateExtensions);
 
   return app;
 };

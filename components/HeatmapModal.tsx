@@ -43,7 +43,7 @@ export const HeatmapModal: React.FC<HeatmapModalProps> = ({
                     {/* Header */}
                     <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-white/5 bg-gray-50/50 dark:bg-white/5">
                         <div className="flex items-center gap-2">
-                            <div className="p-1.5 rounded-lg bg-orange-100 dark:bg-orange-500/20 text-orange-500 dark:text-orange-400">
+                            <div className="p-1.5 rounded-xl bg-orange-100 dark:bg-orange-500/20 text-orange-500 dark:text-orange-400">
                                 <Flame className="w-5 h-5 fill-orange-500" />
                             </div>
                             <h2 className="text-lg font-bold text-gray-900 dark:text-white tracking-wide">年度打卡记录</h2>

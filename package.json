@@ -15,6 +15,9 @@
     "test:api": "node server/tests/smoke.mjs",
     "test:api:env": "node server/tests/smoke.mjs",
     "test:full": "node server/tests/run_full_test.mjs",
+    "test:ci": "node server/tests/run_ci_test.mjs",
+    "oss:export": "node tools/export_oss_repo.mjs",
+    "secrets:scan": "node tools/scan_secrets.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "build": "vite build",
     "preview": "vite preview"

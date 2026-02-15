@@ -61,7 +61,7 @@ export const Pagination: React.FC<PaginationProps> = ({
                  <button
                     onClick={() => onPageChange(safePage - 1)}
                     disabled={safePage <= 1}
-                    className="flex-1 h-11 flex items-center justify-center gap-1 rounded-xl bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border text-sm font-bold text-gray-700 dark:text-gray-200 disabled:opacity-50 active:scale-95 transition-transform shadow-sm"
+                    className="flex-1 h-11 flex items-center justify-center gap-1 rounded-2xl bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border text-sm font-bold text-gray-700 dark:text-gray-200 disabled:opacity-50 active:scale-95 transition-transform shadow-sm"
                  >
                     <ChevronLeft className="w-4 h-4" />
                     上一页
@@ -72,7 +72,7 @@ export const Pagination: React.FC<PaginationProps> = ({
                  <button
                     onClick={() => onPageChange(safePage + 1)}
                     disabled={safePage >= totalPages}
-                    className="flex-1 h-11 flex items-center justify-center gap-1 rounded-xl bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border text-sm font-bold text-gray-700 dark:text-gray-200 disabled:opacity-50 active:scale-95 transition-transform shadow-sm"
+                    className="flex-1 h-11 flex items-center justify-center gap-1 rounded-2xl bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border text-sm font-bold text-gray-700 dark:text-gray-200 disabled:opacity-50 active:scale-95 transition-transform shadow-sm"
                  >
                     下一页
                     <ChevronRight className="w-4 h-4" />
@@ -87,10 +87,10 @@ export const Pagination: React.FC<PaginationProps> = ({
                         <label className="flex items-center gap-2">
                             <span>每页</span>
                             <select
-                                value={pageSize}
-                                onChange={(e) => onPageSizeChange(Number(e.target.value))}
-                                className="bg-gray-50 dark:bg-[#111a22] border border-gray-200 dark:border-surface-border rounded-lg px-2 py-1 text-gray-900 dark:text-white focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-surface-dark"
-                            >
+          value={pageSize}
+          onChange={(e) => onPageSizeChange(Number(e.target.value))}
+          className="bg-gray-50 dark:bg-[#111a22] border border-gray-200 dark:border-surface-border rounded-xl px-2 py-1 text-gray-900 dark:text-white focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-surface-dark"
+        >
                                 {pageSizeOptions.map((s) => (
                                     <option key={s} value={s}>
                                         {s}
@@ -107,7 +107,7 @@ export const Pagination: React.FC<PaginationProps> = ({
                             type="button"
                             onClick={() => onPageChange(safePage - 1)}
                             disabled={safePage <= 1}
-                            className="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-gray-200 dark:border-surface-border bg-white dark:bg-surface-dark text-gray-700 dark:text-gray-200 hover:border-primary hover:text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-surface-dark"
+                            className="inline-flex items-center justify-center w-9 h-9 rounded-xl border border-gray-200 dark:border-surface-border bg-white dark:bg-surface-dark text-gray-700 dark:text-gray-200 hover:border-primary hover:text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-surface-dark"
                             aria-label="上一页"
                         >
                             <ChevronLeft className="w-4 h-4" />
@@ -124,7 +124,7 @@ export const Pagination: React.FC<PaginationProps> = ({
                                         key={it}
                                         type="button"
                                         onClick={() => onPageChange(it as number)}
-                                        className={`min-w-9 h-9 px-2 rounded-lg border text-sm font-medium transition-colors ${
+                                        className={`min-w-9 h-9 px-2 rounded-xl border text-sm font-medium transition-colors ${
                                             it === safePage
                                                 ? 'bg-primary text-white border-primary'
                                                 : 'bg-white dark:bg-surface-dark border-gray-200 dark:border-surface-border text-gray-700 dark:text-gray-200 hover:border-primary hover:text-primary'
@@ -142,7 +142,7 @@ export const Pagination: React.FC<PaginationProps> = ({
                             type="button"
                             onClick={() => onPageChange(safePage + 1)}
                             disabled={safePage >= totalPages}
-                            className="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-gray-200 dark:border-surface-border bg-white dark:bg-surface-dark text-gray-700 dark:text-gray-200 hover:border-primary hover:text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-surface-dark"
+                            className="inline-flex items-center justify-center w-9 h-9 rounded-xl border border-gray-200 dark:border-surface-border bg-white dark:bg-surface-dark text-gray-700 dark:text-gray-200 hover:border-primary hover:text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-surface-dark"
                             aria-label="下一页"
                         >
                             <ChevronRight className="w-4 h-4" />
@@ -162,12 +162,12 @@ export const Pagination: React.FC<PaginationProps> = ({
                             value={jump}
                             onChange={(e) => setJump(e.target.value.replace(/[^\d]/g, ''))}
                             inputMode="numeric"
-                            className="w-16 h-9 bg-gray-50 dark:bg-[#111a22] border border-gray-200 dark:border-surface-border rounded-lg px-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-surface-dark"
+                            className="w-16 h-9 bg-gray-50 dark:bg-[#111a22] border border-gray-200 dark:border-surface-border rounded-xl px-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-surface-dark"
                             aria-label="跳转到页码"
                         />
                         <button
                             type="submit"
-                            className="h-9 px-3 rounded-lg border border-gray-200 dark:border-surface-border bg-white dark:bg-surface-dark text-sm font-medium text-gray-700 dark:text-gray-200 hover:border-primary hover:text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-surface-dark"
+                            className="h-9 px-3 rounded-xl border border-gray-200 dark:border-surface-border bg-white dark:bg-surface-dark text-sm font-medium text-gray-700 dark:text-gray-200 hover:border-primary hover:text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-surface-dark"
                         >
                             确定
                         </button>

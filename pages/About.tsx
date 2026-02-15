@@ -85,8 +85,8 @@ export const About: React.FC = () => {
             {/* Dynamic Content Sections */}
             <section className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
                 {sections.map((section, idx) => (
-                    <div key={idx} className="glass-card p-6 rounded-xl">
-                        <div className="w-10 h-10 bg-primary/10 text-primary rounded-lg flex items-center justify-center mb-4">
+                    <div key={idx} className="glass-card p-6">
+                        <div className="w-10 h-10 bg-primary/10 text-primary rounded-xl flex items-center justify-center mb-4">
                             <DynamicIcon name={section.icon} />
                         </div>
                         <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">{section.title}</h3>

@@ -7,7 +7,7 @@ export interface DropdownFilterProps {
     label: string;
     value: string | number;
     onChange: (val: any) => void;
-    options: { label: string; value: string | number }[];
+    options: { label: string; value: string | number; icon?: React.ReactNode }[];
     icon?: any;
     variant?: 'default' | 'ghost';
     className?: string;
@@ -94,12 +94,12 @@ export const DropdownFilter = ({
             <button
                 type="button"
                 onClick={() => setIsOpen(!isOpen)}
-                className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all active:scale-95 ${
+                className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-2xl text-sm font-medium transition-all active:scale-95 ${
                     variant === 'ghost'
                         ? (isActive ? 'bg-primary/10 text-primary' : 'text-gray-600 dark:text-gray-400 hover:bg-white/10 hover:text-gray-900 dark:hover:text-white')
                         : (isActive 
                             ? 'bg-primary/10 text-primary ring-1 ring-primary/20 shadow-sm' 
-                            : 'glass-card border-white/20 text-gray-700 dark:text-gray-200 hover:border-white/30 hover:shadow shadow-sm px-4 py-2.5 rounded-xl')
+                            : 'glass-card border-white/20 text-gray-700 dark:text-gray-200 hover:border-white/30 hover:shadow shadow-sm px-4 py-2.5')
                 }`}
             >
                 <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -111,10 +111,10 @@ export const DropdownFilter = ({
 
             {/* Desktop Dropdown */}
             {isOpen && (
-                <div className="hidden md:block absolute top-full left-0 md:left-auto md:right-0 mt-2 w-56 max-h-80 overflow-y-auto glass-panel border-white/20 rounded-xl shadow-xl z-50 animate-in fade-in zoom-in-95 duration-200">
+                <div className="hidden md:block absolute top-full left-0 md:left-auto md:right-0 mt-2 w-56 max-h-80 overflow-y-auto glass-panel border-white/20 shadow-xl z-50 animate-in fade-in zoom-in-95 duration-200">
                     <div className="p-1.5 space-y-0.5">
                         <button
-                            className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors flex items-center justify-between ${
+                            className={`w-full text-left px-3 py-2.5 rounded-2xl text-sm transition-colors flex items-center justify-between ${
                                 value === defaultValue 
                                     ? 'bg-primary/5 text-primary font-semibold' 
                                     : 'text-gray-700 dark:text-gray-200 hover:bg-black/5 dark:hover:bg-white/5'
@@ -131,7 +131,7 @@ export const DropdownFilter = ({
                         {options.map((opt) => (
                             <button
                                 key={opt.value}
-                                className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors flex items-center justify-between ${
+                                className={`w-full text-left px-3 py-2.5 rounded-2xl text-sm transition-colors flex items-center justify-between ${
                                     value === opt.value 
                                         ? 'bg-primary/5 text-primary font-semibold' 
                                         : 'text-gray-700 dark:text-gray-200 hover:bg-black/5 dark:hover:bg-white/5'
@@ -141,7 +141,10 @@ export const DropdownFilter = ({
                                     setIsOpen(false);
                                 }}
                             >
-                                <span className="truncate">{opt.label}</span>
+                                <span className="truncate flex items-center gap-2">
+                                    {opt.icon && <span className="w-4 h-4 shrink-0 flex items-center justify-center text-current">{opt.icon}</span>}
+                                    {opt.label}
+                                </span>
                                 {value === opt.value && <Check className="w-4 h-4" />}
                             </button>
                         ))}
@@ -197,15 +200,15 @@ export const DropdownFilter = ({
                                                     onChange('all');
                                                     setTimeout(() => setIsOpen(false), 150);
                                                 }}
-                                                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition-all duration-200 ${
+                                                className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border transition-all duration-200 ${
                                                     value === 'all'
                                                     ? 'bg-primary/10 border-primary text-primary shadow-sm font-bold' 
                                                     : 'bg-transparent border-transparent hover:bg-black/5 dark:hover:bg-white/5 text-gray-600 dark:text-gray-300'
                                                 }`}
                                             >
-                                                <div className={`p-2 rounded-lg ${
-                                                    value === 'all' ? 'bg-primary text-white' : 'bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400'
-                                                }`}>
+                                                <div className={`p-2 rounded-2xl ${
+                  value === 'all' ? 'bg-primary text-white' : 'bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400'
+                }`}>
                                                     <Check className="w-4 h-4" />
                                                 </div>
                                                 <span className="text-base">全部</span>
@@ -219,16 +222,16 @@ export const DropdownFilter = ({
                                                     onChange(opt.value);
                                                     setTimeout(() => setIsOpen(false), 150);
                                                 }}
-                                                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition-all duration-200 ${
+                                                className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border transition-all duration-200 ${
                                                     value === opt.value
                                                     ? 'bg-primary/10 border-primary text-primary shadow-sm font-bold' 
                                                     : 'bg-transparent border-transparent hover:bg-black/5 dark:hover:bg-white/5 text-gray-600 dark:text-gray-300'
                                                 }`}
                                             >
-                                                <div className={`p-2 rounded-lg ${
+                                                <div className={`p-2 rounded-2xl ${
                                                     value === opt.value ? 'bg-primary text-white' : 'bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400'
                                                 }`}>
-                                                    {value === opt.value ? <Check className="w-4 h-4" /> : (Icon ? <Icon className="w-4 h-4" /> : <div className="w-4 h-4" />)}
+                                                    {value === opt.value ? <Check className="w-4 h-4" /> : (opt.icon ? <span className="w-4 h-4 flex items-center justify-center">{opt.icon}</span> : (Icon ? <Icon className="w-4 h-4" /> : <div className="w-4 h-4" />))}
                                                 </div>
                                                 <span className="text-base">{opt.label}</span>
                                             </button>
@@ -237,7 +240,7 @@ export const DropdownFilter = ({
 
                                     <button 
                                         onClick={() => setIsOpen(false)}
-                                        className="w-full py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white font-bold text-base hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors mt-auto shrink-0"
+                                        className="w-full py-3 rounded-2xl bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white font-bold text-base hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors mt-auto shrink-0"
                                     >
                                         取消
                                     </button>

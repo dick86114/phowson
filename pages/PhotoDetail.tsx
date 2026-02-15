@@ -264,7 +264,7 @@ export const PhotoDetail: React.FC = () => {
             addCommentMutation.mutate({ content });
         } else {
             if (!guestNickname || !guestEmail || !captchaInput) {
-                modal.alert({ title: '提示', content: '请填写完整信息' });
+                modal.alert('请填写完整信息');
                 return;
             }
             addCommentMutation.mutate({
@@ -382,7 +382,7 @@ export const PhotoDetail: React.FC = () => {
                     {/* Info Sidebar */}
                     <div className="xl:w-[500px] border-l border-gray-200 dark:border-surface-border bg-white dark:bg-background-dark flex flex-col transition-colors duration-300">
                         <div className="p-6 space-y-8">
-                            <div className="space-y-4">
+                            <div className="space-y-6">
                                 <div className="flex items-start justify-between">
                                     <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{photo.title}</h1>
                                 </div>
@@ -430,7 +430,7 @@ export const PhotoDetail: React.FC = () => {
                                     </button>
                                 </div>
                                 {currentUser && (
-                                    <a href={getPhotoUrl(photo, 'original')} download target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-surface-dark px-3 py-1.5 rounded-lg transition-colors">
+                                    <a href={getPhotoUrl(photo, 'original')} download target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-surface-dark px-3 py-1.5 rounded-2xl transition-colors">
                                         <Download className="w-4 h-4" />
                                         下载原图
                                     </a>
@@ -475,7 +475,7 @@ export const PhotoDetail: React.FC = () => {
 
                             <div className="space-y-3 border-t border-gray-200 dark:border-surface-border pt-6">
                                 <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">拍摄参数</h3>
-                                <div className="space-y-4">
+                                <div className="space-y-6">
                                     {/* Row 1: Camera & Lens */}
                                     <div className="grid grid-cols-2 gap-4">
                                         <PhotoExifBadge 
@@ -530,9 +530,9 @@ export const PhotoDetail: React.FC = () => {
                                 </div>
                             </div>
 
-                            <div className="space-y-4 border-t border-gray-200 dark:border-surface-border pt-6">
+                            <div className="space-y-6 border-t border-gray-200 dark:border-surface-border pt-6">
                                 <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">评论 ({photo.comments?.length || 0})</h3>
-                                <div className="space-y-4">
+                                <div className="space-y-6">
                                     {photo.comments?.map((comment: any) => {
                                         const userAvatar = comment.user 
                                             ? getAvatarUrl(comment.user) 
@@ -562,7 +562,7 @@ export const PhotoDetail: React.FC = () => {
                                                     required
                                                     value={guestNickname}
                                                     onChange={e => setGuestNickname(e.target.value)}
-                                                    className="w-full bg-gray-100 dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-lg py-2 px-3 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                                                    className="w-full bg-gray-100 dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-2xl py-2 px-3 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                                                 />
                                                 <input 
                                                     type="email" 
@@ -570,7 +570,7 @@ export const PhotoDetail: React.FC = () => {
                                                     required
                                                     value={guestEmail}
                                                     onChange={e => setGuestEmail(e.target.value)}
-                                                    className="w-full bg-gray-100 dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-lg py-2 px-3 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                                                    className="w-full bg-gray-100 dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-2xl py-2 px-3 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                                                 />
                                             </div>
                                             <div className="flex gap-3">
@@ -580,7 +580,7 @@ export const PhotoDetail: React.FC = () => {
                                                     required
                                                     value={captchaInput}
                                                     onChange={e => setCaptchaInput(e.target.value)}
-                                                    className="flex-1 bg-gray-100 dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-lg py-2 px-3 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                                                    className="flex-1 bg-gray-100 dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-2xl py-2 px-3 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                                                 />
                                                 <div 
                                                     className="h-10 w-24 bg-white rounded overflow-hidden cursor-pointer border border-gray-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-background-dark"
@@ -614,7 +614,7 @@ export const PhotoDetail: React.FC = () => {
                                             placeholder={currentUser ? "写下你的评论..." : "写下你的评论..."} 
                                             value={commentText} 
                                             onChange={(e) => setCommentText(e.target.value)} 
-                                            className="w-full bg-gray-100 dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-lg py-3 pl-4 pr-12 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary placeholder-gray-500 disabled:opacity-50" 
+                                            className="w-full bg-gray-100 dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-2xl py-3 pl-4 pr-12 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary placeholder-gray-500 disabled:opacity-50" 
                                         />
                                         <button
                                             type="submit"

@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Navigate } from 'react-router-dom';
+import * as LucideIcons from 'lucide-react';
 import { Settings, Save, Download, Upload, X, Loader2, ImageIcon, Sun, Moon, Monitor, Tag, Trash2, Plus } from 'lucide-react';
 
 type ApiCategory = {
     value: string;
     label: string;
+    icon?: string;
     sortOrder: number;
     photoCount: number;
 };
@@ -104,17 +106,18 @@ export const SettingsPage: React.FC = () => {
     // Category Management Logic
     const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
     const [editingCategory, setEditingCategory] = useState<ApiCategory | null>(null);
-    const [categoryForm, setCategoryForm] = useState({ value: '', label: '', sortOrder: 0 });
+    const [categoryForm, setCategoryForm] = useState({ value: '', label: '', icon: '', sortOrder: 0 });
 
     useEffect(() => {
         if (editingCategory) {
             setCategoryForm({
                 value: editingCategory.value,
                 label: editingCategory.label,
+                icon: editingCategory.icon || '',
                 sortOrder: editingCategory.sortOrder
             });
         } else {
-            setCategoryForm({ value: '', label: '', sortOrder: 0 });
+            setCategoryForm({ value: '', label: '', icon: '', sortOrder: 0 });
         }
     }, [editingCategory, isCategoryModalOpen]);
 
@@ -127,7 +130,7 @@ export const SettingsPage: React.FC = () => {
     });
 
     const createCategoryMutation = useMutation({
-        mutationFn: (body: { value: string; label: string; sortOrder: number }) => api.post('/categories', body),
+        mutationFn: (body: { value: string; label: string; icon: string; sortOrder: number }) => api.post('/categories', body),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['categories'] });
             setIsCategoryModalOpen(false);
@@ -139,8 +142,8 @@ export const SettingsPage: React.FC = () => {
     });
 
     const updateCategoryMutation = useMutation({
-        mutationFn: (data: { value: string; label: string; sortOrder: number }) => 
-            api.patch(`/categories/${data.value}`, { label: data.label, sortOrder: data.sortOrder }),
+        mutationFn: (data: { value: string; label: string; icon: string; sortOrder: number }) => 
+            api.patch(`/categories/${data.value}`, { label: data.label, icon: data.icon, sortOrder: data.sortOrder }),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['categories'] });
             setIsCategoryModalOpen(false);
@@ -192,7 +195,7 @@ export const SettingsPage: React.FC = () => {
     };
 
     return (
-        <div className="space-y-8 animate-in fade-in duration-300">
+        <div className="space-y-6 animate-in fade-in duration-300">
             <div>
                 <h2 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight flex items-center gap-3">
                     <Settings className="w-8 h-8 text-primary" /> 系统设置
@@ -203,7 +206,7 @@ export const SettingsPage: React.FC = () => {
             </div>
 
             {/* Site Settings */}
-            <div className="glass-panel p-6 !bg-slate-50/90">
+            <div className="glass-panel p-6 !bg-slate-50/90 dark:!bg-gray-900/50">
                 <h3 className="font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
                     <Settings className="w-5 h-5 text-primary" />
                     网站设置
@@ -217,7 +220,7 @@ export const SettingsPage: React.FC = () => {
                                 value={siteSettingsForm.siteName || ''}
                                 onChange={(e) => setSiteSettingsForm({...siteSettingsForm, siteName: e.target.value})}
                                 placeholder="显示在Header和Footer的名称"
-                                className="w-full mt-2 bg-white/50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded-lg p-3 text-gray-900 dark:text-white text-base focus:outline-none focus:border-primary backdrop-blur-sm"
+                                className="w-full mt-2 bg-white/50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded-2xl p-3 text-gray-900 dark:text-white text-base focus:outline-none focus:border-primary backdrop-blur-sm"
                             />
                         </div>
                         <div>
@@ -227,7 +230,7 @@ export const SettingsPage: React.FC = () => {
                                 value={siteSettingsForm.documentTitle || ''}
                                 onChange={(e) => setSiteSettingsForm({...siteSettingsForm, documentTitle: e.target.value})}
                                 placeholder="浏览器标签页标题"
-                                className="w-full mt-2 bg-white/50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded-lg p-3 text-gray-900 dark:text-white text-base focus:outline-none focus:border-primary backdrop-blur-sm"
+                                className="w-full mt-2 bg-white/50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded-2xl p-3 text-gray-900 dark:text-white text-base focus:outline-none focus:border-primary backdrop-blur-sm"
                             />
                         </div>
                     </div>
@@ -238,7 +241,7 @@ export const SettingsPage: React.FC = () => {
                             <label className="text-xs text-gray-500 dark:text-gray-400 uppercase font-medium mb-2 block">网站 Logo</label>
                             <div className="flex items-center gap-4">
                                 {siteSettingsForm.siteLogo ? (
-                                    <div className="relative w-16 h-16 bg-white/5 dark:bg-white/5 rounded-lg border border-white/20 flex items-center justify-center overflow-hidden glass-card">
+                                    <div className="relative w-16 h-16 bg-white/5 dark:bg-white/5 rounded-2xl border border-white/20 flex items-center justify-center overflow-hidden glass-card">
                                         <img src={toMediaUrl(siteSettingsForm.siteLogo)} alt="Logo" className="max-w-full max-h-full object-contain" />
                                         <button 
                                             type="button"
@@ -250,12 +253,12 @@ export const SettingsPage: React.FC = () => {
                                         </button>
                                     </div>
                                 ) : (
-                                    <div className="w-16 h-16 bg-white/5 dark:bg-white/5 rounded-lg border border-dashed border-gray-300 dark:border-white/10 flex items-center justify-center text-gray-400 glass-card">
+                                    <div className="w-16 h-16 bg-white/5 dark:bg-white/5 rounded-2xl border border-dashed border-gray-300 dark:border-white/10 flex items-center justify-center text-gray-400 glass-card">
                                         <ImageIcon className="w-6 h-6" />
                                     </div>
                                 )}
                                 <div>
-                                    <label className="cursor-pointer bg-white/50 dark:bg-white/5 text-gray-700 dark:text-gray-200 px-3 py-2 rounded-lg text-sm border border-white/20 hover:bg-white/80 dark:hover:bg-white/10 transition-colors inline-flex items-center gap-2 backdrop-blur-sm">
+                                    <label className="cursor-pointer bg-white/50 dark:bg-white/5 text-gray-700 dark:text-gray-200 px-3 py-2 rounded-2xl text-sm border border-white/20 hover:bg-white/80 dark:hover:bg-white/10 transition-colors inline-flex items-center gap-2 backdrop-blur-sm">
                                         <Upload className="w-3 h-3" />
                                         上传图片
                                         <input 
@@ -282,7 +285,7 @@ export const SettingsPage: React.FC = () => {
                             <label className="text-xs text-gray-500 dark:text-gray-400 uppercase font-medium mb-2 block">网站 Favicon</label>
                             <div className="flex items-center gap-4">
                                 {siteSettingsForm.favicon ? (
-                                    <div className="relative w-16 h-16 bg-white/5 dark:bg-white/5 rounded-lg border border-white/20 flex items-center justify-center overflow-hidden glass-card">
+                                    <div className="relative w-16 h-16 bg-white/5 dark:bg-white/5 rounded-2xl border border-white/20 flex items-center justify-center overflow-hidden glass-card">
                                         <img src={toMediaUrl(siteSettingsForm.favicon)} alt="Favicon" className="w-8 h-8 object-contain" />
                                         <button 
                                             type="button"
@@ -294,12 +297,12 @@ export const SettingsPage: React.FC = () => {
                                         </button>
                                     </div>
                                 ) : (
-                                    <div className="w-16 h-16 bg-white/5 dark:bg-white/5 rounded-lg border border-dashed border-gray-300 dark:border-white/10 flex items-center justify-center text-gray-400 glass-card">
+                                    <div className="w-16 h-16 bg-white/5 dark:bg-white/5 rounded-2xl border border-dashed border-gray-300 dark:border-white/10 flex items-center justify-center text-gray-400 glass-card">
                                         <Settings className="w-6 h-6" />
                                     </div>
                                 )}
                                 <div>
-                                    <label className="cursor-pointer bg-white/50 dark:bg-white/5 text-gray-700 dark:text-gray-200 px-3 py-2 rounded-lg text-sm border border-white/20 hover:bg-white/80 dark:hover:bg-white/10 transition-colors inline-flex items-center gap-2 backdrop-blur-sm">
+                                    <label className="cursor-pointer bg-white/50 dark:bg-white/5 text-gray-700 dark:text-gray-200 px-3 py-2 rounded-2xl text-sm border border-white/20 hover:bg-white/80 dark:hover:bg-white/10 transition-colors inline-flex items-center gap-2 backdrop-blur-sm">
                                         <Upload className="w-3 h-3" />
                                         上传图片
                                         <input 
@@ -324,23 +327,23 @@ export const SettingsPage: React.FC = () => {
 
                     <div>
                         <label className="text-xs text-gray-500 dark:text-gray-400 uppercase font-medium">默认主题模式</label>
-                        <div className="grid grid-cols-3 gap-2 mt-2">
+                        <div className="flex items-center p-1 rounded-2xl bg-gray-100/50 dark:bg-white/5 border border-gray-200 dark:border-white/10 w-max mt-2">
                             {[
-                                { val: 'light', label: '浅色模式', icon: Sun },
-                                { val: 'dark', label: '深色模式', icon: Moon },
+                                { val: 'light', label: '浅色', icon: Sun },
+                                { val: 'dark', label: '深色', icon: Moon },
                                 { val: 'system', label: '跟随系统', icon: Monitor },
                             ].map((opt) => (
                                 <button
                                     key={opt.val}
                                     onClick={() => setSiteSettingsForm({...siteSettingsForm, defaultTheme: opt.val as any})}
-                                    className={`flex flex-col items-center justify-center gap-1.5 p-2 rounded-lg border transition-all ${
+                                    className={`flex items-center gap-2 px-3 py-1.5 rounded-2xl text-sm font-medium transition-all ${
                                         siteSettingsForm.defaultTheme === opt.val
-                                        ? 'bg-primary/10 border-primary text-primary ring-1 ring-primary backdrop-blur-sm'
-                                        : 'bg-white/50 dark:bg-white/5 border-white/20 text-gray-600 dark:text-gray-400 hover:bg-white/80 dark:hover:bg-white/10 backdrop-blur-sm'
+                                        ? 'bg-white dark:bg-white/10 text-primary shadow-sm ring-1 ring-black/5 dark:ring-white/10'
+                                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
                                     }`}
                                 >
                                     <opt.icon className="w-4 h-4" />
-                                    <span className="text-xs font-medium">{opt.label}</span>
+                                    <span>{opt.label}</span>
                                 </button>
                             ))}
                         </div>
@@ -350,7 +353,7 @@ export const SettingsPage: React.FC = () => {
                         <button
                             onClick={() => updateSiteSettingsMutation.mutate(siteSettingsForm)}
                             disabled={updateSiteSettingsMutation.isPending}
-                            className="w-full sm:w-auto justify-center bg-primary hover:bg-primary/90 text-white px-6 py-2.5 rounded-lg font-medium transition-all shadow-lg shadow-primary/20 flex items-center gap-2 disabled:opacity-70"
+                            className="w-full sm:w-auto justify-center bg-primary hover:bg-primary/90 text-white px-6 py-2.5 rounded-2xl font-medium transition-all shadow-lg shadow-primary/20 flex items-center gap-2 disabled:opacity-70"
                         >
                             {updateSiteSettingsMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                             保存全局设置
@@ -360,7 +363,7 @@ export const SettingsPage: React.FC = () => {
             </div>
 
             {/* Category Management */}
-            <div className="glass-panel p-6 !bg-slate-50/90">
+            <div className="glass-panel p-6 !bg-slate-50/90 dark:!bg-white/5">
                 <div className="mb-6 flex items-center justify-between">
                     <div>
                         <h3 className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
@@ -371,7 +374,7 @@ export const SettingsPage: React.FC = () => {
                     </div>
                     <button
                         onClick={openCreateModal}
-                        className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors shadow-sm"
+                        className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-2xl text-sm font-medium hover:bg-primary/90 transition-colors shadow-sm"
                     >
                         <Plus className="w-4 h-4" />
                         添加分类
@@ -389,21 +392,32 @@ export const SettingsPage: React.FC = () => {
                             <table className="hidden md:table w-full text-left text-sm">
                                 <thead className="bg-white/10 dark:bg-black/20 text-gray-500 dark:text-gray-400 font-medium backdrop-blur-sm">
                                     <tr>
-                                        <th className="px-4 py-3 rounded-l-lg">显示名称 (Label)</th>
+                                        <th className="px-4 py-3 rounded-l-xl">显示名称 (Label)</th>
                                         <th className="px-4 py-3">系统值 (Value)</th>
+                                        <th className="px-4 py-3">图标 (Icon)</th>
                                         <th className="px-4 py-3">排序 (Sort)</th>
                                         <th className="px-4 py-3">照片数</th>
-                                        <th className="px-4 py-3 text-right rounded-tr-lg">操作</th>
+                                        <th className="px-4 py-3 text-right rounded-tr-xl">操作</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-white/10 dark:divide-white/5">
-                                    {categories.map((cat) => (
+                                    {categories.map((cat) => {
+                                        const IconComponent = cat.icon && (LucideIcons as any)[cat.icon] ? (LucideIcons as any)[cat.icon] : LucideIcons.HelpCircle;
+                                        return (
                                         <tr key={cat.value} className="group hover:bg-white/5 dark:hover:bg-white/5 transition-colors">
                                             <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">
                                                 {cat.label}
                                             </td>
                                             <td className="px-4 py-3 font-mono text-xs text-gray-500">
                                                 {cat.value}
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="p-1.5 rounded-2xl bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400">
+                                                        <IconComponent className="w-4 h-4" />
+                                                    </div>
+                                                    <span className="text-xs font-mono text-gray-400">{cat.icon || '-'}</span>
+                                                </div>
                                             </td>
                                             <td className="px-4 py-3 text-gray-500">
                                                 {cat.sortOrder}
@@ -437,18 +451,25 @@ export const SettingsPage: React.FC = () => {
                                                 </div>
                                             </td>
                                         </tr>
-                                    ))}
+                                    )})}
                                 </tbody>
                             </table>
 
                             {/* Mobile Card View */}
-                            <div className="md:hidden space-y-4">
-                                {categories.map((cat) => (
+                            <div className="md:hidden space-y-6">
+                                {categories.map((cat) => {
+                                    const IconComponent = cat.icon && (LucideIcons as any)[cat.icon] ? (LucideIcons as any)[cat.icon] : LucideIcons.HelpCircle;
+                                    return (
                                     <div key={cat.value} className="glass-card p-4">
                                         <div className="flex justify-between items-start mb-3">
-                                            <div>
-                                                <h4 className="font-bold text-gray-900 dark:text-white">{cat.label}</h4>
-                                                <div className="text-xs font-mono text-gray-500 mt-1">{cat.value}</div>
+                                            <div className="flex items-start gap-3">
+                                                <div className="p-2 rounded-2xl bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400 shrink-0">
+                                                    <IconComponent className="w-5 h-5" />
+                                                </div>
+                                                <div>
+                                                    <h4 className="font-bold text-gray-900 dark:text-white">{cat.label}</h4>
+                                                    <div className="text-xs font-mono text-gray-500 mt-1">{cat.value}</div>
+                                                </div>
                                             </div>
                                             <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
                                                 {cat.photoCount || 0} 张
@@ -462,7 +483,7 @@ export const SettingsPage: React.FC = () => {
                                             <div className="flex items-center gap-2">
                                                 <button
                                                     onClick={() => openEditModal(cat)}
-                                                    className="p-2 text-gray-500 hover:text-primary bg-white/50 dark:bg-white/5 rounded-lg transition-colors"
+                                                    className="p-2 text-gray-500 hover:text-primary bg-white/50 dark:bg-white/5 rounded-xl transition-colors"
                                                     title="编辑"
                                                 >
                                                     <Settings className="w-4 h-4" />
@@ -470,7 +491,7 @@ export const SettingsPage: React.FC = () => {
                                                 <button
                                                     onClick={() => handleDeleteCategory(cat.value)}
                                                     disabled={cat.value === 'uncategorized'}
-                                                    className={`p-2 rounded-lg transition-colors ${
+                                                    className={`p-2 rounded-2xl transition-colors ${
                                                         cat.value === 'uncategorized'
                                                         ? 'text-gray-300 bg-gray-50 dark:bg-surface-border/50 cursor-not-allowed'
                                                         : 'text-gray-500 hover:text-red-500 bg-gray-50 dark:bg-surface-border/50 hover:bg-red-50 dark:hover:bg-red-500/10'
@@ -482,7 +503,7 @@ export const SettingsPage: React.FC = () => {
                                             </div>
                                         </div>
                                     </div>
-                                ))}
+                                    )})}
                             </div>
                         </>
                     )}
@@ -494,7 +515,7 @@ export const SettingsPage: React.FC = () => {
                 onClose={() => setIsCategoryModalOpen(false)}
                 title={editingCategory ? '编辑分类' : '添加分类'}
             >
-                <form onSubmit={handleSubmitCategory} className="space-y-4">
+                <form onSubmit={handleSubmitCategory} className="space-y-6">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                             显示名称 (Label)
@@ -503,7 +524,7 @@ export const SettingsPage: React.FC = () => {
                             type="text"
                             value={categoryForm.label}
                             onChange={(e) => setCategoryForm({ ...categoryForm, label: e.target.value })}
-                            className="w-full px-3 py-2 bg-white/50 dark:bg-black/20 border border-white/20 dark:border-white/10 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all backdrop-blur-sm"
+                            className="w-full px-3 py-2 bg-white/50 dark:bg-black/20 border border-white/20 dark:border-white/10 rounded-2xl text-base focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all backdrop-blur-sm"
                             placeholder="例如：黑白摄影"
                             required
                         />
@@ -517,7 +538,7 @@ export const SettingsPage: React.FC = () => {
                             value={categoryForm.value}
                             onChange={(e) => setCategoryForm({ ...categoryForm, value: e.target.value })}
                             disabled={!!editingCategory}
-                            className={`w-full px-3 py-2 border border-white/20 dark:border-white/10 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-mono backdrop-blur-sm ${
+                            className={`w-full px-3 py-2 border border-white/20 dark:border-white/10 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-mono backdrop-blur-sm ${
                                 editingCategory 
                                 ? 'opacity-50 cursor-not-allowed bg-gray-100/50 dark:bg-white/5' 
                                 : 'bg-white/50 dark:bg-black/20'
@@ -530,13 +551,104 @@ export const SettingsPage: React.FC = () => {
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            图标 (Icon Name)
+                        </label>
+                        <div className="relative">
+                            <input
+                                type="text"
+                                value={categoryForm.icon}
+                                onChange={(e) => setCategoryForm({ ...categoryForm, icon: e.target.value })}
+                                onBlur={() => {
+                                    // Auto-correct casing on blur
+                                    if (categoryForm.icon) {
+                                        const lower = categoryForm.icon.toLowerCase();
+                                        const match = Object.keys(LucideIcons).find(k => k.toLowerCase() === lower);
+                                        if (match && match !== categoryForm.icon) {
+                                            setCategoryForm({ ...categoryForm, icon: match });
+                                        }
+                                    }
+                                }}
+                                className="w-full pl-10 pr-3 py-2 bg-white/50 dark:bg-black/20 border border-white/20 dark:border-white/10 rounded-2xl text-base focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all backdrop-blur-sm"
+                                placeholder="例如：Camera, Mountain, User"
+                            />
+                            <div className="absolute left-3 top-2.5 text-gray-400">
+                                {(() => {
+                                    // Case-insensitive lookup for preview
+                                    const iconName = categoryForm.icon;
+                                    let RenderIcon = null;
+                                    
+                                    if (iconName) {
+                                        // 1. Try exact match
+                                        if ((LucideIcons as any)[iconName]) {
+                                            RenderIcon = (LucideIcons as any)[iconName];
+                                        } 
+                                        // 2. Try case-insensitive match
+                                        else {
+                                            const lower = iconName.toLowerCase();
+                                            const match = Object.keys(LucideIcons).find(k => k.toLowerCase() === lower);
+                                            if (match) {
+                                                RenderIcon = (LucideIcons as any)[match];
+                                            }
+                                        }
+                                    }
+
+                                    return RenderIcon ? (
+                                        <RenderIcon className="w-5 h-5 text-primary" />
+                                    ) : (
+                                        <LucideIcons.HelpCircle className="w-5 h-5" />
+                                    );
+                                })()}
+                            </div>
+                        </div>
+                        
+                        <div className="mt-3">
+                            <label className="text-xs text-gray-500 dark:text-gray-400 mb-2 block">常用图标</label>
+                            <div className="grid grid-cols-6 sm:grid-cols-8 gap-2 max-h-48 overflow-y-auto p-1 custom-scrollbar">
+                                {[
+                                    'Camera', 'Image', 'Aperture', 'Film', 'Video',
+                                    'Mountain', 'Cloud', 'Sun', 'Moon', 'Wind',
+                                    'User', 'Users', 'Smile', 'Heart', 'Star',
+                                    'Map', 'Globe', 'Plane', 'Car', 'Bike',
+                                    'Home', 'Building', 'Factory', 'Tent',
+                                    'Coffee', 'Book', 'Music', 'Gift', 'Trophy',
+                                    'Tag', 'Filter', 'Layers', 'Grid', 'Hash',
+                                    'Smartphone', 'Monitor', 'Watch', 'Headphones',
+                                    'Briefcase', 'Umbrella', 'Scissors', 'Anchor'
+                                ].map(iconName => {
+                                    const IconComponent = (LucideIcons as any)[iconName];
+                                    if (!IconComponent) return null;
+                                    return (
+                                        <button
+                                            key={iconName}
+                                            type="button"
+                                            onClick={() => setCategoryForm({ ...categoryForm, icon: iconName })}
+                                            className={`p-2 rounded-2xl flex items-center justify-center transition-all ${
+                                                categoryForm.icon === iconName
+                                                ? 'bg-primary text-white shadow-md scale-105'
+                                                : 'bg-white/50 dark:bg-white/5 text-gray-600 dark:text-gray-400 hover:bg-white dark:hover:bg-white/10 hover:scale-105'
+                                            }`}
+                                            title={iconName}
+                                        >
+                                            <IconComponent className="w-5 h-5" />
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        <p className="text-xs text-gray-500 mt-2">
+                            使用 <a href="https://lucide.dev/icons" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Lucide Icons</a> 图标名称 (PascalCase)
+                        </p>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                             排序权重 (Sort Order)
                         </label>
                         <input
                             type="number"
                             value={categoryForm.sortOrder}
                             onChange={(e) => setCategoryForm({ ...categoryForm, sortOrder: parseInt(e.target.value) || 0 })}
-                            className="w-full px-3 py-2 bg-white/50 dark:bg-black/20 border border-white/20 dark:border-white/10 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all backdrop-blur-sm"
+                            className="w-full px-3 py-2 bg-white/50 dark:bg-black/20 border border-white/20 dark:border-white/10 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all backdrop-blur-sm"
                             placeholder="0"
                         />
                         <p className="text-xs text-gray-500 mt-1">数字越小越靠前</p>
@@ -546,14 +658,14 @@ export const SettingsPage: React.FC = () => {
                         <button
                             type="button"
                             onClick={() => setIsCategoryModalOpen(false)}
-                            className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-white/50 dark:hover:bg-white/10 rounded-lg transition-colors"
+                            className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-white/50 dark:hover:bg-white/10 rounded-xl transition-colors"
                         >
                             取消
                         </button>
                         <button
                             type="submit"
                             disabled={createCategoryMutation.isPending || updateCategoryMutation.isPending}
-                            className="px-4 py-2 text-sm font-medium bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors shadow-sm disabled:opacity-70 flex items-center gap-2"
+                            className="px-4 py-2 text-sm font-medium bg-primary text-white rounded-xl hover:bg-primary/90 transition-colors shadow-sm disabled:opacity-70 flex items-center gap-2"
                         >
                             {(createCategoryMutation.isPending || updateCategoryMutation.isPending) && (
                                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -578,7 +690,7 @@ export const SettingsPage: React.FC = () => {
                         <button
                             type="button"
                             onClick={() => downloadJson(siteSettingsForm, `站点配置-${todayIso}.json`)}
-                            className="px-3 py-2 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-white/50 dark:hover:bg-white/10 border border-transparent hover:border-white/20 transition-all flex items-center gap-2"
+                            className="px-3 py-2 rounded-2xl text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-white/50 dark:hover:bg-white/10 border border-transparent hover:border-white/20 transition-all flex items-center gap-2"
                         >
                             <Download className="w-4 h-4" />
                             导出 JSON
@@ -586,7 +698,7 @@ export const SettingsPage: React.FC = () => {
                         <button
                             type="button"
                             onClick={() => siteSettingsImportInputRef.current?.click()}
-                            className="px-3 py-2 rounded-lg text-sm font-medium bg-primary text-white hover:bg-primary/90 transition-colors flex items-center gap-2 shadow-lg shadow-primary/20"
+                            className="px-3 py-2 rounded-2xl text-sm font-medium bg-primary text-white hover:bg-primary/90 transition-colors flex items-center gap-2 shadow-lg shadow-primary/20"
                         >
                             <Upload className="w-4 h-4" />
                             导入并应用

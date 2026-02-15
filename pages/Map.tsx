@@ -118,7 +118,7 @@ export const MapPage: React.FC = () => {
                     <Marker key={photo.id} position={[photo.lat!, photo.lng!]}>
                         <Popup className="photo-popup">
                             <div className="w-64 space-y-3 p-1">
-                                <div className="aspect-[3/2] rounded-lg overflow-hidden bg-white/50 dark:bg-white/5 backdrop-blur-sm">
+                                <div className="aspect-[3/2] rounded-xl overflow-hidden bg-white/50 dark:bg-white/5 backdrop-blur-sm">
                                     <img 
                                         src={getPhotoUrl(photo, 'thumb')} 
                                         alt={photo.title}
@@ -131,7 +131,7 @@ export const MapPage: React.FC = () => {
                                 </div>
                                 <a 
                                     href={`#/photo/${photo.id}`}
-                                    className="block w-full text-center py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
+                                    className="block w-full text-center py-2 bg-primary text-white rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors"
                                 >
                                     查看详情
                                 </a>
@@ -143,7 +143,7 @@ export const MapPage: React.FC = () => {
 
             {photosWithGps.length === 0 && (
                 <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-[1000]">
-                    <div className="glass-panel bg-amber-50/80 dark:bg-amber-900/40 border-amber-200/50 dark:border-amber-700/30 px-4 py-2 rounded-lg text-sm text-amber-800 dark:text-amber-200 shadow-lg backdrop-blur-md">
+                    <div className="glass-panel bg-amber-50/80 dark:bg-amber-900/40 border-amber-200/50 dark:border-amber-700/30 px-4 py-2 rounded-xl text-sm text-amber-800 dark:text-amber-200 shadow-lg backdrop-blur-md">
                         ⚠️ 暂无带 GPS 信息的照片，无法在地图上展示。
                     </div>
                 </div>

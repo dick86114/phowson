@@ -52,7 +52,7 @@ export const Login: React.FC = () => {
 
             <div className="w-full max-w-md relative z-10">
                 <div className="text-center mb-8">
-                    <Link to="/" className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-primary/10 text-primary mb-4 hover:scale-105 transition-transform">
+                    <Link to="/" className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-primary/10 text-primary mb-4 hover:scale-105 transition-transform">
                         <Camera className="w-6 h-6" />
                     </Link>
                     <h1 className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">
@@ -65,7 +65,7 @@ export const Login: React.FC = () => {
                     </p>
                 </div>
 
-                <div className="glass-panel rounded-2xl p-8 transition-colors duration-300">
+                <div className="glass-panel p-8 transition-colors duration-300">
                     {view === 'login' ? (
                         /* Login Form */
                         <form onSubmit={handleLogin} className="space-y-6">
@@ -80,7 +80,7 @@ export const Login: React.FC = () => {
                                         required
                                         value={email}
                                         onChange={(e) => setEmail(e.target.value)}
-                                        className="w-full bg-gray-50/50 dark:bg-slate-900/50 backdrop-blur-sm border border-gray-200 dark:border-surface-border rounded-lg py-2.5 pl-10 pr-4 text-base text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
+                                        className="w-full bg-gray-50/50 dark:bg-slate-900/50 backdrop-blur-sm border border-gray-200 dark:border-surface-border rounded-xl py-2.5 pl-10 pr-4 text-base text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
                                         placeholder="admin@photologs.com"
                                     />
                                 </div>
@@ -106,7 +106,7 @@ export const Login: React.FC = () => {
                                         required
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
-                                        className="w-full bg-gray-50/50 dark:bg-slate-900/50 backdrop-blur-sm border border-gray-200 dark:border-surface-border rounded-lg py-2.5 pl-10 pr-4 text-base text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
+                                        className="w-full bg-gray-50/50 dark:bg-slate-900/50 backdrop-blur-sm border border-gray-200 dark:border-surface-border rounded-xl py-2.5 pl-10 pr-4 text-base text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
                                         placeholder="••••••••"
                                     />
                                 </div>
@@ -126,7 +126,7 @@ export const Login: React.FC = () => {
                             <button
                                 type="submit"
                                 disabled={isLoading}
-                                className="w-full flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white font-medium py-2.5 rounded-lg transition-all shadow-lg shadow-primary/20 disabled:opacity-70 disabled:cursor-not-allowed"
+                                className="w-full flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white font-medium py-2.5 rounded-xl transition-all shadow-lg shadow-primary/20 disabled:opacity-70 disabled:cursor-not-allowed"
                             >
                                 {isLoading ? '登录中...' : '登录'}
                                 {!isLoading && <ArrowRight className="w-4 h-4" />}
@@ -152,7 +152,7 @@ export const Login: React.FC = () => {
                                                 required
                                                 value={email}
                                                 onChange={(e) => setEmail(e.target.value)}
-                                                className="w-full bg-gray-50/50 dark:bg-slate-900/50 backdrop-blur-sm border border-gray-200 dark:border-surface-border rounded-lg py-2.5 pl-10 pr-4 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
+                                                className="w-full bg-gray-50/50 dark:bg-slate-900/50 backdrop-blur-sm border border-gray-200 dark:border-surface-border rounded-xl py-2.5 pl-10 pr-4 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
                                                 placeholder="输入您的注册邮箱"
                                             />
                                         </div>
@@ -161,7 +161,7 @@ export const Login: React.FC = () => {
                                     <button
                                         type="submit"
                                         disabled={isLoading}
-                                        className="w-full flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white font-medium py-2.5 rounded-lg transition-all shadow-lg shadow-primary/20 disabled:opacity-70 disabled:cursor-not-allowed"
+                                        className="w-full flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white font-medium py-2.5 rounded-xl transition-all shadow-lg shadow-primary/20 disabled:opacity-70 disabled:cursor-not-allowed"
                                     >
                                         {isLoading ? '发送中...' : '发送重置链接'}
                                     </button>

@@ -27,3 +27,9 @@
 - 交付代码前必须清理所有前端调试代码（如 `console.log` 和 `debugger`），仅保留必要的 `console.error`。
 - 通用组件（如 DropdownFilter）内部逻辑禁止硬编码特定业务值（如 'all'），必须使用 `defaultValue` 属性作为重置/默认值，以支持不同场景（如排序、状态筛选）的正确回退。
 - User Menu 样式规范：PC 端用户菜单项（User Menu Items）应参考“退出登录”按钮样式，Hover 时整行显示对应的主题背景色（如 `hover:bg-{color}-50`），且图标容器背景色加深（如 `group-hover:bg-{color}-100`），保持视觉一致性。
+- 前端“无边框”输入框（Invisible Input）必须移除默认轮廓（`outline-none`），并添加显式的 Focus 交互效果（如底部边框动画或文字颜色变化），避免出现浏览器默认的黑色/蓝色轮廓。
+- 前端出现“数据加载失败/白屏”时，错误提示必须展示状态码与后端返回的 `code/message/requestId`，并优先排查 Vite 代理目标与后端端口是否一致。
+- Admin页面响应式布局与交互规范：1. 卡片间距应保持一致（PC端 gap-5，移动端 gap-3）；2. 移动端图表容器必须使用 `h-auto` 避免内容重叠；3. 移动端辅助按钮（如导出）应隐藏文字仅保留图标以节省空间。
+- 移动端侧边栏菜单选中项（Active）样式必须与 PC 端下拉菜单 Hover 样式一致：整行背景色使用对应的主题色淡色（如 `bg-{color}-50`），图标容器背景色加深（如 `bg-{color}-100`），可通过复用 `rowHoverClass` 和 `hoverClass`（移除 `hover:` 前缀）实现。
+- 站点卡片与间距规范：所有区块卡片（如 `glass-card`, `glass-panel`）必须统一使用 `rounded-2xl` 圆角；页面级区块垂直间距应统一使用 `space-y-6`（移动端可适当调整），以保持全站视觉一致性。
+- 移动端侧边栏与菜单（Admin Sidebar & Mobile Menu）选中样式（Active）在深色模式下必须统一使用 `dark:bg-white/10 dark:text-white`，禁止使用动态生成的 Hover 类名作为 Active 样式，以避免颜色冲突和构建问题。

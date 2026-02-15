@@ -25,8 +25,14 @@ const parseEnv = (content) => {
   return out;
 };
 
+const FORCE_OVERRIDE_KEYS = new Set(['HOST', 'PORT']);
+
 const applyEnv = (vars) => {
   for (const [k, v] of Object.entries(vars || {})) {
+    if (FORCE_OVERRIDE_KEYS.has(k)) {
+      process.env[k] = String(v);
+      continue;
+    }
     if (process.env[k] == null || process.env[k] === '') {
       process.env[k] = String(v);
     }
@@ -58,4 +64,3 @@ export const loadEnvIfNeeded = () => {
     return { loaded: false, path: envFile };
   }
 };
-

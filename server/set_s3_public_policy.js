@@ -43,9 +43,9 @@ const publicReadPolicy = {
 async function setPublicPolicy() {
   try {
     const existing = await s3.send(new GetBucketPolicyCommand({ Bucket: S3_BUCKET }));
-    console.log('现有存储桶策略:', JSON.stringify(JSON.parse(existing.Policy || '{}'), null, 2));
+    process.stdout.write(`现有存储桶策略: ${JSON.stringify(JSON.parse(existing.Policy || '{}'), null, 2)}\n`)
   } catch (e) {
-    console.log('存储桶暂无策略');
+    process.stdout.write('存储桶暂无策略\n')
   }
 
   await s3.send(
@@ -55,7 +55,7 @@ async function setPublicPolicy() {
     }),
   );
 
-  console.log('已设置存储桶为公开读取模式');
+  process.stdout.write('已设置存储桶为公开读取模式\n')
 }
 
 setPublicPolicy().catch(console.error);

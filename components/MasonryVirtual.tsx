@@ -189,7 +189,7 @@ export const MasonryVirtual = <T,>({ items, gapPx = 24, overscanPx = 2000 }: Pro
             <Wrapper
               key={it.id}
               onClick={it.onClick}
-              className="group absolute overflow-hidden rounded-xl glass-card"
+              className="group absolute overflow-hidden rounded-2xl glass-card"
               style={{
                 left: `${p.x}px`,
                 top: `${p.y}px`,

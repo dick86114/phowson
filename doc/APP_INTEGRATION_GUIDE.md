@@ -8,7 +8,7 @@
 
 - 线上：`https://<你的域名>`
 - 测试：`https://<测试域名>` 或内网地址（建议用 HTTPS）
-- 本地：如 `http://localhost:3001`（真机调试需走局域网 IP 或反向代理）
+- 本地：如 `http://localhost:2615`（真机调试需走局域网 IP 或反向代理）
 
 平台后端不强制 `/api` 前缀，直接拼接路径即可，例如：`GET {baseUrl}/photos/page`。
 

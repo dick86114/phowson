@@ -16,7 +16,7 @@ export async function reverseGeocode(lat, lng) {
     });
     
     if (!res.ok) {
-      console.warn(`Geocoding failed for ${lat},${lng}: ${res.status}`);
+      process.stderr.write(`Geocoding failed for ${lat},${lng}: ${res.status}\n`)
       return null;
     }
     
@@ -44,7 +44,7 @@ export async function reverseGeocode(lat, lng) {
     return city || state || null;
     
   } catch (err) {
-    console.warn('Geocoding error:', err);
+    process.stderr.write(`Geocoding error: ${String(err?.message || err)}\n`)
     return null;
   }
 }

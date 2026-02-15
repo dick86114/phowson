@@ -17,7 +17,7 @@ export const EmptyState: React.FC<{
     className?: string;
 }> = ({ title = '暂无数据', description, action, className }) => {
     return (
-        <div className={`bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-xl p-8 shadow-sm text-center ${className || ''}`}>
+        <div className={`bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-2xl p-8 shadow-sm text-center ${className || ''}`}>
             <div className="text-base font-semibold text-gray-900 dark:text-white">{title}</div>
             {description ? <div className="mt-2 text-sm text-gray-500 dark:text-gray-400">{description}</div> : null}
             {action ? <div className="mt-4 flex justify-center">{action}</div> : null}
@@ -32,7 +32,7 @@ export const ErrorState: React.FC<{
     className?: string;
 }> = ({ title = '加载失败', message, onRetry, className }) => {
     return (
-        <div className={`bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-xl p-8 shadow-sm text-center ${className || ''}`}>
+        <div className={`bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded-2xl p-8 shadow-sm text-center ${className || ''}`}>
             <div className="mx-auto w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center">
                 <AlertTriangle className="w-5 h-5 text-red-500" />
             </div>
@@ -43,7 +43,7 @@ export const ErrorState: React.FC<{
                     <button
                         type="button"
                         onClick={onRetry}
-                        className="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary/90 transition"
+                        className="inline-flex items-center justify-center px-4 py-2 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary/90 transition"
                     >
                         重试
                     </button>

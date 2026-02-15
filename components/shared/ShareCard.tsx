@@ -143,7 +143,7 @@ export const ShareCard: React.FC<{
               </div>
 
               {/* Info */}
-              <div className="space-y-4">
+              <div className="space-y-6">
                 <div className="space-y-1">
                   <h2 className="text-xl font-bold tracking-tight">{photo.title}</h2>
                   <p className="text-[10px] text-gray-400 uppercase tracking-[0.2em]">BY {photo.user.name}</p>
@@ -236,7 +236,7 @@ export const ShareCard: React.FC<{
             <div className="grid grid-cols-1 gap-3">
               <button
                 onClick={handleCopy}
-                className="inline-flex items-center justify-center gap-2 bg-white dark:bg-[#1a2632] border border-gray-200 dark:border-surface-border hover:bg-gray-100 dark:hover:bg-[#233648] text-gray-700 dark:text-gray-200 px-4 py-3 rounded-xl text-sm font-semibold transition-colors"
+                className="inline-flex items-center justify-center gap-2 bg-white dark:bg-[#1a2632] border border-gray-200 dark:border-surface-border hover:bg-gray-100 dark:hover:bg-[#233648] text-gray-700 dark:text-gray-200 px-4 py-3 rounded-2xl text-sm font-semibold transition-colors"
               >
                 <Copy className="w-4 h-4" />
                 复制链接

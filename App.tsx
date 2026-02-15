@@ -10,6 +10,7 @@ import { SiteSettingsProvider, useSiteSettings, toMediaUrl } from './SiteSetting
 import { ToastProvider } from './components/Toast';
 import { useAuth } from './hooks/useAuth';
 import { InstallPrompt } from './components/InstallPrompt';
+import { getPrivateRoutes } from '@private/web';
 
 // Lazy load pages for better performance
 const Home = React.lazy(() => import('./pages/Home').then(module => ({ default: module.Home })));
@@ -119,6 +120,9 @@ const AdminGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
 const ThemedApp = () => {
     const settings = useSiteSettings();
+    const privateWebDisabled =
+      String((import.meta as any)?.env?.VITE_PRIVATE_WEB_DISABLED ?? '').trim().toLowerCase() === 'true' ||
+      String((import.meta as any)?.env?.VITE_PRIVATE_WEB_DISABLED ?? '').trim() === '1';
     return (
         <ThemeProvider defaultTheme={settings.defaultTheme || 'system'} storageKey="photologs-theme">
             <ModalProvider>
@@ -159,6 +163,7 @@ const ThemedApp = () => {
                             <Route path="/gamification" element={<Gamification />} />
                             <Route path="/challenges" element={<ChallengesPage />} />
                             <Route path="/gamification/history" element={<GamificationHistory />} />
+                            {privateWebDisabled ? null : getPrivateRoutes()}
                         </Routes>
                         </Suspense>
                     </AppLayout>

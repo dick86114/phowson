@@ -129,7 +129,7 @@ export const Comments = () => {
                 <p className="text-gray-500 dark:text-gray-400 mb-6">{(queryError as any)?.message || '无法加载评论列表'}</p>
                 <button 
                     onClick={() => window.location.reload()} 
-                    className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors"
+                    className="px-4 py-2 bg-primary text-white rounded-2xl hover:bg-primary-dark transition-colors"
                 >
                     刷新页面
                 </button>
@@ -241,7 +241,7 @@ export const Comments = () => {
             {/* Main Content (Left) */}
             <div className="flex-1 min-w-0">
                 {/* Header */}
-                <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center justify-between mb-6">
                     <div>
                         <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight flex items-center gap-3">
                             <MessageSquare className="w-8 h-8 text-primary" />
@@ -252,7 +252,7 @@ export const Comments = () => {
                         </p>
                     </div>
                     {summary?.pending > 0 && (
-                        <div className="bg-yellow-50 text-yellow-700 dark:bg-yellow-500/10 dark:text-yellow-400 px-4 py-2 rounded-lg font-medium flex items-center gap-2 text-sm border border-yellow-100 dark:border-yellow-500/20 shadow-sm">
+                        <div className="bg-yellow-50 text-yellow-700 dark:bg-yellow-500/10 dark:text-yellow-400 px-4 py-2 rounded-2xl font-medium flex items-center gap-2 text-sm border border-yellow-100 dark:border-yellow-500/20 shadow-sm">
                             <FileText className="w-4 h-4" />
                             {summary.pending} 条待审核
                         </div>
@@ -261,18 +261,18 @@ export const Comments = () => {
 
                 {/* Filters */}
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6">
-                    <div className="relative w-full sm:w-80">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <div className="relative w-full sm:w-80 group">
                         <input 
                             type="text"
                             placeholder="搜索评论或用户..."
                             value={keyword}
                             onChange={(e) => { setKeyword(e.target.value); setPage(1); }}
-                            className="w-full pl-10 pr-4 py-2.5 bg-white/50 dark:bg-black/20 border border-white/20 dark:border-white/10 backdrop-blur-sm rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-sm"
+                            className="w-full pl-10 pr-4 py-2.5 bg-white/50 dark:bg-black/20 border border-gray-200 dark:border-white/10 backdrop-blur-sm rounded-2xl text-base focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-sm text-gray-900 dark:text-white placeholder-gray-400"
                         />
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 dark:text-gray-400 pointer-events-none group-focus-within:text-primary transition-colors" />
                     </div>
                     
-                    <div className="flex items-center p-1 bg-gray-100/50 dark:bg-white/5 backdrop-blur-sm rounded-lg w-full sm:w-auto overflow-x-auto no-scrollbar border border-white/10 dark:border-white/5">
+                    <div className="flex items-center p-1 bg-gray-100/50 dark:bg-white/5 backdrop-blur-sm rounded-2xl w-full sm:w-auto overflow-x-auto no-scrollbar border border-white/10 dark:border-white/5">
                         <div className="flex gap-1 min-w-max">
                         {[
                             { id: 'all', label: '全部状态' },
@@ -285,7 +285,7 @@ export const Comments = () => {
                                 key={tab.id}
                                 onClick={() => { setActiveTab(tab.id as any); setPage(1); }}
                                 className={`
-                                    relative px-4 py-2.5 sm:py-1.5 text-sm font-medium rounded-md whitespace-nowrap transition-all active:scale-95
+                                    relative px-4 py-2.5 sm:py-1.5 text-sm font-medium rounded-xl whitespace-nowrap transition-all active:scale-95
                                     ${activeTab === tab.id 
                                         ? 'bg-white dark:bg-white/10 text-gray-900 dark:text-white shadow-lg shadow-black/5 backdrop-blur-md' 
                                         : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-white/30 dark:hover:bg-white/5'
@@ -308,7 +308,7 @@ export const Comments = () => {
                 </div>
 
                 {/* Table Header Row */}
-                <div className="hidden md:grid grid-cols-12 gap-4 px-5 py-3 bg-white/30 dark:bg-white/5 backdrop-blur-md rounded-lg border border-white/20 dark:border-white/10 mb-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <div className="hidden md:grid grid-cols-12 gap-4 px-5 py-3 bg-white/30 dark:bg-white/5 backdrop-blur-md rounded-xl border border-white/20 dark:border-white/10 mb-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     <div className="col-span-6">评论内容</div>
                     <div className="col-span-3">用户信息</div>
                     <div className="col-span-1 text-center">关联图片</div>
@@ -316,32 +316,32 @@ export const Comments = () => {
                 </div>
 
                 {/* List */}
-                <div className="space-y-4">
+                <div className="space-y-6">
                     {isLoading ? (
-                        <div className="glass-panel rounded-xl p-8 shadow-sm">
+                        <div className="glass-panel p-8 shadow-sm">
                             <LoadingState />
                         </div>
                     ) : (data?.items || []).length === 0 ? (
-                        <div className="glass-panel rounded-xl p-8 shadow-sm min-h-[400px] flex items-center justify-center">
+                        <div className="glass-panel p-8 shadow-sm min-h-[400px] flex items-center justify-center">
                             <EmptyState message="暂无评论数据" />
                         </div>
                     ) : (
                         (data?.items || []).map((comment) => (
                             <div 
                                 key={comment.id}
-                                className="group glass-card rounded-xl p-5 hover:shadow-lg hover:shadow-primary/5 hover:border-primary/30 transition-all duration-300"
+                                className="group glass-card p-5 hover:shadow-lg hover:shadow-primary/5 hover:border-primary/30 transition-all duration-300"
                             >
                                 <div className="grid grid-cols-2 md:grid-cols-12 gap-4 md:gap-6 items-start">
                                     {/* Content Column (col-span-6) */}
-                                    <div className="col-span-2 md:col-span-6 space-y-3 order-2 md:order-1">
+                                    <div className="col-span-2 md:col-span-6 space-y-6 order-2 md:order-1">
                                         <div className="flex items-center gap-2 flex-wrap">
                                             {comment.status === 'pending' && (
-                                                <span className="px-2 py-0.5 rounded text-xs font-medium bg-yellow-100/50 text-yellow-700 dark:bg-yellow-500/10 dark:text-yellow-400 border border-yellow-200/50 dark:border-yellow-500/20 backdrop-blur-sm">
+                                                <span className="px-2 py-0.5 rounded-xl text-xs font-medium bg-yellow-100/50 text-yellow-700 dark:bg-yellow-500/10 dark:text-yellow-400 border border-yellow-200/50 dark:border-yellow-500/20 backdrop-blur-sm">
                                                     待审核
                                                 </span>
                                             )}
                                             {comment.status === 'rejected' && (
-                                                <span className={`px-2 py-0.5 rounded text-xs font-medium border backdrop-blur-sm ${
+                                                <span className={`px-2 py-0.5 rounded-xl text-xs font-medium border backdrop-blur-sm ${
                                                     comment.reviewReason?.includes('System auto-flagged')
                                                         ? 'bg-orange-100/50 text-orange-700 dark:bg-orange-500/10 dark:text-orange-400 border-orange-200/50 dark:border-orange-500/20'
                                                         : 'bg-red-100/50 text-red-700 dark:bg-red-500/10 dark:text-red-400 border-red-200/50 dark:border-red-500/20'
@@ -365,7 +365,7 @@ export const Comments = () => {
                                         </div>
                                         
                                         {translatedTexts[comment.id] && (
-                                            <div className="bg-blue-50/50 dark:bg-blue-900/10 p-3 rounded-lg text-sm text-gray-700 dark:text-gray-300 border border-blue-100 dark:border-blue-900/20 backdrop-blur-sm">
+                                            <div className="bg-blue-50/50 dark:bg-blue-900/10 p-3 rounded-xl text-sm text-gray-700 dark:text-gray-300 border border-blue-100 dark:border-blue-900/20 backdrop-blur-sm">
                                                 <div className="text-xs text-blue-500 font-medium mb-1">翻译结果：</div>
                                                 {translatedTexts[comment.id]}
                                             </div>
@@ -377,7 +377,7 @@ export const Comments = () => {
                                         <div className="font-semibold text-gray-900 dark:text-white text-sm truncate flex items-center gap-2" title={getUserName(comment)}>
                                             {getUserName(comment)}
                                             {!comment.userId && (
-                                                <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100/50 text-gray-600 dark:bg-white/5 dark:text-gray-400 border border-gray-200/50 dark:border-white/10 backdrop-blur-sm">
+                                                <span className="px-1.5 py-0.5 rounded-xl text-[10px] font-medium bg-gray-100/50 text-gray-600 dark:bg-white/5 dark:text-gray-400 border border-gray-200/50 dark:border-white/10 backdrop-blur-sm">
                                                     游客
                                                 </span>
                                             )}
@@ -402,10 +402,10 @@ export const Comments = () => {
                                             <img 
                                                 src={getPhotoUrl({ id: comment.photoId, thumbUrl: comment.photoVariants?.thumb }, 'thumb')}
                                                 alt="Photo" 
-                                                className="w-12 h-12 rounded-lg object-cover bg-gray-100 dark:bg-gray-800 border border-white/20 dark:border-white/10"
+                                                className="w-12 h-12 rounded-xl object-cover bg-gray-100 dark:bg-gray-800 border border-white/20 dark:border-white/10"
                                                 onError={(e) => { (e.target as HTMLImageElement).src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="%23ccc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"%3E%3Crect x="3" y="3" width="18" height="18" rx="2" ry="2"/%3E%3Ccircle cx="8.5" cy="8.5" r="1.5"/%3E%3Cpolyline points="21 15 16 10 5 21"/%3E%3C/svg%3E' }}
                                             />
-                                            <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/10 transition-colors rounded-lg" />
+                                            <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/10 transition-colors rounded-xl" />
                                         </Link>
                                     </div>
 
@@ -524,17 +524,17 @@ export const Comments = () => {
                                 <button
                                     onClick={() => setPage(p => Math.max(1, p - 1))}
                                     disabled={page === 1}
-                                    className="px-3 py-1.5 border border-white/20 dark:border-white/10 rounded-lg text-sm text-gray-600 dark:text-gray-300 hover:bg-white/30 dark:hover:bg-white/5 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                    className="px-3 py-1.5 border border-white/20 dark:border-white/10 rounded-xl text-sm text-gray-600 dark:text-gray-300 hover:bg-white/30 dark:hover:bg-white/5 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                                 >
                                     上一页
                                 </button>
-                                <div className="px-3 py-1.5 bg-white/50 dark:bg-white/10 border border-white/20 dark:border-white/10 rounded-lg text-sm font-medium text-primary backdrop-blur-sm shadow-sm">
+                                <div className="px-3 py-1.5 bg-white/50 dark:bg-white/10 border border-white/20 dark:border-white/10 rounded-xl text-sm font-medium text-primary backdrop-blur-sm shadow-sm">
                                     {page}
                                 </div>
                                 <button
                                     onClick={() => setPage(p => p + 1)}
                                     disabled={page * pageSize >= data.total}
-                                    className="px-3 py-1.5 border border-white/20 dark:border-white/10 rounded-lg text-sm text-gray-600 dark:text-gray-300 hover:bg-white/30 dark:hover:bg-white/5 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                    className="px-3 py-1.5 border border-white/20 dark:border-white/10 rounded-xl text-sm text-gray-600 dark:text-gray-300 hover:bg-white/30 dark:hover:bg-white/5 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                                 >
                                     下一页
                                 </button>
@@ -608,7 +608,7 @@ export const Comments = () => {
                             onConfirm: () => clearSpamMutation.mutate()
                         })}
                         disabled={!summary?.spam}
-                        className="w-full glass-card p-4 rounded-xl flex items-center justify-between group hover:border-red-500/50 hover:shadow-md hover:shadow-red-500/5 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-full glass-card p-4 flex items-center justify-between group hover:border-red-500/50 hover:shadow-md hover:shadow-red-500/5 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         <div className="flex items-center gap-3">
                             <div className="w-8 h-8 rounded-full bg-red-50/50 dark:bg-red-500/10 flex items-center justify-center text-red-600 dark:text-red-400 backdrop-blur-sm">
@@ -632,7 +632,7 @@ export const Comments = () => {
                 </div>
 
                 {/* Config Button */}
-                <button className="w-full bg-gray-900 dark:bg-white text-white dark:text-gray-900 py-3 rounded-xl font-medium text-sm flex items-center justify-center gap-2 hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors shadow-lg shadow-gray-900/20">
+                <button className="w-full bg-gray-900 dark:bg-white text-white dark:text-gray-900 py-3 rounded-2xl font-medium text-sm flex items-center justify-center gap-2 hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors shadow-lg shadow-gray-900/20">
                     <Settings className="w-4 h-4" />
                     配置审核策略
                 </button>

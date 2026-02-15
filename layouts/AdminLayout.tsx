@@ -101,14 +101,14 @@ export const AdminLayout: React.FC = () => {
             }`}>
                 <div className="p-6 flex items-center justify-between">
                     <Link to="/" className="flex items-center gap-2 text-gray-900 dark:text-white hover:text-primary transition-colors">
-                        <div className="size-8 flex items-center justify-center text-primary bg-primary/10 rounded-lg">
+                        <div className="size-8 flex items-center justify-center text-primary bg-primary/10 rounded-xl">
                             <Camera className="w-5 h-5" />
                         </div>
                         <h1 className="text-lg font-bold tracking-tight">管理中心</h1>
                     </Link>
                     <button 
                         onClick={() => setIsMobileMenuOpen(false)}
-                        className="lg:hidden p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-surface-border rounded-lg"
+                        className="lg:hidden p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-surface-border rounded-xl"
                     >
                         <X className="w-5 h-5" />
                     </button>
@@ -117,7 +117,7 @@ export const AdminLayout: React.FC = () => {
                 <div className="px-4 pb-4">
                     <Link
                         to="/upload"
-                        className="w-full inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white px-4 py-3 rounded-lg font-medium transition-all shadow-lg shadow-primary/20"
+                        className="w-full inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white px-4 py-3 rounded-xl font-medium transition-all shadow-lg shadow-primary/20"
                     >
                         <Plus className="w-4 h-4" />
                         上传新照片
@@ -132,14 +132,18 @@ export const AdminLayout: React.FC = () => {
                         <NavLink
                             key={item.key}
                             to={item.to}
-                            className={({ isActive }) => `w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-all ${
+                            className={({ isActive }) => `w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-all ${
                                 isActive
-                                    ? 'bg-primary text-white shadow-lg shadow-primary/20'
-                                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-surface-dark'
+                                    ? 'bg-gray-50 text-gray-900 dark:bg-white/10 dark:text-white'
+                                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-surface-border'
                             } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-[#0b1219]`}
                         >
-                            <item.icon className="w-5 h-5" />
-                            <span className="flex-1 text-left">{item.label}</span>
+                            <item.icon className={`w-5 h-5 ${
+                                location.pathname === item.to
+                                    ? 'text-primary dark:text-primary-300'
+                                    : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300'
+                            }`} />
+                            {item.label}
                         </NavLink>
                     ))}
 
@@ -152,9 +156,9 @@ export const AdminLayout: React.FC = () => {
                                 <NavLink
                                     key={item.key}
                                     to={item.to}
-                                    className={({ isActive }) => `w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-all ${
+                                    className={({ isActive }) => `w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-all ${
                                         isActive
-                                            ? 'bg-primary text-white shadow-lg shadow-primary/20'
+                                            ? 'bg-gray-50 text-gray-900 dark:bg-white/10 dark:text-white'
                                             : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-surface-dark'
                                     } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-[#0b1219]`}
                                 >
@@ -172,7 +176,7 @@ export const AdminLayout: React.FC = () => {
                 </nav>
 
                 <div className="p-4 border-t border-gray-200 dark:border-surface-border">
-                    <div className="flex items-center gap-3 px-4 py-3 mb-2 bg-gray-100 dark:bg-surface-dark/50 rounded-xl">
+                    <div className="flex items-center gap-3 px-4 py-3 mb-2 bg-gray-100 dark:bg-surface-dark/50 rounded-2xl">
                         <img 
                             src={getAvatarUrl(currentUser)} 
                             alt="User" 
@@ -186,7 +190,7 @@ export const AdminLayout: React.FC = () => {
                             <LogOut className="w-4 h-4" />
                         </button>
                     </div>
-                    <Link to="/" className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-100 dark:bg-surface-border hover:bg-gray-200 dark:hover:bg-[#2a4055] text-gray-800 dark:text-gray-100 text-sm transition-colors justify-center">
+                    <Link to="/" className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-100 dark:bg-surface-border hover:bg-gray-200 dark:hover:bg-[#2a4055] text-gray-800 dark:text-gray-100 text-sm transition-colors justify-center">
                         <ArrowLeft className="w-4 h-4" />
                         返回前台
                     </Link>
@@ -201,7 +205,7 @@ export const AdminLayout: React.FC = () => {
                         onClick={() => setIsMobileMenuOpen(true)}
                         type="button"
                         aria-label="打开侧边栏菜单"
-                        className="p-2 -ml-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-surface-dark rounded-lg active:scale-95 transition-transform"
+                        className="p-2 -ml-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-surface-dark rounded-xl active:scale-95 transition-transform"
                     >
                         <Menu className="w-6 h-6" />
                     </button>

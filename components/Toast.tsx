@@ -62,7 +62,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                         key={toast.id}
                         role={toast.type === 'error' || toast.type === 'warning' ? 'alert' : 'status'}
                         className={`
-                            pointer-events-auto min-w-[300px] max-w-md p-4 rounded-xl shadow-xl flex items-start gap-3 transform transition-all duration-300 animate-in slide-in-from-right-full backdrop-blur-xl border
+                            pointer-events-auto min-w-[300px] max-w-md p-4 rounded-2xl shadow-xl flex items-start gap-3 transform transition-all duration-300 animate-in slide-in-from-right-full backdrop-blur-xl border
                             ${toast.type === 'success' ? 'bg-white/80 dark:bg-slate-900/80 border-green-500/20 text-green-700 dark:text-green-300' : ''}
                             ${toast.type === 'error' ? 'bg-white/80 dark:bg-slate-900/80 border-red-500/20 text-red-700 dark:text-red-300' : ''}
                             ${toast.type === 'info' ? 'bg-white/80 dark:bg-slate-900/80 border-blue-500/20 text-blue-700 dark:text-blue-300' : ''}
@@ -80,7 +80,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                             type="button"
                             onClick={() => removeToast(toast.id)}
                             aria-label="关闭提示"
-                            className="flex-shrink-0 text-current opacity-50 hover:opacity-100 transition-opacity rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current/30 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-surface-card"
+                            className="flex-shrink-0 text-current opacity-50 hover:opacity-100 transition-opacity rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current/30 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-surface-card"
                         >
                             <X className="w-4 h-4" />
                         </button>

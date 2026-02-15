@@ -18,6 +18,7 @@ export const registerCategoryRoutes = async (app) => {
         select
           c.value,
           c.label,
+          c.icon,
           c.sort_order as "sortOrder",
           c.created_at as "createdAt",
           c.updated_at as "updatedAt",
@@ -40,6 +41,7 @@ export const registerCategoryRoutes = async (app) => {
         properties: {
           value: { type: 'string', minLength: 1, maxLength: 40 },
           label: { type: 'string', minLength: 1, maxLength: 80 },
+          icon: { type: 'string', maxLength: 50 },
           sortOrder: { type: 'integer' },
         },
       },
@@ -48,15 +50,16 @@ export const registerCategoryRoutes = async (app) => {
       const value = validateValue(req.body?.value);
       const label = String(req.body?.label ?? '').trim();
       if (!label) throw badRequest('CATEGORY_LABEL_REQUIRED', '分类 label 不能为空');
+      const icon = req.body?.icon ? String(req.body.icon).trim() : null;
       const sortOrder = Number.isFinite(Number(req.body?.sortOrder)) ? Number(req.body.sortOrder) : 0;
 
       const r = await pool.query(
         `
-          insert into categories(value, label, sort_order)
-          values ($1,$2,$3)
-          returning value, label, sort_order as "sortOrder", created_at as "createdAt", updated_at as "updatedAt"
+          insert into categories(value, label, icon, sort_order)
+          values ($1,$2,$3,$4)
+          returning value, label, icon, sort_order as "sortOrder", created_at as "createdAt", updated_at as "updatedAt"
         `,
-        [value, label, sortOrder],
+        [value, label, icon, sortOrder],
       );
 
       return reply.code(201).send(r.rows[0]);
@@ -75,6 +78,7 @@ export const registerCategoryRoutes = async (app) => {
         type: 'object',
         properties: {
           label: { type: 'string', minLength: 1, maxLength: 80 },
+          icon: { type: 'string', maxLength: 50 },
           sortOrder: { type: 'integer' },
         },
       },
@@ -82,6 +86,8 @@ export const registerCategoryRoutes = async (app) => {
     handler: async (req) => {
       const value = validateValue(req.params?.value);
       const label = req.body?.label != null ? String(req.body.label).trim() : null;
+      // Note: icon can be empty string to clear it
+      const icon = req.body?.icon !== undefined ? (req.body.icon ? String(req.body.icon).trim() : null) : undefined;
       const sortOrder = req.body?.sortOrder != null ? Number(req.body.sortOrder) : null;
       if (label != null && !label) throw badRequest('CATEGORY_LABEL_REQUIRED', '分类 label 不能为空');
 
@@ -89,11 +95,12 @@ export const registerCategoryRoutes = async (app) => {
         `
           update categories set
             label = coalesce($2, label),
-            sort_order = coalesce($3, sort_order)
+            icon = case when $3::boolean then $4 else icon end,
+            sort_order = coalesce($5, sort_order)
           where value = $1
-          returning value, label, sort_order as "sortOrder", created_at as "createdAt", updated_at as "updatedAt"
+          returning value, label, icon, sort_order as "sortOrder", created_at as "createdAt", updated_at as "updatedAt"
         `,
-        [value, label, Number.isFinite(sortOrder) ? sortOrder : null],
+        [value, label, icon !== undefined, icon, Number.isFinite(sortOrder) ? sortOrder : null],
       );
       if (!r.rowCount) throw notFound('CATEGORY_NOT_FOUND', '分类不存在');
       return r.rows[0];

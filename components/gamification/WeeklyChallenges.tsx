@@ -54,7 +54,7 @@ export const WeeklyChallenges: React.FC<WeeklyChallengesProps> = ({ challenges, 
                             <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">{challenge.title}</h3>
                             <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 flex-1">{challenge.description}</p>
                             
-                            <div className="space-y-4">
+                            <div className="space-y-6">
                                 <div>
                                     <div className="flex justify-between text-sm font-medium mb-2">
                                         <span className="text-gray-700 dark:text-gray-300">进度 {challenge.progress}/{challenge.target}</span>
@@ -68,7 +68,7 @@ export const WeeklyChallenges: React.FC<WeeklyChallengesProps> = ({ challenges, 
                                     </div>
                                 </div>
                                 
-                                <div className={`flex items-center gap-2 text-xs font-medium px-3 py-2 rounded-lg w-fit backdrop-blur-sm ${
+                                <div className={`flex items-center gap-2 text-xs font-medium px-3 py-2 rounded-xl w-fit backdrop-blur-sm ${
                                     challenge.completed 
                                         ? 'text-green-600 dark:text-green-400 bg-green-100/50 dark:bg-green-500/10' 
                                         : 'text-primary bg-blue-100/50 dark:bg-blue-500/10'

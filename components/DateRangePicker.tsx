@@ -162,10 +162,10 @@ export default function DateRangePicker({ startDate, endDate, onChange, classNam
     return (
         <div className={`relative ${className}`} ref={containerRef}>
             <button
-                type="button"
-                onClick={() => setIsOpen(!isOpen)}
-                className={`w-full bg-white/50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded-lg pl-10 pr-8 py-2.5 text-left text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50 backdrop-blur-sm text-sm transition-all flex items-center group hover:bg-white/60 dark:hover:bg-black/30 ${isOpen ? 'ring-2 ring-primary/50 border-primary' : ''}`}
-            >
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className={`w-full bg-white/50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded-xl pl-10 pr-8 py-2.5 text-left text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50 backdrop-blur-sm text-sm transition-all flex items-center group hover:bg-white/60 dark:hover:bg-black/30 ${isOpen ? 'ring-2 ring-primary/50 border-primary' : ''}`}
+      >
                 <CalendarIcon className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 dark:text-gray-400 transition-colors group-hover:text-primary ${isOpen ? 'text-primary' : ''}`} />
                 <span className={!displayValue ? 'text-gray-500' : ''}>{displayValue || placeholder}</span>
                 {displayValue && (

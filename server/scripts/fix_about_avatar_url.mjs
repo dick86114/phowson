@@ -1,9 +1,9 @@
 import pg from 'pg';
 import { loadEnvIfNeeded } from '../lib/load_env.mjs';
 
-console.log('Starting script...');
 loadEnvIfNeeded();
-console.log('Env loaded. DB URL:', process.env.DATABASE_URL ? 'Set' : 'Not Set');
+process.stdout.write(`Starting script...\n`)
+process.stdout.write(`Env loaded. DB URL: ${process.env.DATABASE_URL ? 'Set' : 'Not Set'}\n`)
 
 const pool = new pg.Pool({
   connectionString: process.env.DATABASE_URL,
@@ -11,33 +11,33 @@ const pool = new pg.Pool({
 
 async function run() {
   try {
-    console.log('Connecting to DB...');
+    process.stdout.write('Connecting to DB...\n')
     // 1. Get current settings
     const res = await pool.query("select data from site_settings where id = 'global'");
-    console.log('Query result rows:', res.rows.length);
+    process.stdout.write(`Query result rows: ${res.rows.length}\n`)
     
     if (res.rows.length === 0) {
-      console.log('No global settings found.');
+      process.stdout.write('No global settings found.\n')
       return;
     }
 
     const settings = res.rows[0].data;
     const currentAvatar = settings.about?.avatar;
-    console.log('Current Avatar URL:', currentAvatar);
+    process.stdout.write(`Current Avatar URL: ${String(currentAvatar || '')}\n`)
 
     if (!currentAvatar) {
-        console.log('No avatar set.');
+        process.stdout.write('No avatar set.\n')
         return;
     }
 
     // Check if it's an internal S3 URL
     const s3Match = currentAvatar.match(/^http:\/\/[\d\.]+:\d+\/[^/]+\/(.+)$/);
-    console.log('Match result:', s3Match);
+    process.stdout.write(`Match result: ${s3Match ? 'matched' : 'not_matched'}\n`)
     
     if (s3Match) {
         const key = s3Match[1]; // e.g. uploads/xxx.jpg
         const newUrl = `/media/s3/${key}`;
-        console.log(`Converting ${currentAvatar} -> ${newUrl}`);
+        process.stdout.write(`Converting ${currentAvatar} -> ${newUrl}\n`)
 
         // Update settings
         settings.about.avatar = newUrl;
@@ -46,16 +46,16 @@ async function run() {
             "update site_settings set data = $1 where id = 'global'",
             [settings]
         );
-        console.log('Database updated successfully.');
+        process.stdout.write('Database updated successfully.\n')
     } else {
-        console.log('Current URL does not match internal S3 pattern, skipping update.');
+        process.stdout.write('Current URL does not match internal S3 pattern, skipping update.\n')
     }
 
   } catch (err) {
     console.error('Error:', err);
   } finally {
     await pool.end();
-    console.log('Done.');
+    process.stdout.write('Done.\n')
   }
 }
 

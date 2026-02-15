@@ -22,6 +22,9 @@
     "paths": {
       "@/*": [
         "./*"
+      ],
+      "@private/web": [
+        "./private-stubs/web.tsx"
       ]
     },
     "allowImportingTsExtensions": true,

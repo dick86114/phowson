@@ -1,0 +1,41 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: phowson
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - phowson_db:/var/lib/postgresql/data
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@db:5432/phowson
+      HOST: 0.0.0.0
+      PORT: 2615
+      ADMIN_EMAIL: admin@example.com
+      ADMIN_PASSWORD: change-me
+    ports:
+      - "2615:2615"
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    depends_on:
+      - api
+    environment:
+      VITE_PROXY_TARGET: http://api:2615
+      VITE_API_BASE_URL: ""
+    ports:
+      - "2614:2614"
+
+volumes:
+  phowson_db:

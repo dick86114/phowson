@@ -37,7 +37,7 @@ html.dark body {
   }
   
   .glass-card {
-    @apply bg-white/60 dark:bg-slate-800/60 backdrop-blur-md border border-white/30 dark:border-white/5 shadow-sm transition-all duration-300 hover:shadow-md hover:bg-white/80 dark:hover:bg-slate-800/80;
+    @apply bg-white/60 dark:bg-slate-800/60 backdrop-blur-md border border-white/30 dark:border-white/5 shadow-sm transition-all duration-300 hover:shadow-md hover:bg-white/80 dark:hover:bg-slate-800/80 rounded-2xl;
   }
 
   .glass-nav {
@@ -45,7 +45,7 @@ html.dark body {
   }
   
   .glass-panel {
-    @apply bg-white/90 dark:bg-slate-900/90 backdrop-blur-2xl border border-white/20 dark:border-white/10 shadow-xl;
+    @apply bg-white/90 dark:bg-slate-900/90 backdrop-blur-2xl border border-white/20 dark:border-white/10 shadow-xl rounded-2xl;
   }
 
   .text-shadow-sm {

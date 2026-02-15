@@ -1,4 +1,5 @@
 import path from 'path';
+import fs from 'fs';
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
@@ -6,35 +7,51 @@ import { VitePWA } from 'vite-plugin-pwa';
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
     const isProd = mode === 'production';
+    const privateWebCandidate = path.resolve(process.cwd(), 'private/web/plugin.tsx');
+    const privateWebFallback = path.resolve(process.cwd(), 'private-stubs/web.tsx');
+    const privateWebDisabled =
+      String(env.VITE_PRIVATE_WEB_DISABLED || '').trim().toLowerCase() === 'true' ||
+      String(env.VITE_PRIVATE_WEB_DISABLED || '').trim() === '1';
+    const privateWebModule = String(env.PRIVATE_WEB_MODULE || '').trim();
+    const privateWebPath = privateWebDisabled
+      ? privateWebFallback
+      : privateWebModule || (fs.existsSync(privateWebCandidate) ? privateWebCandidate : privateWebFallback);
+    const proxyTarget = String(env.VITE_PROXY_TARGET || 'http://127.0.0.1:2615').trim();
     
     return {
       esbuild: {
         drop: isProd ? ['console', 'debugger'] : [],
       },
+      resolve: {
+        alias: {
+          '@': path.resolve(__dirname, '.'),
+          '@private/web': privateWebPath,
+        },
+      },
       server: {
-        port: 3000,
+        port: 2614,
         host: '0.0.0.0',
         allowedHosts: true,
         proxy: {
           '/media': {
-            target: 'http://127.0.0.1:3001',
+            target: proxyTarget,
             changeOrigin: true,
           },
-          '/auth': { target: 'http://127.0.0.1:3001', changeOrigin: true },
-          '/me': { target: 'http://127.0.0.1:3001', changeOrigin: true },
-          '/categories': { target: 'http://127.0.0.1:3001', changeOrigin: true },
-          '/photos': { target: 'http://127.0.0.1:3001', changeOrigin: true },
-          '/stats': { target: 'http://127.0.0.1:3001', changeOrigin: true },
-          '/users': { target: 'http://127.0.0.1:3001', changeOrigin: true },
-          '/site-settings': { target: 'http://127.0.0.1:3001', changeOrigin: true },
-          '/ai': { target: 'http://127.0.0.1:3001', changeOrigin: true },
-          '/activity': { target: 'http://127.0.0.1:3001', changeOrigin: true },
-          '/geocode': { target: 'http://127.0.0.1:3001', changeOrigin: true },
-          '/health': { target: 'http://127.0.0.1:3001', changeOrigin: true },
-          '/gamification': { target: 'http://127.0.0.1:3001', changeOrigin: true },
-          '/uploads': { target: 'http://127.0.0.1:3001', changeOrigin: true },
+          '/auth': { target: proxyTarget, changeOrigin: true },
+          '/me': { target: proxyTarget, changeOrigin: true },
+          '/categories': { target: proxyTarget, changeOrigin: true },
+          '/photos': { target: proxyTarget, changeOrigin: true },
+          '/stats': { target: proxyTarget, changeOrigin: true },
+          '/users': { target: proxyTarget, changeOrigin: true },
+          '/site-settings': { target: proxyTarget, changeOrigin: true },
+          '/ai': { target: proxyTarget, changeOrigin: true },
+          '/activity': { target: proxyTarget, changeOrigin: true },
+          '/geocode': { target: proxyTarget, changeOrigin: true },
+          '/health': { target: proxyTarget, changeOrigin: true },
+          '/gamification': { target: proxyTarget, changeOrigin: true },
+          '/uploads': { target: proxyTarget, changeOrigin: true },
           '/admin': {
-            target: 'http://127.0.0.1:3001',
+            target: proxyTarget,
             changeOrigin: true,
             bypass: (req) => {
               if (req.headers.accept && req.headers.accept.includes('text/html')) {
@@ -107,15 +124,6 @@ export default defineConfig(({ mode }) => {
           },
         }),
       ],
-      define: {
-        'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-        'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)
-      },
-      resolve: {
-        alias: {
-          '@': path.resolve(__dirname, '.'),
-        }
-      },
       build: {
         rollupOptions: {
             output: {

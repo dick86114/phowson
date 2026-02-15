@@ -29,6 +29,9 @@ export default function DatePicker({ value, onChange, className = '', placeholde
     // Handle clicking outside to close
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
+            // Mobile handled by backdrop click
+            if (window.innerWidth < 768) return;
+
             if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
                 // Check if the click was on the portal content
                 const portalElement = document.getElementById('datepicker-portal');
@@ -45,7 +48,7 @@ export default function DatePicker({ value, onChange, className = '', placeholde
 
     // Calculate position for the portal
     useEffect(() => {
-        if (isOpen && containerRef.current) {
+        if (isOpen && containerRef.current && window.innerWidth >= 768) {
             const rect = containerRef.current.getBoundingClientRect();
             setPosition({
                 top: rect.bottom + window.scrollY + 8,
@@ -53,6 +56,16 @@ export default function DatePicker({ value, onChange, className = '', placeholde
                 width: rect.width
             });
         }
+    }, [isOpen]);
+
+    // Lock body scroll for mobile modal
+    useEffect(() => {
+        if (isOpen && window.innerWidth < 768) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = '';
+        }
+        return () => { document.body.style.overflow = ''; };
     }, [isOpen]);
 
     const daysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
@@ -114,73 +127,120 @@ export default function DatePicker({ value, onChange, className = '', placeholde
     return (
         <div className={`relative ${className}`} ref={containerRef}>
             <button
-                type="button"
-                onClick={() => setIsOpen(!isOpen)}
-                className={`w-full bg-white/50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded-lg pl-10 pr-3 py-2.5 text-left text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50 backdrop-blur-sm text-sm transition-all flex items-center group hover:bg-white/60 dark:hover:bg-black/30 ${isOpen ? 'ring-2 ring-primary/50 border-primary' : ''}`}
-            >
-                <CalendarIcon className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 dark:text-gray-400 transition-colors group-hover:text-primary ${isOpen ? 'text-primary' : ''}`} />
-                <span className={!value ? 'text-gray-500' : ''}>{value || placeholder}</span>
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className={`w-full mt-1 bg-white/50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded-xl p-3 text-left text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50 backdrop-blur-sm text-base transition-all flex items-center justify-between group hover:bg-white/60 dark:hover:bg-black/30 ${isOpen ? 'ring-2 ring-primary/50 border-primary' : ''}`}
+      >
+                <span className={!value ? 'text-gray-400' : ''}>{value || placeholder}</span>
+                <CalendarIcon className={`w-4 h-4 text-gray-500 dark:text-gray-400 transition-colors group-hover:text-primary ${isOpen ? 'text-primary' : ''}`} />
             </button>
 
             {createPortal(
                 <AnimatePresence>
                     {isOpen && (
-                        <div 
-                            id="datepicker-portal"
-                            className="absolute z-[9999]"
-                            style={{ 
-                                top: position.top, 
-                                left: position.left,
-                                maxWidth: 'calc(100vw - 32px)'
-                            }}
-                        >
-                            <motion.div 
-                                initial={{ opacity: 0, scale: 0.95, y: -10 }}
-                                animate={{ opacity: 1, scale: 1, y: 0 }}
-                                exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                                transition={{ duration: 0.2, ease: "easeOut" }}
-                                className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-2xl border border-white/20 dark:border-white/10 rounded-2xl shadow-2xl p-4 w-[320px]"
-                            >
-                                {/* Header */}
-                                <div className="flex items-center justify-between mb-4">
-                                    <button 
-                                        onClick={prevMonth}
-                                        className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-colors text-gray-600 dark:text-gray-300"
-                                    >
-                                        <ChevronLeft className="w-5 h-5" />
-                                    </button>
-                                    <span className="text-base font-bold text-gray-800 dark:text-white">
-                                        {currentDate.getFullYear()}年 {currentDate.getMonth() + 1}月
-                                    </span>
-                                    <button 
-                                        onClick={nextMonth}
-                                        className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-colors text-gray-600 dark:text-gray-300"
-                                    >
-                                        <ChevronRight className="w-5 h-5" />
-                                    </button>
-                                </div>
-
-                                {/* Weekdays */}
-                                <div className="grid grid-cols-7 mb-2">
-                                    {weekDays.map(day => (
-                                        <div key={day} className="h-8 flex items-center justify-center text-xs font-medium text-gray-400 dark:text-gray-500">
-                                            {day}
-                                        </div>
-                                    ))}
-                                </div>
-
-                                {/* Days Grid */}
-                                <div className="grid grid-cols-7 gap-y-1">
-                                    {renderCalendarDays()}
-                                </div>
-                            </motion.div>
-                            
-                            {/* Backdrop for mobile */}
+                        <>
+                            {/* Desktop Popover */}
                             <div 
-                                className="fixed inset-0 -z-10" 
-                                onClick={() => setIsOpen(false)}
-                            />
-                        </div>
+                                id="datepicker-portal"
+                                className="hidden md:block absolute z-[9999]"
+                                style={{ 
+                                    top: position.top, 
+                                    left: position.left,
+                                    maxWidth: 'calc(100vw - 32px)'
+                                }}
+                            >
+                                <motion.div 
+                                    initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                                    exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                                    transition={{ duration: 0.2, ease: "easeOut" }}
+                                    className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-2xl border border-white/20 dark:border-white/10 rounded-2xl shadow-2xl p-4 w-[320px]"
+                                >
+                                    {/* Header */}
+                                    <div className="flex items-center justify-between mb-4">
+                                        <button 
+                                            onClick={prevMonth}
+                                            className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-colors text-gray-600 dark:text-gray-300"
+                                        >
+                                            <ChevronLeft className="w-5 h-5" />
+                                        </button>
+                                        <span className="text-base font-bold text-gray-800 dark:text-white">
+                                            {currentDate.getFullYear()}年 {currentDate.getMonth() + 1}月
+                                        </span>
+                                        <button 
+                                            onClick={nextMonth}
+                                            className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-colors text-gray-600 dark:text-gray-300"
+                                        >
+                                            <ChevronRight className="w-5 h-5" />
+                                        </button>
+                                    </div>
+
+                                    {/* Weekdays */}
+                                    <div className="grid grid-cols-7 mb-2">
+                                        {weekDays.map(day => (
+                                            <div key={day} className="h-8 flex items-center justify-center text-xs font-medium text-gray-400 dark:text-gray-500">
+                                                {day}
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    {/* Days Grid */}
+                                    <div className="grid grid-cols-7 gap-y-1">
+                                        {renderCalendarDays()}
+                                    </div>
+                                </motion.div>
+                            </div>
+
+                            {/* Mobile Centered Modal */}
+                            <div className="md:hidden fixed inset-0 z-[9999] flex items-center justify-center p-4">
+                                <motion.div
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    exit={{ opacity: 0 }}
+                                    className="fixed inset-0 bg-black/40 backdrop-blur-sm"
+                                    onClick={() => setIsOpen(false)}
+                                />
+                                <motion.div 
+                                    initial={{ opacity: 0, scale: 0.95 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    exit={{ opacity: 0, scale: 0.95 }}
+                                    className="relative bg-white/90 dark:bg-slate-900/90 backdrop-blur-2xl border border-white/20 dark:border-white/10 rounded-2xl shadow-2xl p-6 w-full max-w-sm"
+                                >
+                                    {/* Header */}
+                                    <div className="flex items-center justify-between mb-6">
+                                        <button 
+                                            onClick={prevMonth}
+                                            className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-colors text-gray-600 dark:text-gray-300"
+                                        >
+                                            <ChevronLeft className="w-6 h-6" />
+                                        </button>
+                                        <span className="text-lg font-bold text-gray-800 dark:text-white">
+                                            {currentDate.getFullYear()}年 {currentDate.getMonth() + 1}月
+                                        </span>
+                                        <button 
+                                            onClick={nextMonth}
+                                            className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-colors text-gray-600 dark:text-gray-300"
+                                        >
+                                            <ChevronRight className="w-6 h-6" />
+                                        </button>
+                                    </div>
+
+                                    {/* Weekdays */}
+                                    <div className="grid grid-cols-7 mb-4">
+                                        {weekDays.map(day => (
+                                            <div key={day} className="h-8 flex items-center justify-center text-sm font-medium text-gray-400 dark:text-gray-500">
+                                                {day}
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    {/* Days Grid */}
+                                    <div className="grid grid-cols-7 gap-y-2 gap-x-1">
+                                        {renderCalendarDays()}
+                                    </div>
+                                </motion.div>
+                            </div>
+                        </>
                     )}
                 </AnimatePresence>,
                 document.body

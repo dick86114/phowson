@@ -38,9 +38,9 @@ export const MilestoneList: React.FC<MilestoneListProps> = ({ milestones, limit 
     };
 
     return (
-        <div className="glass-panel rounded-3xl p-6 h-full flex flex-col">
+        <div className="glass-panel rounded-2xl p-6 h-full flex flex-col">
             <div className="flex items-center gap-2 mb-6">
-                <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                <div className="p-2 rounded-xl bg-primary/10 text-primary">
                     <TrendingUp className="w-5 h-5" />
                 </div>
                 <h3 className="text-lg font-bold text-gray-900 dark:text-white">最近里程碑</h3>
@@ -69,7 +69,7 @@ export const MilestoneList: React.FC<MilestoneListProps> = ({ milestones, limit 
             </div>
 
             {hasMore && (
-                <Link to="/gamification/history" className="mt-6 w-full py-3 bg-white/50 dark:bg-white/5 backdrop-blur-sm border border-white/20 dark:border-white/10 text-gray-600 dark:text-gray-300 font-bold rounded-xl text-sm hover:bg-white/80 dark:hover:bg-white/10 transition-all text-center block shadow-sm hover:shadow-md">
+                <Link to="/gamification/history" className="mt-6 w-full py-3 bg-white/50 dark:bg-white/5 backdrop-blur-sm border border-white/20 dark:border-white/10 text-gray-600 dark:text-gray-300 font-bold rounded-2xl text-sm hover:bg-white/80 dark:hover:bg-white/10 transition-all text-center block shadow-sm hover:shadow-md">
                     查看完整旅程
                 </Link>
             )}

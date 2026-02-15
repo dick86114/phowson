@@ -97,7 +97,7 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
             }
           }
         }}
-        className="glass-panel rounded-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 focus:outline-none"
+        className="glass-panel rounded-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 focus:outline-none"
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
           <h3 id={titleId} className="text-lg font-semibold text-gray-900 dark:text-gray-100">
@@ -108,7 +108,7 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
             onClick={onClose}
             type="button"
             aria-label="关闭对话框"
-            className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300 transition-colors rounded-lg p-1 hover:bg-gray-100 dark:hover:bg-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-800"
+            className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300 transition-colors rounded-2xl p-1 hover:bg-gray-100 dark:hover:bg-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-800"
           >
             <X className="w-5 h-5" />
           </button>
@@ -172,7 +172,7 @@ export const ModalProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               setModalConfig(null);
               resolve();
             }}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-800"
+            className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-800"
           >
             确定
           </button>
@@ -214,7 +214,7 @@ export const ModalProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 if (onCancel) onCancel();
                 resolve(false);
               }}
-              className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-800"
+              className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-800"
             >
               取消
             </button>
@@ -224,7 +224,7 @@ export const ModalProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 if (onConfirm) onConfirm();
                 resolve(true);
               }}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-800"
+              className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-800"
             >
               确定
             </button>

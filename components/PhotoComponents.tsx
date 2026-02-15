@@ -5,7 +5,7 @@ import { Photo, ExifData } from '../types';
 export function PhotoExifBadge({ icon, label, value }: { icon: React.ReactNode, label: string, value: string }) {
     return (
         <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-gray-100 dark:bg-surface-dark text-primary border border-gray-200 dark:border-surface-border">
+            <div className="p-2 rounded-xl bg-gray-100 dark:bg-surface-dark text-primary border border-gray-200 dark:border-surface-border">
                 {icon}
             </div>
             <div className="flex flex-col">
