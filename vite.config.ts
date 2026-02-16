@@ -43,6 +43,7 @@ export default defineConfig(({ mode }) => {
           '/photos': { target: proxyTarget, changeOrigin: true },
           '/stats': { target: proxyTarget, changeOrigin: true },
           '/users': { target: proxyTarget, changeOrigin: true },
+          '/roles': { target: proxyTarget, changeOrigin: true },
           '/site-settings': { target: proxyTarget, changeOrigin: true },
           '/ai': { target: proxyTarget, changeOrigin: true },
           '/activity': { target: proxyTarget, changeOrigin: true },

@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Camera, Mail, Lock, ArrowRight, Github, ArrowLeft, CheckCircle } from 'lucide-react';
+import { Camera, Mail, Lock, ArrowRight, Github, ArrowLeft, CheckCircle, AtSign, KeyRound } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import { useSiteSettings, toMediaUrl } from '../SiteSettingsContext';
 import api from '../api';
 
 export const Login: React.FC = () => {
     const navigate = useNavigate();
     const { setSession } = useAuth();
+    const { siteLogo } = useSiteSettings();
     const [view, setView] = useState<'login' | 'forgot'>('login');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -27,8 +29,9 @@ export const Login: React.FC = () => {
             const searchParams = new URLSearchParams(window.location.search);
             const returnUrl = searchParams.get('returnUrl');
             navigate(returnUrl || '/');
-        } catch {
-            setLoginError('账号或密码错误');
+        } catch (err: any) {
+            console.error('Login error:', err);
+            setLoginError(err?.data?.message || (typeof err?.data === 'string' ? err.data : '') || err?.message || '登录失败');
         } finally {
             setIsLoading(false);
         }
@@ -51,16 +54,22 @@ export const Login: React.FC = () => {
             <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] bg-blue-600/10 rounded-full blur-[100px] pointer-events-none animate-float" style={{ animationDelay: '-3s' }} />
 
             <div className="w-full max-w-md relative z-10">
-                <div className="text-center mb-8">
-                    <Link to="/" className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-primary/10 text-primary mb-4 hover:scale-105 transition-transform">
-                        <Camera className="w-6 h-6" />
+                <div className="text-center mb-10">
+                    <Link to="/" className="inline-flex items-center justify-center mb-6 hover:scale-105 transition-transform">
+                        {siteLogo ? (
+                            <img src={toMediaUrl(siteLogo)} alt="Logo" className="h-16 w-auto object-contain drop-shadow-md" />
+                        ) : (
+                            <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center">
+                                <Camera className="w-6 h-6 stroke-[2.5]" />
+                            </div>
+                        )}
                     </Link>
                     <h1 className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">
                         {view === 'login' ? '欢迎回来' : '重置密码'}
                     </h1>
                     <p className="text-gray-500 dark:text-gray-400 mt-2 text-sm">
                         {view === 'login' 
-                            ? '请输入您的凭据以访问管理后台' 
+                            ? '请输入您的账号以继续' 
                             : '输入您的注册邮箱，我们将发送重置链接'}
                     </p>
                 </div>
@@ -72,8 +81,8 @@ export const Login: React.FC = () => {
                             <div className="space-y-2">
                                 <label className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">电子邮箱</label>
                                 <div className="relative">
-                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 dark:text-gray-500">
-                                        <Mail className="w-5 h-5" />
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-600 dark:text-gray-300 z-10">
+                                        <AtSign className="w-5 h-5 stroke-[2.5]" />
                                     </div>
                                     <input
                                         type="email"
@@ -98,8 +107,8 @@ export const Login: React.FC = () => {
                                     </button>
                                 </div>
                                 <div className="relative">
-                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 dark:text-gray-500">
-                                        <Lock className="w-5 h-5" />
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-600 dark:text-gray-300 z-10">
+                                        <KeyRound className="w-5 h-5 stroke-[2.5]" />
                                     </div>
                                     <input
                                         type="password"
@@ -129,12 +138,19 @@ export const Login: React.FC = () => {
                                 className="w-full flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white font-medium py-2.5 rounded-xl transition-all shadow-lg shadow-primary/20 disabled:opacity-70 disabled:cursor-not-allowed"
                             >
                                 {isLoading ? '登录中...' : '登录'}
-                                {!isLoading && <ArrowRight className="w-4 h-4" />}
+                                {!isLoading && <ArrowRight className="w-4 h-4 stroke-[2.5]" />}
                             </button>
 
                             {loginError && (
                                 <div className="text-sm text-red-500">{loginError}</div>
                             )}
+
+                            <div className="mt-6 text-center">
+                                <span className="text-gray-500 dark:text-gray-400 text-sm">还没有账号？</span>
+                                <Link to="/register" className="ml-2 text-primary hover:text-primary/80 text-sm font-medium transition-colors">
+                                    立即注册
+                                </Link>
+                            </div>
                         </form>
                     ) : (
                         /* Forgot Password Form */
@@ -144,10 +160,10 @@ export const Login: React.FC = () => {
                                     <div className="space-y-2">
                                         <label className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">电子邮箱</label>
                                         <div className="relative">
-                                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 dark:text-gray-500">
-                                                <Mail className="w-5 h-5" />
-                                            </div>
-                                            <input
+                                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-600 dark:text-gray-300 z-10">
+                                        <AtSign className="w-5 h-5 stroke-[2.5]" />
+                                    </div>
+                                    <input
                                                 type="email"
                                                 required
                                                 value={email}
@@ -169,7 +185,7 @@ export const Login: React.FC = () => {
                             ) : (
                                 <div className="text-center py-4 animate-in fade-in zoom-in-95">
                                     <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-500/10 text-green-500 mb-4">
-                                        <CheckCircle className="w-8 h-8" />
+                                        <CheckCircle className="w-8 h-8 stroke-[2.5]" />
                                     </div>
                                     <h3 className="text-lg font-bold text-gray-900 dark:text-white">邮件已发送</h3>
                                     <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
@@ -185,7 +201,7 @@ export const Login: React.FC = () => {
                                 }}
                                 className="w-full flex items-center justify-center gap-2 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors text-sm"
                             >
-                                <ArrowLeft className="w-4 h-4" />
+                                <ArrowLeft className="w-4 h-4 stroke-[2.5]" />
                                 返回登录
                             </button>
                         </div>

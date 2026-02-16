@@ -447,7 +447,7 @@ export const Admin: React.FC<{ hideLayout?: boolean }> = ({ hideLayout }) => {
     const updateProfileMutation = useMutation({
         mutationFn: async () => {
             const name = profileName.trim();
-            if (!name) throw new Error('显示名称不能为空');
+            if (!name) throw new Error('昵称不能为空');
             const res = await api.patch('/me/profile', { name });
             return res.data as any;
         },
@@ -952,7 +952,7 @@ export const Admin: React.FC<{ hideLayout?: boolean }> = ({ hideLayout }) => {
                             <div className="space-y-6">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                        显示名称
+                                        昵称
                                     </label>
                                     <input
                                         type="text"

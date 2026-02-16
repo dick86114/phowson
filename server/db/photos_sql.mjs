@@ -42,6 +42,8 @@ export const photoSelectSql = (withLikes) => {
       p.updated_at as "updatedAt",
       p.views_count as "viewsCount",
       p.likes_count as "likesCount",
+      p.is_public as "isPublic",
+      (not p.is_public) as "isPrivate",
       p.ai_critique as "aiCritique",
       p.image_width as "imageWidth",
       p.image_height as "imageHeight",

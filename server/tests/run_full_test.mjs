@@ -12,6 +12,7 @@ const adminHeaders = {
   'x-user-name': '管理员',
   'x-user-role': 'admin',
   'x-user-avatar': '',
+  'x-user-permissions': 'admin_access,basic_access',
 }
 const adminJsonHeaders = {
   ...adminHeaders,
@@ -44,8 +45,11 @@ const runUsersSuite = async () => {
   const app = createApp()
   await app.ready()
   const email = `u_${crypto.randomBytes(4).toString('hex')}@example.com`
+  const email2 = `u_${crypto.randomBytes(4).toString('hex')}@example.com`
+  const email3 = `u_${crypto.randomBytes(4).toString('hex')}@example.com`
   const password = 'Abcdefg1'
   let userId = ''
+  let userId2 = ''
   try {
     {
       const res = await app.inject({
@@ -59,6 +63,40 @@ const runUsersSuite = async () => {
       assert.equal(body.email, email)
       userId = body.id
       assert.ok(userId)
+    }
+    {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/users',
+        headers: adminJsonHeaders,
+        payload: JSON.stringify({ name: 'Test User', email: email3, role: 'family', password }),
+      })
+      assert.equal(res.statusCode, 400)
+      const body = res.json()
+      assert.equal(body.code, 'NAME_EXISTS')
+    }
+    {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/users',
+        headers: adminJsonHeaders,
+        payload: JSON.stringify({ name: 'Other Name', email: email2, role: 'family', password }),
+      })
+      assert.equal(res.statusCode, 201)
+      const body = res.json()
+      userId2 = body.id
+      assert.ok(userId2)
+    }
+    {
+      const res = await app.inject({
+        method: 'PATCH',
+        url: `/users/${encodeURIComponent(userId)}`,
+        headers: adminJsonHeaders,
+        payload: JSON.stringify({ name: 'Other Name' }),
+      })
+      assert.equal(res.statusCode, 400)
+      const body = res.json()
+      assert.equal(body.code, 'NAME_EXISTS')
     }
     {
       const res = await app.inject({
@@ -117,6 +155,16 @@ const runUsersSuite = async () => {
       const res = await app.inject({
         method: 'DELETE',
         url: `/users/${encodeURIComponent(userId)}`,
+        headers: adminHeaders,
+      })
+      assert.equal(res.statusCode, 200)
+      const body = res.json()
+      assert.equal(body.ok, true)
+    }
+    if (userId2) {
+      const res = await app.inject({
+        method: 'DELETE',
+        url: `/users/${encodeURIComponent(userId2)}`,
         headers: adminHeaders,
       })
       assert.equal(res.statusCode, 200)

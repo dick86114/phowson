@@ -43,10 +43,10 @@ export const registerUserRoutes = async (app) => {
         type: 'object',
         properties: {
           q: { type: 'string' },
-          role: { type: 'string', enum: ['admin', 'family', 'all'] },
-          status: { type: 'string', enum: ['enabled', 'disabled', 'all'] },
+          role: { type: 'string' },
+          status: { type: 'string', enum: ['active', 'pending', 'disabled', 'all'] },
           sort: { type: 'string', enum: ['newest', 'oldest', 'active'] },
-          limit: { type: 'integer', minimum: 1, maximum: 200 },
+          limit: { type: 'integer', minimum: 1, maximum: 10000 },
           offset: { type: 'integer', minimum: 0 },
         },
       },
@@ -56,7 +56,7 @@ export const registerUserRoutes = async (app) => {
       const role = String(req.query?.role ?? 'all').trim() || 'all';
       const status = String(req.query?.status ?? 'all').trim() || 'all';
       const sort = String(req.query?.sort ?? 'newest').trim();
-      const limit = Math.max(1, Math.min(200, Number(req.query?.limit ?? 50) || 50));
+      const limit = Math.max(1, Math.min(10000, Number(req.query?.limit ?? 50) || 50));
       const offset = Math.max(0, Number(req.query?.offset ?? 0) || 0);
 
       const where = [];
@@ -65,9 +65,11 @@ export const registerUserRoutes = async (app) => {
 
       if (role !== 'all') {
         const normalized = normalizeRole(role);
-        if (!normalized) throw badRequest('ROLE_INVALID', '角色不合法');
-        where.push(`role = $${i++}`);
-        args.push(normalized);
+        // if (!normalized) throw badRequest('ROLE_INVALID', '角色不合法');
+        if (normalized) {
+          where.push(`role = $${i++}`);
+          args.push(normalized);
+        }
       }
 
       if (q) {
@@ -77,9 +79,10 @@ export const registerUserRoutes = async (app) => {
       }
 
       if (status !== 'all') {
-        const allowed = new Set(['enabled', 'disabled', 'all']);
+        const allowed = new Set(['active', 'disabled', 'pending', 'all']);
         if (!allowed.has(status)) throw badRequest('STATUS_INVALID', 'status 不合法');
-        where.push(status === 'enabled' ? 'disabled_at is null' : 'disabled_at is not null');
+        where.push(`status = $${i++}`);
+        args.push(status);
       }
 
       const whereSql = where.length ? `where ${where.join(' and ')}` : '';
@@ -104,6 +107,7 @@ export const registerUserRoutes = async (app) => {
             id,
             name,
             role,
+            status,
             coalesce(avatar_url, '/media/avatars/' || id) as avatar,
             email,
             disabled_at as "disabledAt",
@@ -119,6 +123,27 @@ export const registerUserRoutes = async (app) => {
 
       return { items: itemsRes.rows || [], total, limit, offset };
     },
+  });
+
+  app.post('/users/:id/approve', {
+    preHandler: requireAdmin(),
+    handler: async (req) => {
+      const id = String(req.params.id);
+      await pool.query("update users set status = 'active', disabled_at = null where id = $1", [id]);
+      await logOperation(req.authUser.id, id, 'approve_user', {});
+      return { ok: true };
+    }
+  });
+
+  app.post('/users/:id/reject', {
+    preHandler: requireAdmin(),
+    handler: async (req) => {
+      const id = String(req.params.id);
+      await pool.query("delete from users where id = $1", [id]);
+      await deleteSessionsByUserId(id);
+      await logOperation(req.authUser.id, id, 'reject_user', {});
+      return { ok: true };
+    }
   });
 
   app.get('/users/:id/logs', {
@@ -192,7 +217,10 @@ export const registerUserRoutes = async (app) => {
       const user = req.authUser;
       await upsertUser(user);
       const name = String(req.body?.name ?? '').trim();
-      if (!name) throw badRequest('NAME_REQUIRED', '显示名称不能为空');
+      if (!name) throw badRequest('NAME_REQUIRED', '昵称不能为空');
+
+      const existingName = await pool.query('select 1 from users where lower(name) = lower($1) and id <> $2 limit 1', [name, user.id]);
+      if (existingName.rowCount > 0) throw badRequest('NAME_EXISTS', '昵称已被使用');
       const r = await pool.query(
         `
           update users set name = $2
@@ -298,11 +326,14 @@ export const registerUserRoutes = async (app) => {
       }
 
       const nextDisabledAt = disabled ? 'now()' : 'null';
+      const nextStatus = disabled ? 'disabled' : 'active';
       const r = await pool.query(
         `
-          update users set disabled_at = ${nextDisabledAt}
+          update users set 
+            disabled_at = ${nextDisabledAt},
+            status = '${nextStatus}'
           where id = $1
-          returning id, name, role, coalesce(avatar_url, '/media/avatars/' || id) as avatar, email, disabled_at as "disabledAt", created_at as "createdAt"
+          returning id, name, role, status, coalesce(avatar_url, '/media/avatars/' || id) as avatar, email, disabled_at as "disabledAt", created_at as "createdAt"
         `,
         [id],
       );
@@ -329,7 +360,7 @@ export const registerUserRoutes = async (app) => {
           id: { type: 'string', minLength: 1, maxLength: 128 },
           name: { type: 'string', minLength: 1, maxLength: 80 },
           email: { type: 'string', minLength: 3, maxLength: 320 },
-          role: { type: 'string', enum: ['admin', 'family'] },
+          role: { type: 'string' },
           password: { type: 'string', minLength: 6, maxLength: 2000 },
         },
       },
@@ -337,13 +368,16 @@ export const registerUserRoutes = async (app) => {
     handler: async (req, reply) => {
       const id = String(req.body?.id ?? '').trim() || crypto.randomUUID();
       const name = String(req.body?.name ?? '').trim();
-      if (!name) throw badRequest('NAME_REQUIRED', '用户名不能为空');
+      if (!name) throw badRequest('NAME_REQUIRED', '昵称不能为空');
       const email = normalizeEmail(req.body?.email);
       if (!email) throw badRequest('EMAIL_REQUIRED', '邮箱不能为空');
       const password = String(req.body?.password ?? '');
       if (password.length < 6) throw badRequest('PASSWORD_TOO_SHORT', '密码至少 6 位');
       const role = normalizeRole(req.body?.role ?? 'family');
-      if (!role || (role !== 'admin' && role !== 'family')) throw badRequest('ROLE_INVALID', '角色不合法');
+      if (!role) throw badRequest('ROLE_INVALID', '角色不合法');
+
+      const existingName = await pool.query('select 1 from users where lower(name) = lower($1) limit 1', [name]);
+      if (existingName.rowCount > 0) throw badRequest('NAME_EXISTS', '昵称已被使用');
 
       const passwordHash = hashPassword(password);
       const r = await pool.query(
@@ -374,7 +408,7 @@ export const registerUserRoutes = async (app) => {
         properties: {
           name: { type: 'string', minLength: 1, maxLength: 80 },
           email: { type: 'string', minLength: 3, maxLength: 320 },
-          role: { type: 'string', enum: ['admin', 'family'] },
+          role: { type: 'string' },
         },
       },
     },
@@ -383,15 +417,20 @@ export const registerUserRoutes = async (app) => {
       const name = req.body?.name != null ? String(req.body.name).trim() : null;
       const email = req.body?.email != null ? normalizeEmail(req.body.email) : null;
       const role = req.body?.role != null ? normalizeRole(req.body.role) : null;
-      if (name != null && !name) throw badRequest('NAME_REQUIRED', '用户名不能为空');
+      if (name != null && !name) throw badRequest('NAME_REQUIRED', '昵称不能为空');
       if (req.body?.role != null && !role) throw badRequest('ROLE_INVALID', '角色不合法');
-      if (role && role !== 'admin' && role !== 'family') throw badRequest('ROLE_INVALID', '角色不合法');
+      // if (role && role !== 'admin' && role !== 'family') throw badRequest('ROLE_INVALID', '角色不合法');
 
       const existing = await pool.query('select role from users where id=$1', [id]);
       if (!existing.rowCount) throw notFound('USER_NOT_FOUND', '用户不存在');
       const prevRole = String(existing.rows[0].role);
       if (prevRole === 'admin' && role === 'family') {
         await assertAtLeastOneAdmin(id);
+      }
+
+      if (name != null) {
+        const existingName = await pool.query('select 1 from users where lower(name) = lower($1) and id <> $2 limit 1', [name, id]);
+        if (existingName.rowCount > 0) throw badRequest('NAME_EXISTS', '昵称已被使用');
       }
 
       const r = await pool.query(

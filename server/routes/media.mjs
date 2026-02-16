@@ -58,10 +58,17 @@ export const registerMediaRoutes = async (app) => {
       const id = String(req.params.id);
       const variant = req.query.variant || 'original';
 
-      const r = await pool.query('select image_mime, image_bytes, image_url, image_variants from photos where id=$1', [id]);
+      const user = req.authUser;
+      const r = await pool.query('select owner_user_id, is_public, image_mime, image_bytes, image_url, image_variants from photos where id=$1', [id]);
       if (r.rowCount === 0) return reply.code(404).send();
       
       const photo = r.rows[0];
+      if (!photo.is_public) {
+        if (!user) return reply.code(404).send();
+        if (user.role !== 'admin' && String(photo.owner_user_id || '') !== String(user.id || '')) {
+          return reply.code(404).send();
+        }
+      }
       const variants = photo.image_variants || {};
 
       // If we have bytes (local storage), serve them if original is requested or it's the only option
@@ -174,4 +181,3 @@ export const registerMediaRoutes = async (app) => {
     },
   });
 };
-

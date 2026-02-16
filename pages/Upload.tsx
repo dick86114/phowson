@@ -5,7 +5,7 @@ import {
     Camera, Aperture, Timer, Zap, MoveDiagonal, 
     Image as ImageIcon, Check, Loader2, ArrowLeft,
     Maximize2, Sliders, Save, Send, Sparkles, Tag,
-    Map as MapIcon, Trash2, RefreshCw,
+    Map as MapIcon, Trash2, RefreshCw, Eye, EyeOff,
     HelpCircle, Mountain, User, Building, Plane, Film, FileText
 } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
@@ -43,6 +43,7 @@ export const Upload = () => {
     const [description, setDescription] = useState('');
     const [category, setCategory] = useState('uncategorized');
     const [categories, setCategories] = useState<{ value: string; label: string; icon: React.ReactNode }[]>([]);
+    const [isPublic, setIsPublic] = useState(true);
     const [tags, setTags] = useState<string[]>([]);
     const [tagInput, setTagInput] = useState('');
     const [location, setLocation] = useState('');
@@ -57,6 +58,25 @@ export const Upload = () => {
     const [fileMeta, setFileMeta] = useState<{ width: number | null, height: number | null, bytes: number }>({ width: null, height: null, bytes: 0 });
     const fileInputRef = useRef<HTMLInputElement>(null);
 
+    const toDateOnly = (value: any) => {
+        if (!value) return '';
+        if (typeof value === 'string') {
+            const s = value.trim();
+            if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+            const m = s.match(/^(\d{4}):(\d{2}):(\d{2})/);
+            if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+            const ms = Date.parse(s);
+            if (Number.isFinite(ms)) return new Date(ms).toISOString().slice(0, 10);
+        }
+        try {
+            const d = value instanceof Date ? value : new Date(value);
+            if (Number.isNaN(d.getTime())) return '';
+            return d.toISOString().slice(0, 10);
+        } catch {
+            return '';
+        }
+    };
+
     // Load existing data for edit mode
     useEffect(() => {
         if (isEditMode && id) {
@@ -67,8 +87,7 @@ export const Upload = () => {
                     setDescription(data.description || '');
                     setCategory(data.category || 'uncategorized');
                     setTags(data.tags ? data.tags.split(',').filter(Boolean) : []);
-                    if (data.location) setLocation(data.location);
-                    if (data.takenAt) setDate(new Date(data.takenAt).toISOString().split('T')[0]);
+                    if (data.isPublic !== undefined && data.isPublic !== null) setIsPublic(!!data.isPublic);
                     
                     // Set preview
                     const pUrl = getPhotoUrl(data, 'medium');
@@ -85,6 +104,10 @@ export const Upload = () => {
                     if (data.exif) {
                         try {
                             const parsedExif = typeof data.exif === 'string' ? JSON.parse(data.exif) : data.exif;
+                            const locationValue = String(parsedExif?.location || '').trim();
+                            if (locationValue) setLocation(locationValue);
+                            const dateValue = toDateOnly(parsedExif?.date || parsedExif?.DateTimeOriginal || parsedExif?.CreateDate || parsedExif?.DateTime);
+                            if (dateValue) setDate(dateValue);
                             setExif({
                                 camera: parsedExif.Model || '',
                                 lens: parsedExif.LensModel || '',
@@ -120,6 +143,11 @@ export const Upload = () => {
         'travel': <Plane className="w-4 h-4" />,
         'movie': <Film className="w-4 h-4" />,
     };
+    
+    const VISIBILITY_OPTIONS = [
+        { value: 'public', label: '公开', icon: <Eye className="w-4 h-4" /> },
+        { value: 'private', label: '私密', icon: <EyeOff className="w-4 h-4" /> }
+    ];
 
     // Load categories
     useEffect(() => {
@@ -291,36 +319,43 @@ export const Upload = () => {
 
     // Handle AI Analysis
     const handleAIAnalysis = async () => {
-        if (!selectedFile) return;
+        if (isAnalyzing) return;
+        if (!user || user.role !== 'admin') {
+            toast.error('AI 功能仅管理员可用');
+            return;
+        }
+        if (!selectedFile && !(isEditMode && id)) {
+            toast.error('请先选择照片');
+            return;
+        }
+
         setIsAnalyzing(true);
-        
         try {
-            const base64 = await fileToBase64(selectedFile);
-            const res = await api.post('/ai/fill', {
-                imageBase64: base64,
-                mimeType: selectedFile.type,
-                locationHint: location
-            });
-            
-            const data = res.data;
+            const res = selectedFile
+                ? await api.post('/ai/fill', {
+                    imageBase64: await fileToBase64(selectedFile),
+                    mimeType: selectedFile.type,
+                    locationHint: location
+                })
+                : await api.post(`/photos/${id}/ai-fill`);
+
+            const data = res.data as any;
             if (data) {
                 if (data.title) setTitle(data.title);
                 if (data.description) setDescription(data.description);
                 if (data.tags && Array.isArray(data.tags)) {
-                    // Merge tags avoiding duplicates
                     const newTags = data.tags.filter((t: string) => !tags.includes(t));
                     if (newTags.length > 0) setTags([...tags, ...newTags]);
                 }
                 if (data.category) {
-                    // Find matching category value
                     const match = categories.find(c => c.label === data.category || c.value === data.category);
                     if (match) setCategory(match.value ? match.value : 'uncategorized');
                 }
                 toast.success('AI 分析完成');
             }
-        } catch (error: any) {
-            console.error('AI Analysis failed', error);
-            toast.error(error.message || 'AI 分析失败');
+        } catch (err: any) {
+            console.error('AI Analysis failed', err);
+            toast.error(String(err?.data?.message || err?.message || 'AI 分析失败'));
         } finally {
             setIsAnalyzing(false);
         }
@@ -346,6 +381,7 @@ export const Upload = () => {
         fd.append('description', description);
         fd.append('category', category);
         fd.append('tags', tags.join(','));
+        fd.append('isPublic', String(isPublic));
         fd.append('exif', JSON.stringify({
             Model: exif.camera,
             LensModel: exif.lens,
@@ -369,7 +405,7 @@ export const Upload = () => {
             }
             navigate(-1);
         } catch (err: any) {
-            toast.error(err.message || '操作失败');
+            toast.error(err?.data?.message || err.message || '操作失败');
         } finally {
             setIsUploading(false);
         }
@@ -562,6 +598,16 @@ export const Upload = () => {
                                         onChange={setDate}
                                         placeholder="选择日期"
                                         className="w-full"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">可见性</label>
+                                    <FormSelect
+                                        value={isPublic ? 'public' : 'private'}
+                                        onChange={(v) => setIsPublic(v === 'public')}
+                                        options={VISIBILITY_OPTIONS}
+                                        placeholder="选择可见性"
+                                        mobileGrid={true}
                                     />
                                 </div>
                             </div>

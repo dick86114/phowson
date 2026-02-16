@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { 
     LayoutDashboard, Plus, Image as ImageIcon, Settings, Users, BarChart3, 
-    Activity, Camera, X, Menu, ArrowLeft, MessageSquare, LogOut, Info
+    Activity, Camera, X, Menu, ArrowLeft, MessageSquare, LogOut, Info, Shield
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import api, { API_BASE_URL } from '../api';

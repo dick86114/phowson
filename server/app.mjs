@@ -10,6 +10,7 @@ import { registerMediaRoutes } from './routes/media.mjs';
 import { registerPhotoRoutes } from './routes/photos.mjs';
 import { registerStatsRoutes } from './routes/stats.mjs';
 import { registerUserRoutes } from './routes/users.mjs';
+import { registerRoleRoutes } from './routes/roles.mjs';
 import { registerAdminRoutes } from './routes/admin.mjs';
 import { registerAuthRoutes } from './routes/auth.mjs';
 import { registerAiRoutes } from './routes/ai.mjs';
@@ -65,6 +66,7 @@ export const createApp = () => {
   app.register(registerPhotoRoutes);
   app.register(registerStatsRoutes);
   app.register(registerUserRoutes);
+  app.register(registerRoleRoutes);
   app.register(registerAdminRoutes);
   app.register(registerAiRoutes);
   app.register(registerActivityRoutes);

@@ -7,7 +7,7 @@ import {
     Users, Plus, Search, Filter, MoreHorizontal, Edit2, 
     Trash2, Ban, Check, Key, Shield, User as UserIcon, Mail,
     Activity, Clock, FileText, Upload, RefreshCw, X, ChevronRight, ChevronDown, Camera,
-    Download, Loader2
+    Download, Loader2, CheckCircle, XCircle
 } from 'lucide-react';
 import api from '../../../api';
 import { useAuth } from '../../../hooks/useAuth';
@@ -24,12 +24,18 @@ interface ApiUser {
     id: string;
     name: string;
     email: string;
-    role: 'admin' | 'family';
+    role: string;
+    status?: 'active' | 'pending' | 'disabled';
     disabled?: boolean;
     disabledAt?: string;
     createdAt?: string;
     lastLoginAt?: string;
     avatar?: string;
+}
+
+interface Role {
+    id: string;
+    name: string;
 }
 
 interface PlatformStats {
@@ -296,12 +302,21 @@ export const UsersPage: React.FC = () => {
 
     // Filters & Pagination
     const [keyword, setKeyword] = useState('');
-    const [role, setRole] = useState<'all' | 'admin' | 'family'>('all');
-    const [status, setStatus] = useState<'all' | 'enabled' | 'disabled'>('all');
+    const [role, setRole] = useState<string>('all');
+    const [status, setStatus] = useState<'all' | 'active' | 'pending' | 'disabled'>('all');
     const [sort, setSort] = useState<'newest' | 'oldest' | 'active'>('newest');
     const [offset, setOffset] = useState(0);
     const [limit, setLimit] = useState(20);
     const [page, setPage] = useState(1);
+
+    // Fetch Roles
+    const { data: rolesList } = useQuery<Role[]>({
+        queryKey: ['roles'],
+        queryFn: async () => {
+            const res = await api.get('/roles');
+            return res.data;
+        }
+    });
 
     // Sync page with offset
     useEffect(() => {
@@ -402,6 +417,26 @@ export const UsersPage: React.FC = () => {
         },
     });
 
+    const approveUserMutation = useMutation({
+        mutationFn: (id: string) => api.post(`/users/${id}/approve`),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['admin-users-page'] });
+            queryClient.invalidateQueries({ queryKey: ['platform-stats'] });
+            success('用户已批准');
+        },
+        onError: (err: any) => error(String(err?.data?.message || err?.message || '操作失败'))
+    });
+
+    const rejectUserMutation = useMutation({
+        mutationFn: (id: string) => api.post(`/users/${id}/reject`),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['admin-users-page'] });
+            queryClient.invalidateQueries({ queryKey: ['platform-stats'] });
+            success('用户已拒绝');
+        },
+        onError: (err: any) => error(String(err?.data?.message || err?.message || '操作失败'))
+    });
+
     const resetPasswordMutation = useMutation({
         mutationFn: ({ id, password }: { id: string; password: string }) => api.post(`/users/${id}/password`, { password }),
     });
@@ -409,7 +444,7 @@ export const UsersPage: React.FC = () => {
     // Modals State
     const [isUserModalOpen, setIsUserModalOpen] = useState(false);
     const [editingUser, setEditingUser] = useState<ApiUser | null>(null);
-    const [userFormData, setUserFormData] = useState<{ name: string; email: string; role: 'family' | 'admin'; password: string }>({
+    const [userFormData, setUserFormData] = useState<{ name: string; email: string; role: string; password: string }>({
         name: '',
         email: '',
         role: 'family',
@@ -443,7 +478,7 @@ export const UsersPage: React.FC = () => {
                 return;
             }
 
-            const headers = ['ID', '用户名', '邮箱', '角色', '状态', '注册时间', '最后登录', '活跃天数'];
+            const headers = ['ID', '昵称', '邮箱', '角色', '状态', '注册时间', '最后登录', '活跃天数'];
             const csvContent = [
                 headers.join(','),
                 ...items.map((item: ApiUser) => {
@@ -451,8 +486,8 @@ export const UsersPage: React.FC = () => {
                         item.id,
                         `"${(item.name || '').replace(/"/g, '""')}"`,
                         `"${(item.email || '').replace(/"/g, '""')}"`,
-                        item.role === 'admin' ? '管理员' : '家庭成员',
-                        item.disabledAt ? '已禁用' : '正常',
+                        (Array.isArray(rolesList) ? rolesList.find(r => r.id === item.role)?.name : item.role) || item.role,
+                        item.status === 'pending' ? '待审核' : (item.disabledAt || item.status === 'disabled' ? '已禁用' : '正常'),
                         item.createdAt ? new Date(item.createdAt).toLocaleString() : '',
                         item.lastLoginAt ? new Date(item.lastLoginAt).toLocaleString() : '',
                         calculateActiveDays(item.createdAt)
@@ -509,7 +544,7 @@ export const UsersPage: React.FC = () => {
         const password = userFormData.password;
 
         if (!name) {
-            setUserModalError('用户名不能为空');
+            setUserModalError('昵称不能为空');
             return;
         }
         if (!email) {
@@ -634,8 +669,7 @@ export const UsersPage: React.FC = () => {
                             onChange={(val) => setRole(val)}
                             options={[
                                 { label: '所有角色', value: 'all' },
-                                { label: '管理员', value: 'admin' },
-                                { label: '家庭成员', value: 'family' }
+                                ...(Array.isArray(rolesList) ? rolesList.map(r => ({ label: r.name, value: r.id })) : [])
                             ]}
                         />
 
@@ -645,7 +679,8 @@ export const UsersPage: React.FC = () => {
                             onChange={(val) => setStatus(val)}
                             options={[
                                 { label: '所有状态', value: 'all' },
-                                { label: '正常', value: 'enabled' },
+                                { label: '正常', value: 'active' },
+                                { label: '待审核', value: 'pending' },
                                 { label: '已禁用', value: 'disabled' }
                             ]}
                         />
@@ -698,19 +733,27 @@ export const UsersPage: React.FC = () => {
                                                     }
                                                 `}>
                                                     {u.role === 'admin' ? <Shield className="w-3 h-3" /> : <UserIcon className="w-3 h-3" />}
-                                                    {u.role === 'admin' ? '管理员' : '家庭成员'}
+                                                    {(Array.isArray(rolesList) ? rolesList.find(r => r.id === u.role)?.name : u.role) || u.role}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-3">
                                                 <div className="flex items-center gap-2">
-                                                    <Switch 
-                                                        checked={!u.disabledAt} 
-                                                        onChange={(checked) => setUserStatusMutation.mutate({ id: u.id, disabled: !checked })}
-                                                        disabled={u.id === user?.id}
-                                                    />
-                                                    <span className={`text-sm ${u.disabledAt ? 'text-gray-400' : 'text-green-600'}`}>
-                                                        {u.disabledAt ? '已禁用' : '正常'}
-                                                    </span>
+                                                    {u.status === 'pending' ? (
+                                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-500 border border-yellow-200 dark:border-yellow-900/50">
+                                                            待审核
+                                                        </span>
+                                                    ) : (
+                                                        <>
+                                                            <Switch 
+                                                                checked={!u.disabledAt} 
+                                                                onChange={(checked) => setUserStatusMutation.mutate({ id: u.id, disabled: !checked })}
+                                                                disabled={u.id === user?.id}
+                                                            />
+                                                            <span className={`text-sm ${u.disabledAt ? 'text-gray-400' : 'text-green-600'}`}>
+                                                                {u.disabledAt ? '已禁用' : '正常'}
+                                                            </span>
+                                                        </>
+                                                    )}
                                                 </div>
                                             </td>
                                             <td className="px-6 py-3">
@@ -723,6 +766,31 @@ export const UsersPage: React.FC = () => {
                                             </td>
                                             <td className="px-6 py-3 text-right">
                                                 <div className="flex items-center justify-end gap-2">
+                                                    {u.status === 'pending' && (
+                                                        <>
+                                                            <button 
+                                                                onClick={() => approveUserMutation.mutate(u.id)}
+                                                                className="p-2 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-xl transition-colors"
+                                                                title="通过审核"
+                                                            >
+                                                                <CheckCircle className="w-4 h-4" />
+                                                            </button>
+                                                            <button 
+                                                                onClick={() => confirm({
+                                                                    title: '拒绝注册申请',
+                                                                    content: '确定要拒绝该用户的注册申请吗？该操作将删除此账号。',
+                                                                    confirmText: '拒绝并删除',
+                                                                    confirmVariant: 'danger',
+                                                                    onConfirm: () => rejectUserMutation.mutate(u.id)
+                                                                })}
+                                                                className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors"
+                                                                title="拒绝申请"
+                                                            >
+                                                                <XCircle className="w-4 h-4" />
+                                                            </button>
+                                                            <div className="w-px h-4 bg-gray-200 dark:bg-white/10 mx-1"></div>
+                                                        </>
+                                                    )}
                                                     <button 
                                                         onClick={() => setShowLogsUserId(u.id)}
                                                         className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:text-gray-400 dark:hover:bg-blue-900/20 rounded-xl transition-colors"
@@ -794,7 +862,7 @@ export const UsersPage: React.FC = () => {
                                             }
                                         `}>
                                             {u.role === 'admin' ? <Shield className="w-3 h-3" /> : <UserIcon className="w-3 h-3" />}
-                                            {u.role === 'admin' ? '管理员' : '家庭成员'}
+                                            {(Array.isArray(rolesList) ? rolesList.find(r => r.id === u.role)?.name : u.role) || u.role}
                                         </span>
                                     </div>
 
@@ -950,13 +1018,13 @@ export const UsersPage: React.FC = () => {
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">用户名</label>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">昵称</label>
                         <input
                             type="text"
                             value={userFormData.name}
                             onChange={(e) => setUserFormData({ ...userFormData, name: e.target.value })}
                             className="w-full mt-1 bg-white/50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded-2xl p-3 text-gray-900 dark:text-white text-base focus:outline-none focus:border-primary backdrop-blur-sm"
-                            placeholder="请输入用户名"
+                            placeholder="请输入昵称"
                         />
                     </div>
                     
@@ -976,10 +1044,7 @@ export const UsersPage: React.FC = () => {
                         <FormSelect
                             value={userFormData.role}
                             onChange={(val) => setUserFormData({ ...userFormData, role: val })}
-                            options={[
-                                { label: '家庭成员', value: 'family' },
-                                { label: '管理员', value: 'admin' }
-                            ]}
+                            options={Array.isArray(rolesList) ? rolesList.map(r => ({ label: r.name, value: r.id })) : []}
                             placeholder="请选择角色"
                         />
                     </div>

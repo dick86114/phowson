@@ -33,6 +33,7 @@ export const registerErrorHandling = (app) => {
   });
 
   app.setErrorHandler((err, req, reply) => {
+    console.log('Error Handler Hit:', err);
     const status = pickStatus(err);
     const code = pickCode(err);
     const message = pickMessage(err);

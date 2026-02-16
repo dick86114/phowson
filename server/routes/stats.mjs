@@ -67,7 +67,7 @@ export const registerStatsRoutes = async (app) => {
       -- 1. Total Counts (Snapshots)
       totals AS (
         SELECT 
-          (SELECT COUNT(*) FROM photos) as total_photos,
+          (SELECT COUNT(*) FROM photos where is_public = true) as total_photos,
           (SELECT COUNT(*) FROM users) as total_users
       ),
       -- 2. Period New Counts (For "Total" Trends: Momentum)
@@ -75,14 +75,14 @@ export const registerStatsRoutes = async (app) => {
         SELECT 
           (SELECT COUNT(*) FROM users WHERE created_at >= (select curr_start from dates) AND created_at < (select curr_end from dates)) as users_new_curr,
           (SELECT COUNT(*) FROM users WHERE created_at >= (select prev_start from dates) AND created_at < (select prev_end from dates)) as users_new_prev,
-          (SELECT COUNT(*) FROM photos WHERE created_at >= (select curr_start from dates) AND created_at < (select curr_end from dates)) as photos_new_curr,
-          (SELECT COUNT(*) FROM photos WHERE created_at >= (select prev_start from dates) AND created_at < (select prev_end from dates)) as photos_new_prev
+          (SELECT COUNT(*) FROM photos WHERE is_public = true AND created_at >= (select curr_start from dates) AND created_at < (select curr_end from dates)) as photos_new_curr,
+          (SELECT COUNT(*) FROM photos WHERE is_public = true AND created_at >= (select prev_start from dates) AND created_at < (select prev_end from dates)) as photos_new_prev
       ),
       -- 3. DAU (Current Snapshot & Period Averages)
       dau_calc AS (
         SELECT 
           -- Current Snapshot (Last 24h)
-          (SELECT COUNT(DISTINCT owner_user_id) FROM photos WHERE created_at > NOW() - INTERVAL '24 hours') as dau_now,
+          (SELECT COUNT(DISTINCT owner_user_id) FROM photos WHERE is_public = true AND created_at > NOW() - INTERVAL '24 hours') as dau_now,
           
           -- Avg DAU Current Period
           (
@@ -90,7 +90,7 @@ export const registerStatsRoutes = async (app) => {
             FROM (
               SELECT COUNT(DISTINCT owner_user_id) as daily_cnt 
               FROM photos 
-              WHERE created_at >= (select curr_start from dates) AND created_at < (select curr_end from dates)
+              WHERE is_public = true AND created_at >= (select curr_start from dates) AND created_at < (select curr_end from dates)
               GROUP BY date_trunc('day', created_at)
             ) t1
           ) as dau_avg_curr,
@@ -101,7 +101,7 @@ export const registerStatsRoutes = async (app) => {
             FROM (
               SELECT COUNT(DISTINCT owner_user_id) as daily_cnt 
               FROM photos 
-              WHERE created_at >= (select prev_start from dates) AND created_at < (select prev_end from dates)
+              WHERE is_public = true AND created_at >= (select prev_start from dates) AND created_at < (select prev_end from dates)
               GROUP BY date_trunc('day', created_at)
             ) t2
           ) as dau_avg_prev
@@ -167,7 +167,7 @@ export const registerStatsRoutes = async (app) => {
     const dist = await pool.query(`
       SELECT category, COUNT(*)::int as count
       FROM photos
-      WHERE created_at > NOW() - INTERVAL '${daysNum} days'
+      WHERE is_public = true AND created_at > NOW() - INTERVAL '${daysNum} days'
       GROUP BY category
       ORDER BY count DESC
     `);
@@ -178,7 +178,7 @@ export const registerStatsRoutes = async (app) => {
         TO_CHAR(date_trunc('day', created_at), 'YYYY-MM-DD') as date,
         COUNT(*)::int as count
       FROM photos
-      WHERE created_at > NOW() - INTERVAL '${daysNum} days'
+      WHERE is_public = true AND created_at > NOW() - INTERVAL '${daysNum} days'
       GROUP BY 1
       ORDER BY 1 ASC
     `);
@@ -188,7 +188,7 @@ export const registerStatsRoutes = async (app) => {
         TO_CHAR(date_trunc('day', created_at) + INTERVAL '${daysNum} days', 'YYYY-MM-DD') as date,
         COUNT(*)::int as count
       FROM photos
-      WHERE created_at <= NOW() - INTERVAL '${daysNum} days'
+      WHERE is_public = true AND created_at <= NOW() - INTERVAL '${daysNum} days'
         AND created_at > NOW() - INTERVAL '${daysNum * 2} days'
       GROUP BY 1
       ORDER BY 1 ASC

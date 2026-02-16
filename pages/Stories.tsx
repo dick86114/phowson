@@ -95,18 +95,18 @@ export const Stories: React.FC = () => {
     }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
     return (
-        <main className="flex-grow py-12 px-4 sm:px-6 lg:px-8 max-w-[1920px] mx-auto bg-background-light dark:bg-background-dark transition-colors duration-300">
-            <div className="max-w-4xl mx-auto space-y-12">
-                <div className="text-center space-y-6">
-                    <h1 className="text-4xl font-bold text-gray-900 dark:text-white tracking-tight">光影故事</h1>
-                    <p className="text-gray-500 dark:text-gray-400 max-w-2xl mx-auto">
+        <main className="flex-grow py-8 px-4 sm:px-6 lg:px-8 max-w-[1920px] mx-auto bg-background-light dark:bg-background-dark transition-colors duration-300">
+            <div className="max-w-5xl mx-auto space-y-8">
+                <div className="text-center space-y-4">
+                    <h1 className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">光影故事</h1>
+                    <p className="text-gray-500 dark:text-gray-400 max-w-2xl mx-auto text-sm">
                         每一张照片背后都有一段独特的记忆。在这里，我记录下快门按下前后的思考、等待与感动。
                     </p>
                 </div>
 
-                <div className="grid gap-12">
+                <div className="grid gap-6">
                     {photos.map((photo, idx) => (
-                        <article key={photo.id} className="glass-card flex flex-col md:flex-row gap-8 items-start rounded-2xl overflow-hidden p-6">
+                        <article key={photo.id} className="glass-card flex flex-col md:flex-row gap-6 items-start rounded-2xl overflow-hidden p-5 hover:shadow-lg transition-all duration-300">
                             <div className="w-full md:w-1/3 aspect-[4/3] rounded-xl overflow-hidden shrink-0">
                                 <ProgressiveImage
                                     src={getPhotoUrl(photo, 'thumb')}
@@ -118,7 +118,7 @@ export const Stories: React.FC = () => {
                                     maxRetries={3}
                                 />
                             </div>
-                            <div className="flex-1 space-y-6">
+                            <div className="flex-1 space-y-3">
                                 <div className="flex items-center gap-3 text-xs text-primary font-medium uppercase tracking-wider">
                                     <span>{photo.category}</span>
                                     <span className="w-1 h-1 rounded-full bg-gray-400 dark:bg-gray-600"></span>

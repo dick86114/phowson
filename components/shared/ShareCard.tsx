@@ -3,7 +3,7 @@ import { X, Copy, Share2, Download, Camera, MapPin, Loader2 } from 'lucide-react
 import html2canvas from 'html2canvas';
 import { QRCodeCanvas } from 'qrcode.react';
 import { API_BASE_URL } from '../../api';
-import { useModal } from '../Modal';
+import toast from 'react-hot-toast';
 
 type PhotoData = {
   id: string;
@@ -23,7 +23,6 @@ export const ShareCard: React.FC<{
 }> = ({ photo, onClose }) => {
   const posterRef = useRef<HTMLDivElement>(null);
   const [isGenerating, setIsGenerating] = useState(false);
-  const { alert } = useModal();
 
   const shareUrl = `${window.location.origin}${window.location.pathname}#/photo/${photo.id}`;
 
@@ -31,7 +30,7 @@ export const ShareCard: React.FC<{
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(shareUrl);
-        alert({ title: '已复制', content: '链接已复制到剪贴板' });
+        toast.success('链接已复制到剪贴板');
       } else {
         // Fallback for non-secure contexts or older browsers
         const textArea = document.createElement("textarea");
@@ -40,11 +39,11 @@ export const ShareCard: React.FC<{
         textArea.select();
         document.execCommand('copy');
         document.body.removeChild(textArea);
-        alert({ title: '已复制', content: '链接已复制到剪贴板' });
+        toast.success('链接已复制到剪贴板');
       }
     } catch (err) {
       console.error('Copy failed:', err);
-      alert({ title: '复制失败', content: '无法复制链接，请手动复制' });
+      toast.error('无法复制链接，请手动复制');
     }
   };
 
@@ -62,7 +61,7 @@ export const ShareCard: React.FC<{
         }
       }
     } else {
-      alert({ title: '不支持', content: '您的浏览器不支持系统分享功能，请使用复制链接' });
+      toast.error('您的浏览器不支持系统分享功能，请使用复制链接');
     }
   };
 
@@ -97,7 +96,7 @@ export const ShareCard: React.FC<{
       link.click();
     } catch (err) {
       console.error('Failed to generate poster:', err);
-      alert({ title: '生成失败', content: '海报生成失败，请稍后重试' });
+      toast.error('海报生成失败，请稍后重试');
     } finally {
       setIsGenerating(false);
     }

@@ -7,6 +7,7 @@ import { TransformWrapper, TransformComponent, useControls, useTransformComponen
 import api, { API_BASE_URL } from '../api';
 import { useAuth } from '../hooks/useAuth';
 import { useModal } from '../components/Modal';
+import toast from 'react-hot-toast';
 import { PhotoExifBadge } from '../components/PhotoComponents';
 import { ShareCard } from '../components/shared/ShareCard';
 import { ProgressiveImage } from '../components/ProgressiveImage';
@@ -241,16 +242,16 @@ export const PhotoDetail: React.FC = () => {
             queryClient.invalidateQueries({ queryKey: ['photo', id] });
             setCommentText('');
             if (currentUser) {
-                window.alert('评论已提交，等待管理员审核后展示');
+                toast.success('评论已提交，等待管理员审核后展示');
             } else {
                 setCaptchaInput('');
                 refreshCaptcha();
-                window.alert('评论已提交，等待审核后展示');
+                toast.success('评论已提交，等待审核后展示');
             }
         },
         onError: (err: any) => {
              if (!currentUser) refreshCaptcha();
-             window.alert(String(err?.response?.data?.message || '评论失败'));
+             toast.error(String(err?.data?.message || err?.message || '评论失败'));
         }
     });
 

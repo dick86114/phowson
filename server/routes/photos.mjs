@@ -5,7 +5,7 @@ import { normalizeExif } from '../lib/exif.mjs';
 import { reverseGeocode } from '../lib/geocoding.mjs';
 import exifr from 'exifr';
 import { parseTags, safeJsonParse } from '../lib/parsers.mjs';
-import { HttpError, badRequest, notFound } from '../lib/http_errors.mjs';
+import { HttpError, badRequest, forbidden, notFound } from '../lib/http_errors.mjs';
 import { requireAdmin, requireMember } from '../plugins/rbac.mjs';
 import { createPhotoObjectKey, createVariantObjectKey, deleteObjectByUrl, isObjectStorageEnabled, putPhotoObject } from '../lib/object_storage.mjs';
 import crypto from 'node:crypto';
@@ -42,6 +42,15 @@ const parseMonthDay = (raw) => {
 
 const ensureMultipart = (req) => {
   if (!req.isMultipart()) throw badRequest('INVALID_CONTENT_TYPE', '需要 multipart/form-data');
+};
+
+const parseIsPublic = (raw) => {
+  if (raw === undefined || raw === null) return null;
+  const s = String(raw).trim().toLowerCase();
+  if (!s) return null;
+  if (s === 'true' || s === '1' || s === 'yes' || s === 'public' || s === '公开') return true;
+  if (s === 'false' || s === '0' || s === 'no' || s === 'private' || s === '私密') return false;
+  return null;
 };
 
 export const registerPhotoRoutes = async (app) => {
@@ -166,8 +175,12 @@ export const registerPhotoRoutes = async (app) => {
     const user = req.authUser;
     let sql = photoSelectSql(false);
     const params = [];
-
-    // 不再过滤 status，显示所有照片
+    if (!user) {
+      sql += " where p.is_public = true";
+    } else if (user.role !== 'admin') {
+      sql += " where (p.is_public = true or p.owner_user_id = $1)";
+      params.push(user.id);
+    }
     sql += " order by p.created_at desc";
     const r = await pool.query(sql, params);
     return r.rows;
@@ -175,6 +188,7 @@ export const registerPhotoRoutes = async (app) => {
 
   app.get('/photos/page', async (req) => {
     const q = req.query || {};
+    const user = req.authUser;
     const limitRaw = q.limit ?? q.pageSize ?? 12;
     const offsetRaw = q.offset ?? 0;
     const limit = Math.max(1, Math.min(50, Number.parseInt(String(limitRaw), 10) || 12));
@@ -188,9 +202,20 @@ export const registerPhotoRoutes = async (app) => {
     }
 
     if (sinceIso) {
-      const itemsSql = `${photoSelectSql(false)} where p.updated_at > $1 order by p.updated_at asc, p.id asc limit $2 offset $3`;
-      const itemsRes = await pool.query(itemsSql, [sinceIso, limit, offset]);
-      const totalRes = await pool.query('select count(1)::int as total from photos where updated_at > $1', [sinceIso]);
+      const params = [sinceIso];
+      let whereSql = ' where p.updated_at > $1';
+      if (!user) {
+        whereSql += ' and p.is_public = true';
+      } else if (user.role !== 'admin') {
+        whereSql += ` and (p.is_public = true or p.owner_user_id = $2)`;
+        params.push(user.id);
+      }
+
+      const itemsSql = `${photoSelectSql(false)}${whereSql} order by p.updated_at asc, p.id asc limit $${params.length + 1} offset $${params.length + 2}`;
+      const itemsRes = await pool.query(itemsSql, [...params, limit, offset]);
+
+      const totalSql = `select count(1)::int as total from photos p${whereSql}`;
+      const totalRes = await pool.query(totalSql, params);
       const total = Number(totalRes.rows?.[0]?.total || 0);
       const items = itemsRes.rows || [];
       const nextOffset = offset + items.length;
@@ -208,9 +233,20 @@ export const registerPhotoRoutes = async (app) => {
       };
     }
 
-    const itemsSql = `${photoSelectSql(false)} order by p.created_at desc limit $1 offset $2`;
-    const itemsRes = await pool.query(itemsSql, [limit, offset]);
-    const totalRes = await pool.query('select count(1)::int as total from photos');
+    const params = [];
+    let whereSql = '';
+    if (!user) {
+      whereSql = ' where p.is_public = true';
+    } else if (user.role !== 'admin') {
+      whereSql = ' where (p.is_public = true or p.owner_user_id = $1)';
+      params.push(user.id);
+    }
+
+    const itemsSql = `${photoSelectSql(false)}${whereSql} order by p.created_at desc limit $${params.length + 1} offset $${params.length + 2}`;
+    const itemsRes = await pool.query(itemsSql, [...params, limit, offset]);
+
+    const totalSql = `select count(1)::int as total from photos p${whereSql}`;
+    const totalRes = await pool.query(totalSql, params);
     const total = Number(totalRes.rows?.[0]?.total || 0);
     const items = itemsRes.rows || [];
     const nextOffset = offset + items.length;
@@ -341,8 +377,16 @@ export const registerPhotoRoutes = async (app) => {
     },
     handler: async (req) => {
       const id = String(req.params.id);
-      const sql = `${photoSelectSql(true)} where p.id = $1`;
-      const r = await pool.query(sql, [id]);
+      const user = req.authUser;
+      const params = [id];
+      let sql = `${photoSelectSql(true)} where p.id = $1`;
+      if (!user) {
+        sql += ' and p.is_public = true';
+      } else if (user.role !== 'admin') {
+        sql += ' and (p.is_public = true or p.owner_user_id = $2)';
+        params.push(user.id);
+      }
+      const r = await pool.query(sql, params);
       if (r.rowCount === 0) throw notFound('PHOTO_NOT_FOUND', '照片不存在');
       return r.rows[0];
     },
@@ -397,6 +441,8 @@ export const registerPhotoRoutes = async (app) => {
     const category = String(fields.category ?? 'uncategorized').trim() || 'uncategorized';
     const tags = parseTags(fields.tags);
     let exif = normalizeExif(safeJsonParse(fields.exif, {}));
+    const isPublicRaw = parseIsPublic(fields.isPublic ?? fields.is_public ?? fields.visibility);
+    const isPublic = isPublicRaw == null ? true : isPublicRaw;
 
     const imageBuffer = file.buffer;
     const imageMime = file.mimetype || null;
@@ -492,11 +538,11 @@ export const registerPhotoRoutes = async (app) => {
 
     const r = await pool.query(
       `
-        insert into photos(id, owner_user_id, title, description, category, tags, exif, image_mime, image_bytes, image_url, image_variants, lat, lng, image_width, image_height, image_size_bytes)
-        values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+        insert into photos(id, owner_user_id, title, description, category, tags, exif, image_mime, image_bytes, image_url, image_variants, is_public, lat, lng, image_width, image_height, image_size_bytes)
+        values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
         returning id
       `,
-      [id, user.id, title, description, category, tags, exif, imageMime, imageBytes, imageUrl, imageVariants, exif.lat ?? null, exif.lng ?? null, imageWidth, imageHeight, imageSizeBytes],
+      [id, user.id, title, description, category, tags, exif, imageMime, imageBytes, imageUrl, imageVariants, isPublic, exif.lat ?? null, exif.lng ?? null, imageWidth, imageHeight, imageSizeBytes],
     );
 
     const createdId = r.rows[0].id;
@@ -532,7 +578,7 @@ export const registerPhotoRoutes = async (app) => {
         properties: { id: { type: 'string', minLength: 1 } },
       },
     },
-    preHandler: requireAdmin(),
+    preHandler: requireMember(),
     handler: async (req, reply) => {
       ensureMultipart(req);
 
@@ -540,8 +586,11 @@ export const registerPhotoRoutes = async (app) => {
       const user = req.authUser;
       await upsertUser(user);
 
-      const existing = await pool.query('select id from photos where id=$1', [id]);
+      const existing = await pool.query('select id, owner_user_id from photos where id=$1', [id]);
       if (existing.rowCount === 0) throw notFound('PHOTO_NOT_FOUND', '照片不存在');
+      if (user?.role !== 'admin' && String(existing.rows[0]?.owner_user_id || '') !== String(user?.id || '')) {
+        throw forbidden('FORBIDDEN', '无权限');
+      }
 
       const fields = {};
       let file = null;
@@ -568,6 +617,7 @@ export const registerPhotoRoutes = async (app) => {
       const category = fields.category != null ? String(fields.category).trim() : null;
       const tags = fields.tags != null ? parseTags(fields.tags) : null;
       const exif = fields.exif != null ? normalizeExif(safeJsonParse(fields.exif, {})) : null;
+      const isPublic = parseIsPublic(fields.isPublic ?? fields.is_public ?? fields.visibility);
       
       if (exif && (!exif.location || exif.location === '') && exif.lat != null && exif.lng != null) {
         const locationName = await reverseGeocode(exif.lat, exif.lng);
@@ -646,10 +696,11 @@ export const registerPhotoRoutes = async (app) => {
             image_width = coalesce($13, image_width),
             image_height = coalesce($14, image_height),
             image_size_bytes = coalesce($15, image_size_bytes),
-            created_at = coalesce($16, created_at)
+            created_at = coalesce($16, created_at),
+            is_public = coalesce($17, is_public)
           where id = $1
         `,
-        [id, title, description, category, tags, exif, imageMime, imageBytes, imageUrl, imageVariants, exif?.lat ?? null, exif?.lng ?? null, imageWidth, imageHeight, imageSizeBytes, createdAt],
+        [id, title, description, category, tags, exif, imageMime, imageBytes, imageUrl, imageVariants, exif?.lat ?? null, exif?.lng ?? null, imageWidth, imageHeight, imageSizeBytes, createdAt, isPublic],
       );
 
       const detail = await pool.query(`${photoSelectSql(true)} where p.id = $1`, [id]);
@@ -693,11 +744,21 @@ export const registerPhotoRoutes = async (app) => {
     handler: async (req) => {
       const id = String(req.params.id);
       const { buffer, mime } = await getPhotoImage(id);
+      let locationHint = null;
+      try {
+        const exif = await exifr.parse(buffer);
+        if (exif && typeof exif.latitude === 'number' && typeof exif.longitude === 'number') {
+          const loc = await reverseGeocode(exif.latitude, exif.longitude);
+          if (loc) locationHint = loc;
+        }
+      } catch (e) {
+        req.log.warn({ err: e }, 'Failed to extract/geocode gps from photo image');
+      }
       const normalized = await sharp(buffer)
         .resize({ width: 1024, height: 1024, fit: 'inside', withoutEnlargement: true })
         .jpeg({ quality: 82 })
         .toBuffer();
-      const data = await fillFromImage({ imageBase64: normalized.toString('base64'), mimeType: 'image/jpeg' });
+      const data = await fillFromImage({ imageBase64: normalized.toString('base64'), mimeType: 'image/jpeg', locationHint: locationHint || undefined });
       return data;
     },
   });
@@ -858,8 +919,15 @@ export const registerPhotoRoutes = async (app) => {
       const guestId = String(req.body?.guestId || '').trim();
       if (!user && !guestId) throw badRequest('GUEST_ID_REQUIRED', '需要登录或游客ID');
 
-      const photoExists = await pool.query('select 1 from photos where id=$1', [id]);
-      if (photoExists.rowCount === 0) throw notFound('PHOTO_NOT_FOUND', '照片不存在');
+      const photoRes = await pool.query('select owner_user_id, is_public from photos where id=$1', [id]);
+      if (photoRes.rowCount === 0) throw notFound('PHOTO_NOT_FOUND', '照片不存在');
+      const photo = photoRes.rows[0];
+      if (!photo.is_public) {
+        if (!user) throw notFound('PHOTO_NOT_FOUND', '照片不存在');
+        if (user.role !== 'admin' && String(photo.owner_user_id || '') !== String(user.id || '')) {
+          throw notFound('PHOTO_NOT_FOUND', '照片不存在');
+        }
+      }
 
       const client = await pool.connect();
       try {
@@ -924,8 +992,15 @@ export const registerPhotoRoutes = async (app) => {
       const user = req.authUser;
       if (user) await upsertUser(user);
 
-      const photoExists = await pool.query('select 1 from photos where id=$1', [id]);
-      if (photoExists.rowCount === 0) throw notFound('PHOTO_NOT_FOUND', '照片不存在');
+      const photoRes = await pool.query('select owner_user_id, is_public from photos where id=$1', [id]);
+      if (photoRes.rowCount === 0) throw notFound('PHOTO_NOT_FOUND', '照片不存在');
+      const photo = photoRes.rows[0];
+      if (!photo.is_public) {
+        if (!user) throw notFound('PHOTO_NOT_FOUND', '照片不存在');
+        if (user.role !== 'admin' && String(photo.owner_user_id || '') !== String(user.id || '')) {
+          throw notFound('PHOTO_NOT_FOUND', '照片不存在');
+        }
+      }
 
       const content = String(req.body?.content ?? '').trim();
       if (!content) throw badRequest('CONTENT_REQUIRED', '评论内容不能为空');

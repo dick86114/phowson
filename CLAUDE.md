@@ -33,3 +33,6 @@
 - 移动端侧边栏菜单选中项（Active）样式必须与 PC 端下拉菜单 Hover 样式一致：整行背景色使用对应的主题色淡色（如 `bg-{color}-50`），图标容器背景色加深（如 `bg-{color}-100`），可通过复用 `rowHoverClass` 和 `hoverClass`（移除 `hover:` 前缀）实现。
 - 站点卡片与间距规范：所有区块卡片（如 `glass-card`, `glass-panel`）必须统一使用 `rounded-2xl` 圆角；页面级区块垂直间距应统一使用 `space-y-6`（移动端可适当调整），以保持全站视觉一致性。
 - 移动端侧边栏与菜单（Admin Sidebar & Mobile Menu）选中样式（Active）在深色模式下必须统一使用 `dark:bg-white/10 dark:text-white`，禁止使用动态生成的 Hover 类名作为 Active 样式，以避免颜色冲突和构建问题。
+- 后端数据一致性规范：当存在多个字段表示同一逻辑状态时（如 `status` 枚举与 `disabled_at` 时间戳），必须在更新时保持原子性同步；引入此类新字段时必须执行数据迁移以修复历史数据，防止筛选失效。
+- 前端 API 错误处理规范：必须统一使用 `err?.data?.message` 获取后端返回的错误信息（因为 `api.ts` 已封装响应），禁止使用 `err.response?.data?.message`，并应优先使用 Toast 通知而非 Modal 弹窗展示错误。
+

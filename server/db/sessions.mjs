@@ -7,9 +7,11 @@ export const findSessionUserByTokenHash = async (tokenHash) => {
         u.id,
         u.name,
         u.role,
+        r.permissions,
         coalesce(u.avatar_url, '/media/avatars/' || u.id) as avatar
       from sessions s
       join users u on u.id = s.user_id
+      left join roles r on r.id = u.role
       where s.token_hash = $1 and s.expires_at > now() and u.disabled_at is null
     `,
     [tokenHash],

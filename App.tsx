@@ -26,6 +26,7 @@ const ManageAnalytics = React.lazy(() => import('./pages/admin/manage/Analytics'
 const Stories = React.lazy(() => import('./pages/Stories').then(module => ({ default: module.Stories })));
 const About = React.lazy(() => import('./pages/About').then(module => ({ default: module.About })));
 const Login = React.lazy(() => import('./pages/Login').then(module => ({ default: module.Login })));
+const Register = React.lazy(() => import('./pages/Register').then(module => ({ default: module.Register })));
 const Upload = React.lazy(() => import('./pages/Upload').then(module => ({ default: module.Upload })));
 const MapPage = React.lazy(() => import('./pages/Map').then(module => ({ default: module.MapPage })));
 const Gamification = React.lazy(() => import('./pages/Gamification').then(module => ({ default: module.Gamification })));
@@ -45,7 +46,7 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const settings = useSiteSettings();
     
     // Hide header/footer for Admin routes (except manage pages), Login route AND Upload/Edit routes
-    const isStandalonePage = (location.pathname.startsWith('/admin') && !location.pathname.startsWith('/admin/manage')) || location.pathname === '/login' || location.pathname.startsWith('/upload') || location.pathname.startsWith('/edit');
+    const isStandalonePage = (location.pathname.startsWith('/admin') && !location.pathname.startsWith('/admin/manage')) || location.pathname === '/login' || location.pathname === '/register' || location.pathname.startsWith('/upload') || location.pathname.startsWith('/edit');
 
     useEffect(() => {
         if (navigationType !== 'PUSH') return;
@@ -136,6 +137,7 @@ const ThemedApp = () => {
                             <Route path="/photo/:id" element={<PhotoDetail />} />
                             <Route path="/map" element={<MapPage />} />
                             <Route path="/login" element={<Login />} />
+                            <Route path="/register" element={<Register />} />
                             
                             <Route path="/me/albums" element={<Admin hideLayout />} />
                             <Route path="/me/analytics" element={<Admin hideLayout />} />

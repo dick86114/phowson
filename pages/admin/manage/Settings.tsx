@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Navigate } from 'react-router-dom';
 import * as LucideIcons from 'lucide-react';
-import { Settings, Save, Download, Upload, X, Loader2, ImageIcon, Sun, Moon, Monitor, Tag, Trash2, Plus } from 'lucide-react';
+import { Settings, Save, Download, Upload, X, Loader2, ImageIcon, Sun, Moon, Monitor, Tag, Trash2, Plus, Shield } from 'lucide-react';
+import { RolesSettings } from './Roles';
 
 type ApiCategory = {
     value: string;
@@ -46,6 +47,7 @@ export const SettingsPage: React.FC = () => {
     const { success, error } = useToast();
     const { confirm } = useModal();
     const siteSettingsImportInputRef = useRef<HTMLInputElement>(null);
+    const [activeTab, setActiveTab] = useState<'general' | 'categories' | 'roles'>('general');
 
     if (user?.role !== 'admin') return <Navigate to="/me/albums" replace />;
 
@@ -201,11 +203,49 @@ export const SettingsPage: React.FC = () => {
                     <Settings className="w-8 h-8 text-primary" /> 系统设置
                 </h2>
                 <p className="text-gray-500 dark:text-gray-400 mt-2 text-sm">
-                    管理网站全局配置与备份恢复
+                    管理网站全局配置、分类体系与用户角色权限
                 </p>
             </div>
 
+            {/* Tabs */}
+            <div className="flex items-center gap-2 border-b border-gray-200 dark:border-white/10 overflow-x-auto no-scrollbar">
+                <button
+                    onClick={() => setActiveTab('general')}
+                    className={`px-4 py-2 text-sm font-medium whitespace-nowrap border-b-2 transition-colors flex items-center gap-2 ${
+                        activeTab === 'general'
+                            ? 'border-primary text-primary'
+                            : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+                    }`}
+                >
+                    <Settings className="w-4 h-4" />
+                    基本设置
+                </button>
+                <button
+                    onClick={() => setActiveTab('categories')}
+                    className={`px-4 py-2 text-sm font-medium whitespace-nowrap border-b-2 transition-colors flex items-center gap-2 ${
+                        activeTab === 'categories'
+                            ? 'border-primary text-primary'
+                            : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+                    }`}
+                >
+                    <Tag className="w-4 h-4" />
+                    分类管理
+                </button>
+                <button
+                    onClick={() => setActiveTab('roles')}
+                    className={`px-4 py-2 text-sm font-medium whitespace-nowrap border-b-2 transition-colors flex items-center gap-2 ${
+                        activeTab === 'roles'
+                            ? 'border-primary text-primary'
+                            : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+                    }`}
+                >
+                    <Shield className="w-4 h-4" />
+                    角色权限
+                </button>
+            </div>
+
             {/* Site Settings */}
+            {activeTab === 'general' && (
             <div className="glass-panel p-6 !bg-slate-50/90 dark:!bg-gray-900/50">
                 <h3 className="font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
                     <Settings className="w-5 h-5 text-primary" />
@@ -361,8 +401,10 @@ export const SettingsPage: React.FC = () => {
                     </div>
                 </div>
             </div>
+            )}
 
             {/* Category Management */}
+            {activeTab === 'categories' && (<>
             <div className="glass-panel p-6 !bg-slate-50/90 dark:!bg-white/5">
                 <div className="mb-6 flex items-center justify-between">
                     <div>
@@ -675,8 +717,10 @@ export const SettingsPage: React.FC = () => {
                     </div>
                 </form>
             </Modal>
+            </>)}
 
             {/* Config Backup/Restore */}
+            {activeTab === 'general' && (
             <div className="glass-panel p-6">
                 <h3 className="font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
                     <Download className="w-5 h-5 text-primary" />
@@ -729,6 +773,10 @@ export const SettingsPage: React.FC = () => {
                     </div>
                 </div>
             </div>
+            )}
+
+            {/* Roles Management */}
+            {activeTab === 'roles' && <RolesSettings />}
         </div>
     );
 };
