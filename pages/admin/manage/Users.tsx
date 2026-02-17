@@ -19,6 +19,27 @@ import { DropdownFilter } from '../../../components/admin/DropdownFilter';
 import { FormSelect } from '../../../components/admin/FormSelect';
 import { Switch } from '../../../components/Switch';
 
+const StyledCheckbox = ({ checked, onChange, label, className, disabled }: { checked: boolean, onChange: (checked: boolean) => void, label?: string, className?: string, disabled?: boolean }) => (
+    <div 
+        onClick={(e) => { 
+            e.stopPropagation(); 
+            if (!disabled) onChange(!checked); 
+        }}
+        className={`flex items-center gap-3 cursor-pointer group/checkbox ${className} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+    >
+        <div className={`
+            w-5 h-5 rounded-[6px] border flex items-center justify-center transition-all duration-200 shrink-0
+            ${checked 
+                ? 'bg-primary border-primary text-white shadow-sm scale-100' 
+                : 'bg-white dark:bg-white/5 border-gray-300 dark:border-white/20 group-hover/checkbox:border-primary dark:group-hover/checkbox:border-primary scale-95 group-hover/checkbox:scale-100'
+            }
+        `}>
+            <Check className={`w-3.5 h-3.5 stroke-[3] transition-transform duration-200 ${checked ? 'scale-100' : 'scale-0'}`} />
+        </div>
+        {label && <span className="select-none">{label}</span>}
+    </div>
+);
+
 // Types
 interface ApiUser {
     id: string;
@@ -145,7 +166,7 @@ const OperationLogsDrawer: React.FC<{ userId: string; onClose: () => void }> = (
                 color: 'text-blue-500',
                 bg: 'bg-blue-50',
                 title: '账号创建',
-                desc: '用户账号被创建'
+                desc: details?.email ? `邮箱: ${details.email}` : '用户账号被创建'
             };
         }
         if (action.includes('role')) {
@@ -153,18 +174,35 @@ const OperationLogsDrawer: React.FC<{ userId: string; onClose: () => void }> = (
                 icon: Shield,
                 color: 'text-green-500',
                 bg: 'bg-green-50',
-                title: `角色变更: ${details?.old_role === 'admin' ? '管理员' : '家庭成员'} → ${details?.new_role === 'admin' ? '管理员' : '家庭成员'}`,
-                desc: ''
+                title: '角色变更',
+                desc: `${details?.old_role || '未知'} → ${details?.new_role || '未知'}`
             };
         }
         if (action.includes('update') || action === 'profile_updated') {
-            const changes = Object.keys(details || {}).filter(k => k !== 'updated_at').join(', ');
+            // Handle both old format (flat keys) and new format ({ field: { from, to } })
+            let changes = '';
+            const entries = Object.entries(details || {});
+            
+            // Check if it's new format (values have from/to)
+            const isDetailed = entries.some(([_, v]: any) => v && typeof v === 'object' && ('from' in v || 'to' in v));
+            
+            if (isDetailed) {
+                changes = entries.map(([key, val]: any) => {
+                    const label = key === 'name' ? '昵称' : key === 'email' ? '邮箱' : key === 'role' ? '角色' : key;
+                    const from = val?.from || '空';
+                    const to = val?.to || '空';
+                    return `${label}: ${from} → ${to}`;
+                }).join('; ');
+            } else {
+                changes = Object.keys(details || {}).filter(k => k !== 'updated_at').join(', ');
+            }
+
             return {
                 icon: Edit2,
                 color: 'text-orange-500',
                 bg: 'bg-orange-50',
                 title: '修改了用户信息',
-                desc: changes ? `修改了: ${changes}` : '更新了个人资料'
+                desc: changes || '更新了个人资料'
             };
         }
         if (action === 'enable_user' || action === 'disable_user') {
@@ -174,7 +212,7 @@ const OperationLogsDrawer: React.FC<{ userId: string; onClose: () => void }> = (
                 color: isEnable ? 'text-green-500' : 'text-red-500',
                 bg: isEnable ? 'bg-green-50' : 'bg-red-50',
                 title: isEnable ? '启用账号' : '禁用账号',
-                desc: isEnable ? '解除了账号禁用状态' : '禁用了该账号，用户将无法登录'
+                desc: isEnable ? '恢复了用户访问权限' : '暂停了用户访问权限'
             };
         }
         if (action === 'reset_password') {
@@ -195,11 +233,30 @@ const OperationLogsDrawer: React.FC<{ userId: string; onClose: () => void }> = (
                 desc: '更新了用户头像'
             };
         }
+        if (action === 'delete_user' || action === 'reject_user') {
+            return {
+                icon: Trash2,
+                color: 'text-red-600',
+                bg: 'bg-red-50',
+                title: action === 'reject_user' ? '拒绝并删除' : '删除用户',
+                desc: details?.name ? `${details.name} (${details.email})` : '用户已被删除'
+            };
+        }
+        if (action === 'approve_user') {
+            return {
+                icon: CheckCircle,
+                color: 'text-green-600',
+                bg: 'bg-green-50',
+                title: '审核通过',
+                desc: '用户已通过审核，状态变为活跃'
+            };
+        }
+
         return {
             icon: FileText,
             color: 'text-gray-500',
             bg: 'bg-gray-50',
-            title: action,
+            title: action.replace(/_/g, ' '),
             desc: Object.keys(details || {}).length > 0 ? JSON.stringify(details) : '无详细信息'
         };
     };
@@ -455,8 +512,74 @@ export const UsersPage: React.FC = () => {
     const [userModalError, setUserModalError] = useState('');
     const [showLogsUserId, setShowLogsUserId] = useState<string | null>(null);
     const [isExporting, setIsExporting] = useState(false);
+    const [selectedIds, setSelectedIds] = useState<string[]>([]);
+    const [isBatchRoleOpen, setIsBatchRoleOpen] = useState(false);
 
     // Handlers
+    const handleSelectAll = (checked: boolean) => {
+        if (checked) {
+            const allIds = usersPage?.items.map(u => u.id).filter(id => id !== user?.id) || [];
+            setSelectedIds(allIds);
+        } else {
+            setSelectedIds([]);
+        }
+    };
+
+    const handleSelectOne = (id: string, checked: boolean) => {
+        if (checked) {
+            setSelectedIds(prev => [...prev, id]);
+        } else {
+            setSelectedIds(prev => prev.filter(i => i !== id));
+        }
+    };
+
+    const batchMutation = useMutation({
+        mutationFn: (data: { ids: string[], action: 'delete' | 'role' | 'status', payload?: any }) => 
+            api.post('/users/batch', data),
+        onSuccess: (res) => {
+            queryClient.invalidateQueries({ queryKey: ['admin-users-page'] });
+            queryClient.invalidateQueries({ queryKey: ['platform-stats'] });
+            setSelectedIds([]);
+            success(`批量操作成功: ${res.data.count} 个用户受影响`);
+        },
+        onError: (err: any) => {
+            error(String(err?.data?.message || err?.message || '批量操作失败'));
+        }
+    });
+
+    const handleBatchDelete = () => {
+        confirm({
+            title: `确认批量删除 ${selectedIds.length} 个用户？`,
+            content: '此操作不可恢复，请谨慎操作。',
+            confirmText: '确认删除',
+            confirmVariant: 'danger',
+            onConfirm: () => batchMutation.mutate({ ids: selectedIds, action: 'delete' })
+        });
+    };
+
+    const handleBatchRole = (roleId: string) => {
+        const roleName = rolesList?.find(r => r.id === roleId)?.name || roleId;
+        const roleDesc = roleId === 'admin' ? '管理员拥有系统最高权限，请谨慎操作。' : '';
+
+        setIsBatchRoleOpen(false);
+        confirm({
+            title: `确认将 ${selectedIds.length} 个用户设置为 ${roleName}？`,
+            content: roleDesc,
+            confirmText: '确认修改',
+            onConfirm: () => batchMutation.mutate({ ids: selectedIds, action: 'role', payload: { role: roleId } })
+        });
+    };
+
+    const handleBatchStatus = (disabled: boolean) => {
+        confirm({
+            title: `确认批量${disabled ? '禁用' : '启用'} ${selectedIds.length} 个用户？`,
+            content: disabled ? '禁用后用户将无法登录。' : '启用后用户可正常登录。',
+            confirmText: disabled ? '确认禁用' : '确认启用',
+            confirmVariant: disabled ? 'danger' : 'primary',
+            onConfirm: () => batchMutation.mutate({ ids: selectedIds, action: 'status', payload: { disabled } })
+        });
+    };
+
     const handleExport = async () => {
         if (isExporting) return;
         setIsExporting(true);
@@ -612,14 +735,14 @@ export const UsersPage: React.FC = () => {
                         <button
                             onClick={handleExport}
                             disabled={isExporting}
-                            className="hidden sm:flex items-center gap-2 px-4 py-2 bg-white dark:bg-white/10 text-gray-700 dark:text-white border border-gray-200 dark:border-white/10 rounded-2xl hover:bg-gray-50 dark:hover:bg-white/20 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="hidden sm:flex items-center gap-2 px-6 py-2.5 btn-liquid text-gray-700 dark:text-white font-medium hover:text-primary dark:hover:text-primary disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
                             <span>导出 CSV</span>
                         </button>
                         <button
                             onClick={() => handleOpenUserModal()}
-                            className="px-4 py-2 bg-green-600 text-white rounded-2xl hover:bg-green-700 flex items-center gap-2 transition-colors shadow-sm"
+                            className="px-6 py-2.5 btn-liquid text-gray-900 dark:text-white font-medium hover:text-primary dark:hover:text-primary transition-colors flex items-center gap-2"
                         >
                             <Plus className="w-4 h-4" />
                             <span>新增用户</span>
@@ -627,7 +750,72 @@ export const UsersPage: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Filters */}
+                {/* Batch Actions or Filters */}
+                {selectedIds.length > 0 ? (
+                    <div className="relative z-50 flex flex-col sm:flex-row gap-4 glass-panel p-4 items-center justify-between bg-blue-50/50 dark:bg-blue-900/10 border-blue-100 dark:border-blue-900/30">
+                        <div className="flex items-center gap-3">
+                            <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                                已选择 {selectedIds.length} 个用户
+                            </span>
+                            <button 
+                                onClick={() => setSelectedIds([])}
+                                className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                            >
+                                取消选择
+                            </button>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => handleBatchStatus(false)}
+                                className="px-3 py-1.5 text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 rounded-lg hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors"
+                            >
+                                批量启用
+                            </button>
+                            <button
+                                onClick={() => handleBatchStatus(true)}
+                                className="px-3 py-1.5 text-xs font-medium bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 rounded-lg hover:bg-yellow-200 dark:hover:bg-yellow-900/50 transition-colors"
+                            >
+                                批量禁用
+                            </button>
+                            <div className="h-4 w-px bg-blue-200 dark:bg-blue-800 mx-1"></div>
+                            <div className="relative">
+                                <button
+                                    onClick={() => setIsBatchRoleOpen(!isBatchRoleOpen)}
+                                    className="px-3 py-1.5 text-xs font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 rounded-lg hover:bg-purple-200 dark:hover:bg-purple-900/50 transition-colors flex items-center gap-1"
+                                >
+                                    <span>设置角色</span>
+                                    <ChevronDown className={`w-3 h-3 transition-transform ${isBatchRoleOpen ? 'rotate-180' : ''}`} />
+                                </button>
+                                
+                                {isBatchRoleOpen && (
+                                    <>
+                                        <div className="fixed inset-0 z-10" onClick={() => setIsBatchRoleOpen(false)} />
+                                        <div className="absolute top-full mt-1 left-0 min-w-[140px] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-20 py-1 max-h-60 overflow-y-auto">
+                                            {rolesList?.map(r => (
+                                                <button
+                                                    key={r.id}
+                                                    onClick={() => handleBatchRole(r.id)}
+                                                    className="w-full text-left px-3 py-2 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center justify-between group"
+                                                >
+                                                    <span>{r.name}</span>
+                                                    {r.id === 'admin' && <Shield className="w-3 h-3 text-purple-500 opacity-50 group-hover:opacity-100" />}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                            <div className="h-4 w-px bg-blue-200 dark:bg-blue-800 mx-1"></div>
+                            <button
+                                onClick={handleBatchDelete}
+                                className="px-3 py-1.5 text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors flex items-center gap-1"
+                            >
+                                <Trash2 className="w-3 h-3" />
+                                批量删除
+                            </button>
+                        </div>
+                    </div>
+                ) : (
                 <div className="flex flex-col sm:flex-row gap-4 glass-panel p-4 relative z-20">
                     <div className="flex-1 flex gap-3">
                         <div className="relative flex-1 group">
@@ -686,9 +874,10 @@ export const UsersPage: React.FC = () => {
                         />
                     </div>
                 </div>
+                )}
 
                 {/* Table */}
-                <div className="glass-panel overflow-hidden">
+                <div className="md:glass-panel md:overflow-hidden">
                     {isLoading ? (
                         <LoadingState message="加载用户列表..." />
                     ) : isError ? (
@@ -705,6 +894,12 @@ export const UsersPage: React.FC = () => {
                             <table className="w-full text-left border-collapse">
                                 <thead>
                                     <tr className="bg-white/10 dark:bg-black/20 border-b border-white/10 dark:border-white/5 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                        <th className="px-6 py-3 w-10">
+                                            <StyledCheckbox 
+                                                checked={!!usersPage?.items?.length && usersPage.items.filter(u => u.id !== user?.id).every(u => selectedIds.includes(u.id))}
+                                                onChange={(checked) => handleSelectAll(checked)}
+                                            />
+                                        </th>
                                         <th className="px-6 py-3">用户信息</th>
                                         <th className="px-6 py-3">角色</th>
                                         <th className="px-6 py-3">账号状态</th>
@@ -715,6 +910,13 @@ export const UsersPage: React.FC = () => {
                                 <tbody className="divide-y divide-gray-100/50 dark:divide-white/5">
                                         {usersPage?.items.map((u) => (
                                             <tr key={u.id} className="hover:bg-white/5 dark:hover:bg-white/5 transition-colors">
+                                            <td className="px-6 py-3 w-10">
+                                                <StyledCheckbox 
+                                                    checked={selectedIds.includes(u.id)}
+                                                    onChange={(checked) => handleSelectOne(u.id, checked)}
+                                                    disabled={u.id === user?.id}
+                                                />
+                                            </td>
                                             <td className="px-6 py-3">
                                                 <div className="flex items-center gap-3">
                                                     <UserAvatar url={u.avatar} name={u.name} />
@@ -840,22 +1042,37 @@ export const UsersPage: React.FC = () => {
                         </div>
 
                         {/* Mobile Cards */}
-                        <div className="md:hidden space-y-4 p-4">
+                        <div className="md:hidden space-y-4">
+                             <div className="glass-card p-4 flex items-center justify-between">
+                                <StyledCheckbox 
+                                    checked={!!usersPage?.items?.length && usersPage.items.filter(u => u.id !== user?.id).every(u => selectedIds.includes(u.id))}
+                                    onChange={(checked) => handleSelectAll(checked)}
+                                    label={`全选本页 (${selectedIds.length})`}
+                                    className="text-sm font-medium text-gray-700 dark:text-gray-300"
+                                />
+                            </div>
+
                             {usersPage?.items.map((u) => (
-                                <div key={u.id} className="glass-card p-5 hover:shadow-lg transition-all duration-300">
-                                    <div className="flex items-start justify-between mb-4">
-                                        <div className="flex items-center gap-3">
-                                            <UserAvatar url={u.avatar} name={u.name} className="w-12 h-12 text-lg" />
-                                            <div>
-                                                <div className="font-bold text-gray-900 dark:text-white text-base">{u.name}</div>
-                                                <div className="text-sm text-gray-500 dark:text-gray-400 font-mono flex items-center gap-1 mt-0.5">
-                                                    <Mail className="w-3 h-3" />
-                                                    {u.email}
+                                <div key={u.id} className={`glass-card p-5 hover:shadow-lg transition-all duration-300 ${selectedIds.includes(u.id) ? 'ring-1 ring-blue-500 bg-blue-50/50 dark:bg-blue-900/10' : ''}`}>
+
+                                    <div className="flex items-start justify-between mb-4 gap-3">
+                                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                                            <StyledCheckbox 
+                                                checked={selectedIds.includes(u.id)}
+                                                onChange={(checked) => handleSelectOne(u.id, checked)}
+                                                disabled={u.id === user?.id}
+                                            />
+                                            <UserAvatar url={u.avatar} name={u.name} className="w-12 h-12 text-lg shrink-0" />
+                                            <div className="min-w-0 flex-1">
+                                                <div className="font-bold text-gray-900 dark:text-white text-base truncate">{u.name}</div>
+                                                <div className="text-sm text-gray-500 dark:text-gray-400 font-mono flex items-center gap-1 mt-0.5 truncate">
+                                                    <Mail className="w-3 h-3 shrink-0" />
+                                                    <span className="truncate">{u.email}</span>
                                                 </div>
                                             </div>
                                         </div>
                                         <span className={`
-                                            inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border
+                                            shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border
                                             ${u.role === 'admin' 
                                                 ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400 border-purple-100 dark:border-purple-900/30' 
                                                 : 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border-blue-100 dark:border-blue-900/30'

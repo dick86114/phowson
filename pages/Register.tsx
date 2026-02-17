@@ -276,7 +276,7 @@ export const Register: React.FC = () => {
                         <button
                             type="submit"
                             disabled={step === 'send_code' ? (isSendingCode || sendCooldown > 0) : isLoading}
-                            className="w-full py-3 px-4 bg-primary hover:bg-primary/90 text-white rounded-xl font-medium shadow-lg shadow-primary/20 hover:shadow-primary/30 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="w-full btn-liquid py-3 px-4 text-gray-900 dark:text-white font-medium shadow-lg shadow-primary/20 hover:shadow-primary/30 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {step === 'send_code'
                                 ? (sendCooldown > 0 ? `发送验证码（${sendCooldown}s）` : (isSendingCode ? '发送中...' : '发送验证码至邮箱'))

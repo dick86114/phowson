@@ -66,7 +66,7 @@ pnpm db:migrate
 echo "📡 启动后端服务..."
 export HOST="$BACKEND_HOST"
 export PORT="$BACKEND_PORT"
-pnpm dev:server > backend.log 2>&1 &
+nohup pnpm dev:server > backend.log 2>&1 &
 BACKEND_PID=$!
 
 echo "⌛ 等待后端就绪..."
@@ -85,7 +85,7 @@ for i in {1..20}; do
 done
 
 echo "🎨 启动前端服务..."
-pnpm dev -- --host "$VITE_HOST" --port "$FRONTEND_PORT" --strictPort > frontend.log 2>&1 &
+nohup pnpm dev -- --host "$VITE_HOST" --port "$FRONTEND_PORT" --strictPort > frontend.log 2>&1 &
 FRONTEND_PID=$!
 
 echo "⌛ 等待前端就绪..."
@@ -104,10 +104,9 @@ for i in {1..20}; do
     sleep 1
 done
 
-trap "echo '🛑 正在停止服务...'; kill $BACKEND_PID $FRONTEND_PID 2>/dev/null || true; exit" SIGINT SIGTERM EXIT
-
 echo "-------------------------------------------------------"
 echo "🎉 项目启动成功！"
+echo "✅ 服务已在后台运行"
 echo "📱 前端地址: http://${FRONTEND_ACCESS_HOST}:${FRONTEND_PORT}"
 echo "🔌 后端地址: http://${BACKEND_HOST}:${BACKEND_PORT}"
 LAN_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
@@ -116,6 +115,5 @@ if [ -n "$LAN_IP" ]; then
 fi
 echo "-------------------------------------------------------"
 echo "💡 提示: 后端日志 backend.log，前端日志 frontend.log"
-echo "按 Ctrl+C 停止所有服务"
-
-wait
+echo "💡 提示: 使用 'fuser -k ${FRONTEND_PORT}/tcp ${BACKEND_PORT}/tcp' 停止服务"
+echo "-------------------------------------------------------"

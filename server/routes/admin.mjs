@@ -73,6 +73,22 @@ export const registerAdminRoutes = async (app) => {
           documentTitle: { type: 'string' },
           favicon: { type: 'string' },
           defaultTheme: { type: 'string' },
+          ai: {
+            type: 'object',
+            properties: {
+              provider: { type: 'string' },
+              model: { type: 'string' },
+              gemini: { type: 'object' },
+              openai: { type: 'object' },
+              openai_compatible: { type: 'object' },
+              anthropic: { type: 'object' },
+              openrouter: { type: 'object' },
+              kimi: { type: 'object' },
+              minimax: { type: 'object' },
+              glm: { type: 'object' },
+              nvidia: { type: 'object' }
+            }
+          },
           about: { 
             type: 'object',
             properties: {

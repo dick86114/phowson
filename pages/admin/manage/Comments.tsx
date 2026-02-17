@@ -632,7 +632,7 @@ export const Comments = () => {
                 </div>
 
                 {/* Config Button */}
-                <button className="w-full bg-gray-900 dark:bg-white text-white dark:text-gray-900 py-3 rounded-2xl font-medium text-sm flex items-center justify-center gap-2 hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors shadow-lg shadow-gray-900/20">
+                <button className="w-full btn-liquid text-gray-900 dark:text-white py-3 font-medium text-sm flex items-center justify-center gap-2 transition-colors">
                     <Settings className="w-4 h-4" />
                     配置审核策略
                 </button>

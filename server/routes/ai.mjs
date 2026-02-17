@@ -1,10 +1,30 @@
 import { badRequest } from '../lib/http_errors.mjs';
 import { requireAdmin } from '../plugins/rbac.mjs';
-import { fillFromImage, resolveAiConfig } from '../lib/ai_provider.mjs';
+import { fillFromImage, resolveAiConfig, fetchRemoteModels } from '../lib/ai_provider.mjs';
 import exifr from 'exifr';
 import { reverseGeocode } from '../lib/geocoding.mjs';
 
 export const registerAiRoutes = (app) => {
+  app.post('/ai/models', {
+    preHandler: requireAdmin(),
+    schema: {
+      body: {
+        type: 'object',
+        required: ['provider', 'apiKey'],
+        properties: {
+          provider: { type: 'string' },
+          apiKey: { type: 'string' },
+          baseUrl: { type: 'string' }
+        }
+      }
+    },
+    handler: async (req) => {
+      const { provider, apiKey, baseUrl } = req.body;
+      const models = await fetchRemoteModels({ provider, apiKey, baseUrl });
+      return { models };
+    }
+  });
+
   app.post('/ai/fill', {
     bodyLimit: (() => {
       const n = Number(process.env.AI_BODY_LIMIT_BYTES);
@@ -46,7 +66,7 @@ export const registerAiRoutes = (app) => {
   });
 
   app.get('/ai/enabled', async () => {
-    const cfg = resolveAiConfig();
+    const cfg = await resolveAiConfig();
     const provider = String(cfg.provider || '').toLowerCase();
     let enabled = false;
     if (provider === 'gemini') {
@@ -57,8 +77,14 @@ export const registerAiRoutes = (app) => {
       enabled = !!cfg.openai_compatible?.apiKey && !!cfg.openai_compatible?.baseUrl && !!cfg.openai_compatible?.model;
     } else if (provider === 'openrouter') {
       enabled = !!cfg.openrouter?.apiKey && !!cfg.openrouter?.model;
-    } else if (provider === 'vercelai_gateway') {
-      enabled = !!cfg.vercelai_gateway?.apiKey && !!cfg.vercelai_gateway?.model && !!cfg.vercelai_gateway?.baseUrl;
+    } else if (provider === 'kimi') {
+      enabled = !!cfg.kimi?.apiKey && !!cfg.kimi?.model;
+    } else if (provider === 'minimax') {
+      enabled = !!cfg.minimax?.apiKey && !!cfg.minimax?.model;
+    } else if (provider === 'glm') {
+      enabled = !!cfg.glm?.apiKey && !!cfg.glm?.model;
+    } else if (provider === 'nvidia') {
+      enabled = !!cfg.nvidia?.apiKey && !!cfg.nvidia?.model;
     } else if (provider === 'anthropic') {
       enabled = !!cfg.anthropic?.apiKey && !!cfg.anthropic?.model;
     } else {

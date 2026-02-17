@@ -698,14 +698,14 @@ export const Upload = () => {
                 <div className="sticky bottom-0 bg-white/80 dark:bg-black/80 backdrop-blur-md border-t border-gray-100 dark:border-gray-800 p-6 md:px-10 flex items-center justify-end gap-4 z-10">
                     <button 
                         onClick={() => navigate(-1)}
-                        className="px-6 py-3 rounded-2xl text-gray-600 dark:text-gray-400 font-bold hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                        className="px-6 py-3 rounded-full text-gray-600 dark:text-gray-400 font-bold hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                     >
                         取消
                     </button>
                     <button 
                         onClick={handleSubmit}
                         disabled={isUploading}
-                        className="px-8 py-3 rounded-2xl bg-gradient-to-r from-primary to-blue-600 text-white text-base font-bold hover:shadow-lg hover:shadow-primary/30 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none"
+                        className="px-10 py-3 btn-liquid text-gray-900 dark:text-white text-base font-bold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {isUploading ? <Loader2 className="w-5 h-5 animate-spin" /> : (isEditMode ? <Save className="w-5 h-5" /> : <Send className="w-5 h-5" />)}
                         {isUploading ? (isEditMode ? '保存中...' : '发布中...') : (isEditMode ? '保存修改' : '立即发布')}

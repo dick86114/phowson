@@ -140,7 +140,7 @@ export const RolesSettings = () => {
                 </h3>
                 <button
                     onClick={() => handleOpenModal()}
-                    className="px-4 py-2 bg-green-600 text-white rounded-2xl hover:bg-green-700 flex items-center gap-2 transition-colors shadow-sm"
+                    className="px-6 py-2.5 btn-liquid text-gray-900 dark:text-white font-medium hover:text-primary dark:hover:text-primary transition-colors flex items-center gap-2"
                 >
                     <Plus className="w-4 h-4" />
                     <span>新增角色</span>
@@ -148,7 +148,7 @@ export const RolesSettings = () => {
             </div>
 
             {/* List */}
-            <div className="glass-panel overflow-hidden">
+            <div className="md:glass-panel md:overflow-hidden">
                 {isLoading ? (
                     <LoadingState message="加载角色列表..." />
                 ) : isError ? (
@@ -160,72 +160,140 @@ export const RolesSettings = () => {
                         description="还没有定义任何角色"
                     />
                 ) : (
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse">
-                            <thead>
-                                <tr className="bg-white/10 dark:bg-black/20 border-b border-white/10 dark:border-white/5 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                    <th className="px-6 py-3">ID</th>
-                                    <th className="px-6 py-3">名称</th>
-                                    <th className="px-6 py-3">描述</th>
-                                    <th className="px-6 py-3">权限</th>
-                                    <th className="px-6 py-3 text-right">操作</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-100 dark:divide-white/5">
-                                {roles?.map((role) => (
-                                    <tr key={role.id} className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors group">
-                                        <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">
-                                            {role.id}
+                    <>
+                        {/* Desktop Table */}
+                        <div className="hidden md:block overflow-x-auto">
+                            <table className="w-full text-left border-collapse">
+                                <thead>
+                                    <tr className="bg-white/10 dark:bg-black/20 border-b border-white/10 dark:border-white/5 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                        <th className="px-6 py-3">ID</th>
+                                        <th className="px-6 py-3">名称</th>
+                                        <th className="px-6 py-3">描述</th>
+                                        <th className="px-6 py-3">权限</th>
+                                        <th className="px-6 py-3 text-right">操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100 dark:divide-white/5">
+                                    {roles?.map((role) => (
+                                        <tr key={role.id} className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors group">
+                                            <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">
+                                                {role.id}
+                                                {role.is_system && (
+                                                    <span className="ml-2 px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 text-xs font-normal">
+                                                        系统
+                                                    </span>
+                                                )}
+                                            </td>
+                                            <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
+                                                {role.name}
+                                            </td>
+                                            <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 max-w-xs truncate">
+                                                {role.description || '-'}
+                                            </td>
+                                            <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
+                                                <div className="flex flex-wrap gap-1">
+                                                    {role.permissions?.map(p => (
+                                                        <span key={p} className="px-2 py-0.5 rounded bg-gray-100 dark:bg-white/10 text-xs">
+                                                            {p}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 text-right">
+                                                <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <button
+                                                        onClick={() => handleOpenModal(role)}
+                                                        className="p-1.5 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                                                        title="编辑"
+                                                    >
+                                                        <Edit2 className="w-4 h-4" />
+                                                    </button>
+                                                    {!role.is_system && (
+                                                        <button
+                                                            onClick={() => {
+                                                                if (confirm('确定要删除该角色吗？')) {
+                                                                    deleteRoleMutation.mutate(role.id);
+                                                                }
+                                                            }}
+                                                            className="p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                                            title="删除"
+                                                        >
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* Mobile Cards */}
+                        <div className="md:hidden space-y-4">
+                            {roles?.map((role) => (
+                                <div key={role.id} className="glass-card p-5 hover:shadow-lg transition-all duration-300">
+                                    <div className="flex items-start justify-between mb-3">
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-bold text-gray-900 dark:text-white text-base">
+                                                {role.name}
+                                            </span>
                                             {role.is_system && (
-                                                <span className="ml-2 px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 text-xs font-normal">
+                                                <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 text-xs font-medium">
                                                     系统
                                                 </span>
                                             )}
-                                        </td>
-                                        <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
-                                            {role.name}
-                                        </td>
-                                        <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 max-w-xs truncate">
-                                            {role.description || '-'}
-                                        </td>
-                                        <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
-                                            <div className="flex flex-wrap gap-1">
-                                                {role.permissions?.map(p => (
-                                                    <span key={p} className="px-2 py-0.5 rounded bg-gray-100 dark:bg-white/10 text-xs">
-                                                        {p}
-                                                    </span>
-                                                ))}
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 text-right">
-                                            <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        </div>
+                                        <div className="flex items-center gap-1">
+                                            <button
+                                                onClick={() => handleOpenModal(role)}
+                                                className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl transition-colors"
+                                            >
+                                                <Edit2 className="w-4 h-4" />
+                                            </button>
+                                            {!role.is_system && (
                                                 <button
-                                                    onClick={() => handleOpenModal(role)}
-                                                    className="p-1.5 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
-                                                    title="编辑"
+                                                    onClick={() => {
+                                                        if (confirm('确定要删除该角色吗？')) {
+                                                            deleteRoleMutation.mutate(role.id);
+                                                        }
+                                                    }}
+                                                    className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors"
                                                 >
-                                                    <Edit2 className="w-4 h-4" />
+                                                    <Trash2 className="w-4 h-4" />
                                                 </button>
-                                                {!role.is_system && (
-                                                    <button
-                                                        onClick={() => {
-                                                            if (confirm('确定要删除该角色吗？')) {
-                                                                deleteRoleMutation.mutate(role.id);
-                                                            }
-                                                        }}
-                                                        className="p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                                                        title="删除"
-                                                    >
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </button>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-3">
+                                        <div className="text-sm text-gray-500 dark:text-gray-400 font-mono bg-gray-50 dark:bg-white/5 px-2 py-1 rounded inline-block">
+                                            {role.id}
+                                        </div>
+                                        
+                                        <div className="text-sm text-gray-600 dark:text-gray-300">
+                                            {role.description || '无描述'}
+                                        </div>
+
+                                        <div className="pt-2 border-t border-gray-100 dark:border-white/5">
+                                            <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">权限列表</div>
+                                            <div className="flex flex-wrap gap-1.5">
+                                                {role.permissions?.length > 0 ? (
+                                                    role.permissions.map(p => (
+                                                        <span key={p} className="px-2 py-1 rounded-md bg-gray-100 dark:bg-white/10 text-xs text-gray-600 dark:text-gray-300">
+                                                            {p}
+                                                        </span>
+                                                    ))
+                                                ) : (
+                                                    <span className="text-xs text-gray-400 italic">无特殊权限</span>
                                                 )}
                                             </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </>
                 )}
             </div>
 
@@ -314,7 +382,7 @@ export const RolesSettings = () => {
                             <button
                                 onClick={handleSave}
                                 disabled={createRoleMutation.isPending || updateRoleMutation.isPending}
-                                className="px-4 py-2 bg-primary text-white rounded-xl hover:bg-primary/90 transition-colors shadow-sm disabled:opacity-50 flex items-center gap-2"
+                                className="px-4 py-2 btn-liquid text-gray-900 dark:text-white rounded-xl transition-colors shadow-sm disabled:opacity-50 flex items-center gap-2"
                             >
                                 {(createRoleMutation.isPending || updateRoleMutation.isPending) && (
                                     <Loader2 className="w-4 h-4 animate-spin" />

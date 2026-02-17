@@ -139,9 +139,16 @@ export const registerUserRoutes = async (app) => {
     preHandler: requireAdmin(),
     handler: async (req) => {
       const id = String(req.params.id);
+      const userRes = await pool.query("select name, email, role from users where id = $1", [id]);
+      const user = userRes.rows[0] || {};
+      
       await pool.query("delete from users where id = $1", [id]);
       await deleteSessionsByUserId(id);
-      await logOperation(req.authUser.id, id, 'reject_user', {});
+      await logOperation(req.authUser.id, id, 'reject_user', { 
+        name: user.name, 
+        email: user.email, 
+        role: user.role 
+      });
       return { ok: true };
     }
   });
@@ -395,6 +402,92 @@ export const registerUserRoutes = async (app) => {
     },
   });
 
+  app.post('/users/batch', {
+    preHandler: requireAdmin(),
+    schema: {
+      body: {
+        type: 'object',
+        required: ['ids', 'action'],
+        properties: {
+          ids: { type: 'array', items: { type: 'string' }, minItems: 1 },
+          action: { type: 'string', enum: ['delete', 'role', 'status'] },
+          payload: {
+            type: 'object',
+            properties: {
+              role: { type: 'string', minLength: 1 },
+              disabled: { type: 'boolean' },
+            },
+          },
+        },
+      },
+    },
+    handler: async (req) => {
+      const { ids, action, payload } = req.body;
+      const actingUser = req.authUser;
+      
+      // Filter out self
+      const targetIds = ids.filter(id => id !== actingUser.id);
+      if (targetIds.length === 0) {
+        return { count: 0, message: 'No valid targets (cannot operate on self)' };
+      }
+
+      let count = 0;
+
+      if (action === 'delete') {
+        const existing = await pool.query('select id, name, email, role from users where id = any($1)', [targetIds]);
+        
+        const res = await pool.query('delete from users where id = any($1)', [targetIds]);
+        count = res.rowCount;
+        
+        // Clean up sessions and log
+        for (const row of existing.rows) {
+          try { await deleteSessionsByUserId(row.id); } catch {}
+          await logOperation(actingUser.id, row.id, 'delete_user', { 
+            name: row.name,
+            email: row.email,
+            role: row.role
+          });
+        }
+      } else if (action === 'role') {
+        const role = normalizeRole(payload?.role);
+        if (!role) throw badRequest('INVALID_ROLE', 'Invalid role');
+        
+        const existing = await pool.query('select id, role from users where id = any($1)', [targetIds]);
+        
+        const res = await pool.query('update users set role = $1 where id = any($2)', [role, targetIds]);
+        count = res.rowCount;
+        
+        for (const row of existing.rows) {
+          if (row.role !== role) {
+            await logOperation(actingUser.id, row.id, 'change_role', { old_role: row.role, new_role: role });
+          }
+        }
+      } else if (action === 'status') {
+        const disabled = Boolean(payload?.disabled);
+        const disabledAt = disabled ? 'now()' : 'null';
+        const nextStatus = disabled ? 'disabled' : 'active';
+        
+        const existing = await pool.query('select id, name, email, role from users where id = any($1)', [targetIds]);
+        
+        const res = await pool.query(`update users set disabled_at = ${disabledAt}, status = '${nextStatus}' where id = any($1)`, [targetIds]);
+        count = res.rowCount;
+        
+        for (const row of existing.rows) {
+          if (disabled) {
+             try { await deleteSessionsByUserId(row.id); } catch {}
+          }
+          await logOperation(actingUser.id, row.id, disabled ? 'disable_user' : 'enable_user', { 
+            name: row.name,
+            email: row.email,
+            role: row.role 
+          });
+        }
+      }
+
+      return { count, success: true };
+    },
+  });
+
   app.patch('/users/:id', {
     preHandler: requireAdmin(),
     schema: {
@@ -421,9 +514,11 @@ export const registerUserRoutes = async (app) => {
       if (req.body?.role != null && !role) throw badRequest('ROLE_INVALID', '角色不合法');
       // if (role && role !== 'admin' && role !== 'family') throw badRequest('ROLE_INVALID', '角色不合法');
 
-      const existing = await pool.query('select role from users where id=$1', [id]);
+      const existing = await pool.query('select name, email, role from users where id=$1', [id]);
       if (!existing.rowCount) throw notFound('USER_NOT_FOUND', '用户不存在');
-      const prevRole = String(existing.rows[0].role);
+      const prevUser = existing.rows[0];
+      const prevRole = String(prevUser.role);
+      
       if (prevRole === 'admin' && role === 'family') {
         await assertAtLeastOneAdmin(id);
       }
@@ -445,11 +540,14 @@ export const registerUserRoutes = async (app) => {
         [id, name, email, role],
       );
       
-      await logOperation(req.authUser.id, id, 'update_user', { 
-        name: name || undefined, 
-        email: email || undefined, 
-        role: role || undefined 
-      });
+      const changes = {};
+      if (name != null && name !== prevUser.name) changes.name = { from: prevUser.name, to: name };
+      if (email != null && email !== prevUser.email) changes.email = { from: prevUser.email, to: email };
+      if (role != null && role !== prevUser.role) changes.role = { from: prevUser.role, to: role };
+
+      if (Object.keys(changes).length > 0) {
+        await logOperation(req.authUser.id, id, 'update_user', changes);
+      }
 
       return r.rows[0];
     },
@@ -501,14 +599,20 @@ export const registerUserRoutes = async (app) => {
       const acting = req.authUser;
       if (acting?.id && String(acting.id) === id) throw badRequest('CANNOT_DELETE_SELF', '不能删除当前登录用户');
 
-      const existing = await pool.query('select role from users where id=$1', [id]);
+      const existing = await pool.query('select name, email, role from users where id=$1', [id]);
       if (!existing.rowCount) throw notFound('USER_NOT_FOUND', '用户不存在');
-      const prevRole = String(existing.rows[0].role);
+      const user = existing.rows[0];
+      const prevRole = String(user.role);
+      
       if (prevRole === 'admin') await assertAtLeastOneAdmin(id);
 
       await pool.query('delete from users where id=$1', [id]);
       
-      await logOperation(acting.id, id, 'delete_user', { prevRole });
+      await logOperation(acting.id, id, 'delete_user', { 
+        name: user.name,
+        email: user.email,
+        role: user.role
+      });
 
       return { ok: true };
     },

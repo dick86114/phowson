@@ -661,7 +661,7 @@ export const AnalyticsPage: React.FC = () => {
                 <div className="text-xl font-bold mb-2">数据加载失败</div>
                 <button 
                     onClick={() => window.location.reload()}
-                    className="mt-4 px-4 py-2 bg-primary text-white rounded-2xl hover:bg-primary/90 transition-colors"
+                    className="mt-4 px-6 py-2.5 btn-liquid text-gray-900 dark:text-white font-medium hover:text-primary dark:hover:text-primary transition-colors"
                 >
                     刷新页面
                 </button>

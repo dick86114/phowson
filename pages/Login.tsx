@@ -135,7 +135,7 @@ export const Login: React.FC = () => {
                             <button
                                 type="submit"
                                 disabled={isLoading}
-                                className="w-full flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white font-medium py-2.5 rounded-xl transition-all shadow-lg shadow-primary/20 disabled:opacity-70 disabled:cursor-not-allowed"
+                                className="w-full btn-liquid flex items-center justify-center gap-2 text-gray-900 dark:text-white font-medium py-3 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {isLoading ? '登录中...' : '登录'}
                                 {!isLoading && <ArrowRight className="w-4 h-4 stroke-[2.5]" />}
@@ -177,7 +177,7 @@ export const Login: React.FC = () => {
                                     <button
                                         type="submit"
                                         disabled={isLoading}
-                                        className="w-full flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white font-medium py-2.5 rounded-xl transition-all shadow-lg shadow-primary/20 disabled:opacity-70 disabled:cursor-not-allowed"
+                                        className="w-full btn-liquid flex items-center justify-center gap-2 text-gray-900 dark:text-white font-medium py-3 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                         {isLoading ? '发送中...' : '发送重置链接'}
                                     </button>

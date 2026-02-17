@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Navigate } from 'react-router-dom';
 import * as LucideIcons from 'lucide-react';
-import { Settings, Save, Download, Upload, X, Loader2, ImageIcon, Sun, Moon, Monitor, Tag, Trash2, Plus, Shield } from 'lucide-react';
+import { Settings, Save, Download, Upload, X, Loader2, ImageIcon, Sun, Moon, Monitor, Tag, Trash2, Plus, Shield, Brain, Copy, RefreshCw, ChevronDown, Check } from 'lucide-react';
 import { RolesSettings } from './Roles';
 
 type ApiCategory = {
@@ -20,12 +20,27 @@ import { useModal, Modal } from '../../../components/Modal';
 import { toMediaUrl } from '../../../utils/helpers';
 import { downloadJson } from '../../../utils/exporters';
 
+type AiConfig = {
+    provider?: string;
+    model?: string;
+    gemini?: { apiKey?: string; baseUrl?: string; model?: string };
+    openai?: { apiKey?: string; baseUrl?: string; model?: string };
+    openai_compatible?: { apiKey?: string; baseUrl?: string; model?: string };
+    anthropic?: { apiKey?: string; baseUrl?: string; model?: string };
+    openrouter?: { apiKey?: string; baseUrl?: string; model?: string };
+    kimi?: { apiKey?: string; baseUrl?: string; model?: string };
+    minimax?: { apiKey?: string; baseUrl?: string; model?: string };
+    glm?: { apiKey?: string; baseUrl?: string; model?: string };
+    nvidia?: { apiKey?: string; baseUrl?: string; model?: string };
+};
+
 type SiteSettings = {
     siteName?: string;
     siteLogo?: string;
     documentTitle?: string;
     favicon?: string;
     defaultTheme?: 'light' | 'dark' | 'system';
+    ai?: AiConfig;
 };
 
 const normalizeSiteSettings = (raw: any): SiteSettings => {
@@ -38,7 +53,245 @@ const normalizeSiteSettings = (raw: any): SiteSettings => {
     if (raw.defaultTheme != null && ['light', 'dark', 'system'].includes(raw.defaultTheme)) {
         payload.defaultTheme = raw.defaultTheme;
     }
+    if (raw.ai != null && typeof raw.ai === 'object') {
+        payload.ai = raw.ai;
+    }
     return payload;
+};
+
+const AiSettings: React.FC<{
+    siteSettingsForm: SiteSettings;
+    setSiteSettingsForm: React.Dispatch<React.SetStateAction<SiteSettings>>;
+    updateSiteSettingsMutation: any;
+}> = ({ siteSettingsForm, setSiteSettingsForm, updateSiteSettingsMutation }) => {
+    const { success, error } = useToast();
+    const provider = siteSettingsForm.ai?.provider || 'gemini';
+    const config = (siteSettingsForm.ai as any)?.[provider] || {};
+
+    const [fetchedModels, setFetchedModels] = useState<string[]>([]);
+    const [isFetchingModels, setIsFetchingModels] = useState(false);
+    const [showModelDropdown, setShowModelDropdown] = useState(false);
+    const modelDropdownRef = useRef<HTMLDivElement>(null);
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (modelDropdownRef.current && !modelDropdownRef.current.contains(event.target as Node)) {
+                setShowModelDropdown(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const getBaseUrlPlaceholder = (p: string) => {
+        if (p === 'openai') return 'https://api.openai.com/v1';
+        if (p === 'anthropic') return 'https://api.anthropic.com/v1';
+        if (p === 'gemini') return 'https://generativelanguage.googleapis.com/v1beta';
+        if (p === 'kimi') return 'https://api.moonshot.cn/v1';
+        if (p === 'minimax') return 'https://api.minimax.chat/v1';
+        if (p === 'glm') return 'https://open.bigmodel.cn/api/paas/v4';
+        if (p === 'nvidia') return 'https://integrate.api.nvidia.com/v1';
+        if (p === 'openrouter') return 'https://openrouter.ai/api/v1';
+        return 'https://api.openai.com/v1';
+    };
+
+    const getModelPlaceholder = (p: string) => {
+        if (p === 'openai') return 'gpt-4o';
+        if (p === 'anthropic') return 'claude-3-5-sonnet-20240620';
+        if (p === 'gemini') return 'gemini-1.5-flash';
+        if (p === 'kimi') return 'moonshot-v1-8k';
+        if (p === 'minimax') return 'abab6.5s-chat';
+        if (p === 'glm') return 'glm-4-flash';
+        if (p === 'nvidia') return 'meta/llama-3.1-405b-instruct';
+        if (p === 'openrouter') return 'google/gemini-2.0-flash-exp:free';
+        return 'gpt-4o';
+    };
+
+    const updateProviderConfig = (key: string, val: string) => {
+        setSiteSettingsForm(prev => ({
+            ...prev,
+            ai: {
+                ...prev.ai,
+                [provider]: {
+                    ...((prev.ai as any)?.[provider] || {}),
+                    [key]: val
+                }
+            }
+        }));
+    };
+
+    const handleFetchModels = async () => {
+        if (!config.apiKey) {
+            error('请先填写 API Key');
+            return;
+        }
+        setIsFetchingModels(true);
+        try {
+            const res = await api.post<{ models: string[] }>('/ai/models', {
+                provider,
+                apiKey: config.apiKey,
+                baseUrl: config.baseUrl
+            });
+            if (res.data.models && res.data.models.length > 0) {
+                setFetchedModels(res.data.models);
+                setShowModelDropdown(true);
+                success(`成功获取 ${res.data.models.length} 个模型`);
+            } else {
+                setFetchedModels([]);
+                error('未获取到模型列表');
+            }
+        } catch (err: any) {
+            error(String(err?.data?.message || err?.message || '获取模型列表失败'));
+        } finally {
+            setIsFetchingModels(false);
+        }
+    };
+
+    const handleCopy = (text: string) => {
+        navigator.clipboard.writeText(text);
+        success('已复制到剪贴板');
+    };
+
+    return (
+        <div className="glass-panel p-6 !bg-slate-50/90 dark:!bg-gray-900/50">
+            <h3 className="font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+                <Brain className="w-5 h-5 text-primary" />
+                AI 大模型配置
+            </h3>
+            <div className="space-y-6">
+                <div>
+                    <label className="text-xs text-gray-500 dark:text-gray-400 uppercase font-medium">AI 提供商 (Provider)</label>
+                    <select
+                        value={siteSettingsForm.ai?.provider || 'gemini'}
+                        onChange={(e) => setSiteSettingsForm({
+                            ...siteSettingsForm,
+                            ai: { ...siteSettingsForm.ai, provider: e.target.value }
+                        })}
+                        className="w-full mt-2 bg-white/50 dark:bg-black/20 border border-gray-300 dark:border-white/10 rounded-2xl p-3 text-gray-900 dark:text-white text-base focus:outline-none focus:border-primary backdrop-blur-sm"
+                    >
+                        <option value="gemini">Google Gemini</option>
+                        <option value="openai">OpenAI</option>
+                        <option value="kimi">Kimi (Moonshot)</option>
+                        <option value="minimax">MiniMax (海螺)</option>
+                        <option value="glm">Zhipu GLM (智谱)</option>
+                        <option value="nvidia">NVIDIA NIM</option>
+                        <option value="anthropic">Anthropic Claude</option>
+                        <option value="openrouter">OpenRouter</option>
+                        <option value="openai_compatible">OpenAI Compatible (自定义)</option>
+                    </select>
+                </div>
+
+                <div className="space-y-4 p-4 rounded-2xl bg-white/50 dark:bg-black/20 border border-white/20 dark:border-white/5">
+                    <h4 className="font-bold text-gray-800 dark:text-gray-200 capitalize">{provider} 配置</h4>
+                    
+                    <div>
+                        <label className="text-xs text-gray-500 dark:text-gray-400 uppercase font-medium">API Key</label>
+                        <input
+                            type="password"
+                            value={config.apiKey || ''}
+                            onChange={(e) => updateProviderConfig('apiKey', e.target.value)}
+                            placeholder={`请输入 ${provider} API Key`}
+                            className="w-full mt-2 bg-white dark:bg-black/40 border border-gray-200 dark:border-white/10 rounded-xl p-3 text-gray-900 dark:text-white focus:outline-none focus:border-primary"
+                        />
+                    </div>
+
+                    <div>
+                        <label className="text-xs text-gray-500 dark:text-gray-400 uppercase font-medium">Base URL (可选)</label>
+                        <input
+                            type="text"
+                            value={config.baseUrl || ''}
+                            onChange={(e) => updateProviderConfig('baseUrl', e.target.value)}
+                            placeholder={`例如: ${getBaseUrlPlaceholder(provider)}`}
+                            className="w-full mt-2 bg-white dark:bg-black/40 border border-gray-200 dark:border-white/10 rounded-xl p-3 text-gray-900 dark:text-white focus:outline-none focus:border-primary"
+                        />
+                        <div className="mt-2 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                            <span>默认: </span>
+                            <code className="bg-gray-100 dark:bg-white/10 px-1.5 py-0.5 rounded text-gray-700 dark:text-gray-300 font-mono">
+                                {getBaseUrlPlaceholder(provider)}
+                            </code>
+                            <button 
+                                onClick={() => handleCopy(getBaseUrlPlaceholder(provider))}
+                                className="p-1 hover:bg-gray-200 dark:hover:bg-white/10 rounded transition-colors"
+                                title="复制默认 URL"
+                            >
+                                <Copy className="w-3 h-3" />
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="relative" ref={modelDropdownRef}>
+                        <label className="text-xs text-gray-500 dark:text-gray-400 uppercase font-medium">模型名称 (Model)</label>
+                        <div className="flex gap-2 mt-2">
+                            <div className="relative flex-1">
+                                <input
+                                    type="text"
+                                    value={config.model || ''}
+                                    onChange={(e) => updateProviderConfig('model', e.target.value)}
+                                    placeholder={`例如: ${getModelPlaceholder(provider)}`}
+                                    className="w-full bg-white dark:bg-black/40 border border-gray-200 dark:border-white/10 rounded-xl p-3 text-gray-900 dark:text-white focus:outline-none focus:border-primary"
+                                />
+                                {fetchedModels.length > 0 && (
+                                    <button
+                                        onClick={() => setShowModelDropdown(!showModelDropdown)}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+                                    >
+                                        <ChevronDown className={`w-4 h-4 transition-transform ${showModelDropdown ? 'rotate-180' : ''}`} />
+                                    </button>
+                                )}
+                            </div>
+                            <button
+                                onClick={handleFetchModels}
+                                disabled={isFetchingModels || !config.apiKey}
+                                className="px-4 py-2 bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/10 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                                title="从 API 获取可用模型列表"
+                            >
+                                {isFetchingModels ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                                <span className="hidden sm:inline">获取列表</span>
+                            </button>
+                        </div>
+
+                        {/* Models Dropdown */}
+                        {showModelDropdown && fetchedModels.length > 0 && (
+                            <div className="absolute top-full left-0 right-0 mt-2 max-h-60 overflow-y-auto bg-white dark:bg-gray-800 border border-gray-200 dark:border-white/10 rounded-xl shadow-xl z-50 animate-in fade-in zoom-in-95 duration-100">
+                                {fetchedModels.map((model) => (
+                                    <button
+                                        key={model}
+                                        onClick={() => {
+                                            updateProviderConfig('model', model);
+                                            setShowModelDropdown(false);
+                                        }}
+                                        className={`w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 dark:hover:bg-white/5 transition-colors flex items-center justify-between ${
+                                            config.model === model ? 'text-primary font-medium bg-primary/5' : 'text-gray-700 dark:text-gray-200'
+                                        }`}
+                                    >
+                                        {model}
+                                        {config.model === model && <Check className="w-4 h-4" />}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+
+                        <p className="text-xs text-amber-600 dark:text-amber-400 mt-2 flex items-center gap-1">
+                            <Monitor className="w-3 h-3" />
+                            注意：必须使用支持图片识别 (Vision) 的模型，否则无法自动填写照片信息。
+                        </p>
+                    </div>
+                </div>
+
+                <div className="pt-4 border-t border-gray-100 dark:border-white/10 flex flex-col sm:flex-row justify-end">
+                    <button
+                        onClick={() => updateSiteSettingsMutation.mutate(siteSettingsForm)}
+                        disabled={updateSiteSettingsMutation.isPending}
+                        className="w-full sm:w-auto justify-center btn-liquid text-gray-900 dark:text-white px-8 py-2.5 font-medium transition-all flex items-center gap-2 disabled:opacity-50"
+                    >
+                        {updateSiteSettingsMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                        保存 AI 配置
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
 };
 
 export const SettingsPage: React.FC = () => {
@@ -47,7 +300,7 @@ export const SettingsPage: React.FC = () => {
     const { success, error } = useToast();
     const { confirm } = useModal();
     const siteSettingsImportInputRef = useRef<HTMLInputElement>(null);
-    const [activeTab, setActiveTab] = useState<'general' | 'categories' | 'roles'>('general');
+    const [activeTab, setActiveTab] = useState<'general' | 'categories' | 'roles' | 'ai'>('general');
 
     if (user?.role !== 'admin') return <Navigate to="/me/albums" replace />;
 
@@ -57,6 +310,7 @@ export const SettingsPage: React.FC = () => {
         documentTitle: '',
         favicon: '',
         defaultTheme: 'system',
+        ai: { provider: 'gemini' },
     });
 
     const { data: siteSettingsData } = useQuery({
@@ -75,6 +329,7 @@ export const SettingsPage: React.FC = () => {
                 documentTitle: siteSettingsData.documentTitle || '',
                 favicon: siteSettingsData.favicon || '',
                 defaultTheme: siteSettingsData.defaultTheme || 'system',
+                ai: siteSettingsData.ai || { provider: 'gemini' },
             });
         }
     }, [siteSettingsData]);
@@ -242,6 +497,17 @@ export const SettingsPage: React.FC = () => {
                     <Shield className="w-4 h-4" />
                     角色权限
                 </button>
+                <button
+                    onClick={() => setActiveTab('ai')}
+                    className={`px-4 py-2 text-sm font-medium whitespace-nowrap border-b-2 transition-colors flex items-center gap-2 ${
+                        activeTab === 'ai'
+                            ? 'border-primary text-primary'
+                            : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+                    }`}
+                >
+                    <Brain className="w-4 h-4" />
+                    AI 配置
+                </button>
             </div>
 
             {/* Site Settings */}
@@ -393,7 +659,7 @@ export const SettingsPage: React.FC = () => {
                         <button
                             onClick={() => updateSiteSettingsMutation.mutate(siteSettingsForm)}
                             disabled={updateSiteSettingsMutation.isPending}
-                            className="w-full sm:w-auto justify-center bg-primary hover:bg-primary/90 text-white px-6 py-2.5 rounded-2xl font-medium transition-all shadow-lg shadow-primary/20 flex items-center gap-2 disabled:opacity-70"
+                            className="w-full sm:w-auto justify-center btn-liquid text-gray-900 dark:text-white px-8 py-2.5 font-medium transition-all flex items-center gap-2 disabled:opacity-50"
                         >
                             {updateSiteSettingsMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                             保存全局设置
@@ -416,7 +682,7 @@ export const SettingsPage: React.FC = () => {
                     </div>
                     <button
                         onClick={openCreateModal}
-                        className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-2xl text-sm font-medium hover:bg-primary/90 transition-colors shadow-sm"
+                        className="flex items-center gap-2 px-6 py-2.5 btn-liquid text-gray-900 dark:text-white font-medium hover:text-primary dark:hover:text-primary transition-colors shadow-sm"
                     >
                         <Plus className="w-4 h-4" />
                         添加分类
@@ -707,7 +973,7 @@ export const SettingsPage: React.FC = () => {
                         <button
                             type="submit"
                             disabled={createCategoryMutation.isPending || updateCategoryMutation.isPending}
-                            className="px-4 py-2 text-sm font-medium bg-primary text-white rounded-xl hover:bg-primary/90 transition-colors shadow-sm disabled:opacity-70 flex items-center gap-2"
+                            className="px-4 py-2 text-sm font-medium btn-liquid text-gray-900 dark:text-white rounded-xl transition-colors shadow-sm disabled:opacity-70 flex items-center gap-2"
                         >
                             {(createCategoryMutation.isPending || updateCategoryMutation.isPending) && (
                                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -773,6 +1039,15 @@ export const SettingsPage: React.FC = () => {
                     </div>
                 </div>
             </div>
+            )}
+
+            {/* AI Settings */}
+            {activeTab === 'ai' && (
+                <AiSettings 
+                    siteSettingsForm={siteSettingsForm} 
+                    setSiteSettingsForm={setSiteSettingsForm} 
+                    updateSiteSettingsMutation={updateSiteSettingsMutation}
+                />
             )}
 
             {/* Roles Management */}

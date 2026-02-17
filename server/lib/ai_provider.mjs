@@ -1,5 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
 import { HttpError } from './http_errors.mjs';
+import { pool } from '../db.mjs';
 
 const pick = (...values) => {
   for (const v of values) {
@@ -7,6 +8,83 @@ const pick = (...values) => {
     if (s) return s;
   }
   return '';
+};
+
+export const fetchRemoteModels = async ({ provider, apiKey, baseUrl }) => {
+  const normalizedProvider = String(provider || '').toLowerCase();
+  
+  if (['openai', 'openai_compatible', 'openrouter', 'kimi', 'minimax', 'glm', 'nvidia'].includes(normalizedProvider)) {
+    if (!apiKey) throw new HttpError(501, 'AI_NOT_CONFIGURED', 'Missing API Key');
+    
+    // Default base URLs if not provided
+    let url = baseUrl;
+    if (!url) {
+       if (normalizedProvider === 'openai') url = 'https://api.openai.com/v1';
+       else if (normalizedProvider === 'openrouter') url = 'https://openrouter.ai/api/v1';
+       else if (normalizedProvider === 'kimi') url = 'https://api.moonshot.cn/v1';
+       else if (normalizedProvider === 'minimax') url = 'https://api.minimax.chat/v1';
+       else if (normalizedProvider === 'glm') url = 'https://open.bigmodel.cn/api/paas/v4';
+       else if (normalizedProvider === 'nvidia') url = 'https://integrate.api.nvidia.com/v1';
+    }
+    
+    url = `${String(url).replace(/\/+$/, '')}/models`;
+    
+    const headers = { authorization: `Bearer ${apiKey}` };
+    if (normalizedProvider === 'openrouter') {
+      headers['http-referer'] = pick(process.env.OPENROUTER_SITE_URL);
+      headers['x-title'] = pick(process.env.OPENROUTER_APP_NAME);
+    }
+
+    try {
+      const res = await fetch(url, { method: 'GET', headers });
+      if (!res.ok) {
+         const text = await res.text();
+         throw new Error(`Failed to fetch models: ${res.status} ${text}`);
+      }
+      const json = await res.json();
+      // Standard OpenAI format: { data: [ { id: 'gpt-4', ... } ] }
+      if (Array.isArray(json?.data)) {
+        return json.data.map(m => m.id).filter(Boolean);
+      }
+      return [];
+    } catch (e) {
+      throw new HttpError(502, 'AI_UPSTREAM_ERROR', e.message);
+    }
+  }
+
+  // Gemini (Google GenAI)
+  if (normalizedProvider === 'gemini') {
+    if (!apiKey) throw new HttpError(501, 'AI_NOT_CONFIGURED', 'Missing API Key');
+    // Google GenAI SDK doesn't expose a simple listModels helper in the same way or requires complex setup.
+    // We can use the REST API.
+    const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`;
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`Failed: ${res.status}`);
+      const json = await res.json();
+      // Format: { models: [ { name: 'models/gemini-pro', ... } ] }
+      if (Array.isArray(json?.models)) {
+        return json.models.map(m => m.name.replace(/^models\//, '')).filter(Boolean);
+      }
+      return [];
+    } catch (e) {
+       throw new HttpError(502, 'AI_UPSTREAM_ERROR', e.message);
+    }
+  }
+
+  // Anthropic
+  if (normalizedProvider === 'anthropic') {
+    // Anthropic API currently doesn't have a public "list models" endpoint like OpenAI.
+    // We return a static list of known models or empty.
+    return [
+      'claude-3-5-sonnet-20240620',
+      'claude-3-opus-20240229',
+      'claude-3-sonnet-20240229',
+      'claude-3-haiku-20240307',
+    ];
+  }
+
+  return [];
 };
 
 const extractJson = (text) => {
@@ -165,37 +243,60 @@ const anthropicFill = async ({ apiKey, model, imageBase64, mimeType, locationHin
   return parsed;
 };
 
-export const resolveAiConfig = () => {
-  const provider = pick(process.env.AI_PROVIDER).toLowerCase();
+export const resolveAiConfig = async () => {
+  let dbAi = {};
+  try {
+    const res = await pool.query(`select data from site_settings where id = 'global'`);
+    dbAi = res.rows?.[0]?.data?.ai || {};
+  } catch (e) {
+    // ignore
+  }
+
+  const provider = pick(dbAi.provider, process.env.AI_PROVIDER).toLowerCase();
   const model = pick(process.env.AI_MODEL);
 
-  const geminiKey = pick(process.env.GEMINI_API_KEY, process.env.GOOGLE_API_KEY);
-  const geminiModel = pick(model, process.env.GEMINI_MODEL, 'gemini-3-flash');
+  const geminiKey = pick(dbAi.gemini?.apiKey, process.env.GEMINI_API_KEY, process.env.GOOGLE_API_KEY);
+  const geminiModel = pick(dbAi.gemini?.model, model, process.env.GEMINI_MODEL, 'gemini-3-flash');
   const geminiEmbeddingModel = pick(process.env.GEMINI_EMBEDDING_MODEL, 'text-embedding-004');
 
-  const openaiKey = pick(process.env.OPENAI_API_KEY);
-  const openaiBaseUrl = pick(process.env.OPENAI_BASE_URL, 'https://api.openai.com/v1');
-  const openaiModel = pick(model, process.env.OPENAI_MODEL);
+  const openaiKey = pick(dbAi.openai?.apiKey, process.env.OPENAI_API_KEY);
+  const openaiBaseUrl = pick(dbAi.openai?.baseUrl, process.env.OPENAI_BASE_URL, 'https://api.openai.com/v1');
+  const openaiModel = pick(dbAi.openai?.model, model, process.env.OPENAI_MODEL);
   const openaiEmbeddingModel = pick(process.env.OPENAI_EMBEDDING_MODEL, 'text-embedding-3-small');
 
   // Generic OpenAI-compatible
-  const compatibleKey = pick(process.env.AI_COMPATIBLE_API_KEY, process.env.AI_API_KEY);
-  const compatibleBaseUrl = pick(process.env.AI_COMPATIBLE_BASE_URL, process.env.AI_BASE_URL);
-  const compatibleModel = pick(model, process.env.AI_COMPATIBLE_MODEL);
+  const compatibleKey = pick(dbAi.openai_compatible?.apiKey, process.env.AI_COMPATIBLE_API_KEY, process.env.AI_API_KEY);
+  const compatibleBaseUrl = pick(dbAi.openai_compatible?.baseUrl, process.env.AI_COMPATIBLE_BASE_URL, process.env.AI_BASE_URL);
+  const compatibleModel = pick(dbAi.openai_compatible?.model, model, process.env.AI_COMPATIBLE_MODEL);
   const compatibleEmbeddingModel = pick(process.env.AI_COMPATIBLE_EMBEDDING_MODEL, process.env.AI_EMBEDDING_MODEL, 'text-embedding-3-small');
 
-  const anthropicKey = pick(process.env.ANTHROPIC_API_KEY);
-  const anthropicModel = pick(model, process.env.ANTHROPIC_MODEL);
+  const anthropicKey = pick(dbAi.anthropic?.apiKey, process.env.ANTHROPIC_API_KEY);
+  const anthropicModel = pick(dbAi.anthropic?.model, model, process.env.ANTHROPIC_MODEL);
 
-  const openRouterKey = pick(process.env.OPEN_ROUTER_API_KEY);
-  const openRouterBaseUrl = pick(process.env.OPEN_ROUTER_BASE_URL, 'https://openrouter.ai/api/v1');
-  const openRouterModel = pick(model, process.env.OPEN_ROUTER_MODEL);
+  const openRouterKey = pick(dbAi.openrouter?.apiKey, process.env.OPEN_ROUTER_API_KEY);
+  const openRouterBaseUrl = pick(dbAi.openrouter?.baseUrl, process.env.OPEN_ROUTER_BASE_URL, 'https://openrouter.ai/api/v1');
+  const openRouterModel = pick(dbAi.openrouter?.model, model, process.env.OPEN_ROUTER_MODEL);
   const openRouterEmbeddingModel = pick(process.env.OPEN_ROUTER_EMBEDDING_MODEL, 'text-embedding-3-small');
 
-  const gatewayKey = pick(process.env.AI_GATEWAY_API_KEY);
-  const gatewayBaseUrl = pick(process.env.AI_GATEWAY_BASE_URL);
-  const gatewayModel = pick(model, process.env.AI_GATEWAY_MODEL);
-  const gatewayEmbeddingModel = pick(process.env.AI_GATEWAY_EMBEDDING_MODEL, 'text-embedding-3-small');
+  const kimiKey = pick(dbAi.kimi?.apiKey, process.env.KIMI_API_KEY);
+  const kimiBaseUrl = pick(dbAi.kimi?.baseUrl, process.env.KIMI_BASE_URL, 'https://api.moonshot.cn/v1');
+  const kimiModel = pick(dbAi.kimi?.model, model, process.env.KIMI_MODEL, 'moonshot-v1-8k');
+  const kimiEmbeddingModel = pick(process.env.KIMI_EMBEDDING_MODEL, 'text-embedding-3-small');
+
+  const minimaxKey = pick(dbAi.minimax?.apiKey, process.env.MINIMAX_API_KEY);
+  const minimaxBaseUrl = pick(dbAi.minimax?.baseUrl, process.env.MINIMAX_BASE_URL, 'https://api.minimax.chat/v1');
+  const minimaxModel = pick(dbAi.minimax?.model, model, process.env.MINIMAX_MODEL, 'abab6.5s-chat');
+  const minimaxEmbeddingModel = pick(process.env.MINIMAX_EMBEDDING_MODEL, 'embo-01');
+
+  const glmKey = pick(dbAi.glm?.apiKey, process.env.GLM_API_KEY);
+  const glmBaseUrl = pick(dbAi.glm?.baseUrl, process.env.GLM_BASE_URL, 'https://open.bigmodel.cn/api/paas/v4');
+  const glmModel = pick(dbAi.glm?.model, model, process.env.GLM_MODEL, 'glm-4-flash');
+  const glmEmbeddingModel = pick(process.env.GLM_EMBEDDING_MODEL, 'embedding-3');
+
+  const nvidiaKey = pick(dbAi.nvidia?.apiKey, process.env.NVIDIA_API_KEY);
+  const nvidiaBaseUrl = pick(dbAi.nvidia?.baseUrl, process.env.NVIDIA_BASE_URL, 'https://integrate.api.nvidia.com/v1');
+  const nvidiaModel = pick(dbAi.nvidia?.model, model, process.env.NVIDIA_MODEL, 'meta/llama-3.1-405b-instruct');
+  const nvidiaEmbeddingModel = pick(process.env.NVIDIA_EMBEDDING_MODEL, 'nvidia/nv-embedqa-e5-v5');
 
   const inferredProvider =
     provider ||
@@ -209,8 +310,14 @@ export const resolveAiConfig = () => {
       ? 'anthropic'
       : openRouterKey
       ? 'openrouter'
-      : gatewayKey
-      ? 'vercelai_gateway'
+      : kimiKey
+      ? 'kimi'
+      : minimaxKey
+      ? 'minimax'
+      : glmKey
+      ? 'glm'
+      : nvidiaKey
+      ? 'nvidia'
       : '');
 
   return {
@@ -220,7 +327,10 @@ export const resolveAiConfig = () => {
     openai_compatible: { apiKey: compatibleKey, baseUrl: compatibleBaseUrl, model: compatibleModel, embeddingModel: compatibleEmbeddingModel },
     anthropic: { apiKey: anthropicKey, model: anthropicModel },
     openrouter: { apiKey: openRouterKey, baseUrl: openRouterBaseUrl, model: openRouterModel, embeddingModel: openRouterEmbeddingModel },
-    vercelai_gateway: { apiKey: gatewayKey, baseUrl: gatewayBaseUrl, model: gatewayModel, embeddingModel: gatewayEmbeddingModel },
+    kimi: { apiKey: kimiKey, baseUrl: kimiBaseUrl, model: kimiModel, embeddingModel: kimiEmbeddingModel },
+    minimax: { apiKey: minimaxKey, baseUrl: minimaxBaseUrl, model: minimaxModel, embeddingModel: minimaxEmbeddingModel },
+    glm: { apiKey: glmKey, baseUrl: glmBaseUrl, model: glmModel, embeddingModel: glmEmbeddingModel },
+    nvidia: { apiKey: nvidiaKey, baseUrl: nvidiaBaseUrl, model: nvidiaModel, embeddingModel: nvidiaEmbeddingModel },
   };
 };
 
@@ -252,7 +362,7 @@ const openAiCompatibleGenerateEmbedding = async ({ apiKey, baseUrl, model, text 
 };
 
 export const generateEmbedding = async ({ text }) => {
-  const cfg = resolveAiConfig();
+  const cfg = await resolveAiConfig();
   const provider = String(cfg.provider || '').toLowerCase();
 
   if (provider === 'gemini') {
@@ -285,12 +395,42 @@ export const generateEmbedding = async ({ text }) => {
     });
   }
 
-  if (provider === 'vercelai_gateway') {
-     if (!cfg.vercelai_gateway.apiKey) throw new HttpError(501, 'AI_NOT_CONFIGURED', '未配置 AI_GATEWAY_API_KEY');
-     return openAiCompatibleGenerateEmbedding({ 
-      apiKey: cfg.vercelai_gateway.apiKey, 
-      baseUrl: cfg.vercelai_gateway.baseUrl, 
-      model: cfg.vercelai_gateway.embeddingModel, 
+  if (provider === 'kimi') {
+    if (!cfg.kimi.apiKey) throw new HttpError(501, 'AI_NOT_CONFIGURED', '未配置 KIMI_API_KEY');
+    return openAiCompatibleGenerateEmbedding({ 
+      apiKey: cfg.kimi.apiKey, 
+      baseUrl: cfg.kimi.baseUrl, 
+      model: cfg.kimi.embeddingModel, 
+      text 
+    });
+  }
+
+  if (provider === 'minimax') {
+    if (!cfg.minimax.apiKey) throw new HttpError(501, 'AI_NOT_CONFIGURED', '未配置 MINIMAX_API_KEY');
+    return openAiCompatibleGenerateEmbedding({ 
+      apiKey: cfg.minimax.apiKey, 
+      baseUrl: cfg.minimax.baseUrl, 
+      model: cfg.minimax.embeddingModel, 
+      text 
+    });
+  }
+
+  if (provider === 'glm') {
+    if (!cfg.glm.apiKey) throw new HttpError(501, 'AI_NOT_CONFIGURED', '未配置 GLM_API_KEY');
+    return openAiCompatibleGenerateEmbedding({ 
+      apiKey: cfg.glm.apiKey, 
+      baseUrl: cfg.glm.baseUrl, 
+      model: cfg.glm.embeddingModel, 
+      text 
+    });
+  }
+
+  if (provider === 'nvidia') {
+    if (!cfg.nvidia.apiKey) throw new HttpError(501, 'AI_NOT_CONFIGURED', '未配置 NVIDIA_API_KEY');
+    return openAiCompatibleGenerateEmbedding({ 
+      apiKey: cfg.nvidia.apiKey, 
+      baseUrl: cfg.nvidia.baseUrl, 
+      model: cfg.nvidia.embeddingModel, 
       text 
     });
   }
@@ -299,7 +439,7 @@ export const generateEmbedding = async ({ text }) => {
 };
 
 export const fillFromImage = async ({ imageBase64, mimeType, locationHint }) => {
-  const cfg = resolveAiConfig();
+  const cfg = await resolveAiConfig();
   const provider = String(cfg.provider || '').toLowerCase();
 
   if (provider === 'gemini') {
@@ -344,11 +484,52 @@ export const fillFromImage = async ({ imageBase64, mimeType, locationHint }) => 
     });
   }
 
-  if (provider === 'vercelai_gateway') {
-    if (!cfg.vercelai_gateway.apiKey) throw new HttpError(501, 'AI_NOT_CONFIGURED', '未配置 AI_GATEWAY_API_KEY');
-    if (!cfg.vercelai_gateway.baseUrl) throw new HttpError(501, 'AI_NOT_CONFIGURED', '未配置 AI_GATEWAY_BASE_URL');
-    if (!cfg.vercelai_gateway.model) throw new HttpError(501, 'AI_NOT_CONFIGURED', '未配置 AI_GATEWAY_MODEL 或 AI_MODEL');
-    return openAiCompatibleFill({ apiKey: cfg.vercelai_gateway.apiKey, baseUrl: cfg.vercelai_gateway.baseUrl, model: cfg.vercelai_gateway.model, imageBase64, mimeType, locationHint });
+  if (provider === 'kimi') {
+    if (!cfg.kimi.apiKey) throw new HttpError(501, 'AI_NOT_CONFIGURED', '未配置 KIMI_API_KEY');
+    return openAiCompatibleFill({
+      apiKey: cfg.kimi.apiKey,
+      baseUrl: cfg.kimi.baseUrl,
+      model: cfg.kimi.model,
+      imageBase64,
+      mimeType,
+      locationHint,
+    });
+  }
+
+  if (provider === 'minimax') {
+    if (!cfg.minimax.apiKey) throw new HttpError(501, 'AI_NOT_CONFIGURED', '未配置 MINIMAX_API_KEY');
+    return openAiCompatibleFill({
+      apiKey: cfg.minimax.apiKey,
+      baseUrl: cfg.minimax.baseUrl,
+      model: cfg.minimax.model,
+      imageBase64,
+      mimeType,
+      locationHint,
+    });
+  }
+
+  if (provider === 'glm') {
+    if (!cfg.glm.apiKey) throw new HttpError(501, 'AI_NOT_CONFIGURED', '未配置 GLM_API_KEY');
+    return openAiCompatibleFill({
+      apiKey: cfg.glm.apiKey,
+      baseUrl: cfg.glm.baseUrl,
+      model: cfg.glm.model,
+      imageBase64,
+      mimeType,
+      locationHint,
+    });
+  }
+
+  if (provider === 'nvidia') {
+    if (!cfg.nvidia.apiKey) throw new HttpError(501, 'AI_NOT_CONFIGURED', '未配置 NVIDIA_API_KEY');
+    return openAiCompatibleFill({
+      apiKey: cfg.nvidia.apiKey,
+      baseUrl: cfg.nvidia.baseUrl,
+      model: cfg.nvidia.model,
+      imageBase64,
+      mimeType,
+      locationHint,
+    });
   }
 
   if (provider === 'anthropic') {
@@ -366,7 +547,7 @@ const extractText = (maybe) => {
 };
 
 export const translateText = async ({ text, targetLang = 'Chinese' }) => {
-  const cfg = resolveAiConfig();
+  const cfg = await resolveAiConfig();
   const provider = String(cfg.provider || '').toLowerCase();
 
   const prompt = `
@@ -388,7 +569,7 @@ ${text}
     return extractText(result?.response?.text?.());
   }
 
-  if (provider === 'openai' || provider === 'openai_compatible' || provider === 'openrouter' || provider === 'vercelai_gateway') {
+  if (['openai', 'openai_compatible', 'openrouter', 'kimi', 'minimax', 'glm', 'nvidia'].includes(provider)) {
     let apiKey, baseUrl, model;
     
     if (provider === 'openai') {
@@ -397,8 +578,14 @@ ${text}
       ({ apiKey, baseUrl, model } = cfg.openai_compatible);
     } else if (provider === 'openrouter') {
       ({ apiKey, baseUrl, model } = cfg.openrouter);
-    } else {
-      ({ apiKey, baseUrl, model } = cfg.vercelai_gateway);
+    } else if (provider === 'kimi') {
+      ({ apiKey, baseUrl, model } = cfg.kimi);
+    } else if (provider === 'minimax') {
+      ({ apiKey, baseUrl, model } = cfg.minimax);
+    } else if (provider === 'glm') {
+      ({ apiKey, baseUrl, model } = cfg.glm);
+    } else if (provider === 'nvidia') {
+      ({ apiKey, baseUrl, model } = cfg.nvidia);
     }
 
     if (!apiKey) throw new HttpError(501, 'AI_NOT_CONFIGURED', `未配置 API Key for ${provider}`);
@@ -440,7 +627,7 @@ ${text}
 };
 
 export const critiqueFromImage = async ({ imageBase64, mimeType }) => {
-  const cfg = resolveAiConfig();
+  const cfg = await resolveAiConfig();
   const provider = String(cfg.provider || '').toLowerCase();
 
   const prompt = `
@@ -501,16 +688,31 @@ export const critiqueFromImage = async ({ imageBase64, mimeType }) => {
     return extractText(json?.choices?.[0]?.message?.content);
   }
 
-  if (provider === 'vercelai_gateway') {
-    if (!cfg.vercelai_gateway.apiKey) throw new HttpError(501, 'AI_NOT_CONFIGURED', '未配置 AI_GATEWAY_API_KEY');
-    if (!cfg.vercelai_gateway.baseUrl) throw new HttpError(501, 'AI_NOT_CONFIGURED', '未配置 AI_GATEWAY_BASE_URL');
-    if (!cfg.vercelai_gateway.model) throw new HttpError(501, 'AI_NOT_CONFIGURED', '未配置 AI_GATEWAY_MODEL 或 AI_MODEL');
-    const url = `${String(cfg.vercelai_gateway.baseUrl).replace(/\/+$/, '')}/chat/completions`;
+  if (['kimi', 'minimax', 'glm', 'nvidia'].includes(provider)) {
+    let apiKey, baseUrl, model;
+    if (provider === 'kimi') ({ apiKey, baseUrl, model } = cfg.kimi);
+    else if (provider === 'minimax') ({ apiKey, baseUrl, model } = cfg.minimax);
+    else if (provider === 'glm') ({ apiKey, baseUrl, model } = cfg.glm);
+    else ({ apiKey, baseUrl, model } = cfg.nvidia);
+
+    if (!apiKey) throw new HttpError(501, 'AI_NOT_CONFIGURED', `未配置 ${provider} API Key`);
+    
+    const url = `${String(baseUrl).replace(/\/+$/, '')}/chat/completions`;
     const dataUrl = `data:${String(mimeType || 'image/jpeg')};base64,${imageBase64}`;
+    
     const json = await postJson(url, {
-      headers: { authorization: `Bearer ${cfg.vercelai_gateway.apiKey}` },
-      body: { model: cfg.vercelai_gateway.model, messages: [{ role: 'user', content: [{ type: 'text', text: prompt }, { type: 'image_url', image_url: { url: dataUrl } }] }] } },
-    );
+      headers: { authorization: `Bearer ${apiKey}` },
+      body: { 
+        model, 
+        messages: [{ 
+          role: 'user', 
+          content: [
+            { type: 'text', text: prompt }, 
+            { type: 'image_url', image_url: { url: dataUrl } }
+          ] 
+        }] 
+      },
+    });
     return extractText(json?.choices?.[0]?.message?.content);
   }
 
