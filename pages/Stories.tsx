@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Calendar, User, ArrowRight, BookOpen, Clock, Tag } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
@@ -22,6 +22,12 @@ type ApiPhoto = {
     user?: { id: string; name?: string; avatar?: string };
     viewsCount: number;
     likesCount: number;
+};
+
+type Category = {
+    value: string;
+    label: string;
+    icon?: string;
 };
 
 type PageResponse<T> = {
@@ -73,6 +79,22 @@ export const Stories: React.FC = () => {
         },
     });
 
+    const { data: categories = [] } = useQuery<Category[]>({
+        queryKey: ['categories'],
+        queryFn: async () => {
+            const res = await api.get<Category[]>('/categories');
+            return Array.isArray(res) ? res : (res as any).data || [];
+        },
+        staleTime: 1000 * 60 * 60, // 1 hour
+    });
+
+    const categoryMap = useMemo(() => {
+        return categories.reduce((acc, cat) => {
+            acc[cat.value] = cat.label;
+            return acc;
+        }, {} as Record<string, string>);
+    }, [categories]);
+
     const handlePageChange = (newPage: number) => {
         setSearchParams({ page: String(newPage) });
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -122,7 +144,7 @@ export const Stories: React.FC = () => {
                                 />
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                                 <div className="absolute top-4 right-4 bg-white/90 dark:bg-black/60 backdrop-blur-md px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider text-gray-900 dark:text-white shadow-sm z-10">
-                                    {photo.category}
+                                    {categoryMap[photo.category] || photo.category}
                                 </div>
                             </Link>
 
