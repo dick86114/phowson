@@ -11,7 +11,7 @@ import { createPhotoObjectKey, createVariantObjectKey, deleteObjectByUrl, isObje
 import crypto from 'node:crypto';
 import { generatePhotoVariants } from '../lib/image_variants.mjs';
 import { getPhotoImage } from '../lib/photo_image.mjs';
-import { critiqueFromImage, fillFromImage } from '../lib/ai_provider.mjs';
+import { critiqueFromImage, fillFromImage, inferSupplementalFromImage } from '../lib/ai_provider.mjs';
 import sharp from 'sharp';
 import { bumpUploadActivity } from '../db/activity_logs.mjs';
 import { checkChallengesOnUpload } from '../db/challenges.mjs';
@@ -743,14 +743,21 @@ export const registerPhotoRoutes = async (app) => {
     preHandler: requireAdmin(),
     handler: async (req) => {
       const id = String(req.params.id);
+      const photoRes = await pool.query('select title from photos where id=$1', [id]);
+      const title = photoRes.rows[0]?.title || '';
+
       const { buffer, mime } = await getPhotoImage(id);
       let locationHint = null;
+      let hasLocation = false;
+      let hasDate = false;
       try {
         const exif = await exifr.parse(buffer);
         if (exif && typeof exif.latitude === 'number' && typeof exif.longitude === 'number') {
           const loc = await reverseGeocode(exif.latitude, exif.longitude);
           if (loc) locationHint = loc;
+          if (loc) hasLocation = true;
         }
+        if (exif?.DateTimeOriginal) hasDate = true;
       } catch (e) {
         req.log.warn({ err: e }, 'Failed to extract/geocode gps from photo image');
       }
@@ -758,8 +765,21 @@ export const registerPhotoRoutes = async (app) => {
         .resize({ width: 1024, height: 1024, fit: 'inside', withoutEnlargement: true })
         .jpeg({ quality: 82 })
         .toBuffer();
-      const data = await fillFromImage({ imageBase64: normalized.toString('base64'), mimeType: 'image/jpeg', locationHint: locationHint || undefined });
-      return data;
+      const data = await fillFromImage({ 
+        imageBase64: normalized.toString('base64'), 
+        mimeType: 'image/jpeg', 
+        locationHint: locationHint || undefined,
+        filename: title 
+      });
+      const { supplemental } = await inferSupplementalFromImage({
+        imageBase64: normalized.toString('base64'),
+        mimeType: 'image/jpeg',
+        filename: title,
+        tzOffsetMinutes: req.body?.tzOffsetMinutes,
+        hasLocation,
+        hasDate,
+      });
+      return { ...data, supplemental };
     },
   });
 

@@ -36,3 +36,5 @@
 - 后端数据一致性规范：当存在多个字段表示同一逻辑状态时（如 `status` 枚举与 `disabled_at` 时间戳），必须在更新时保持原子性同步；引入此类新字段时必须执行数据迁移以修复历史数据，防止筛选失效。
 - 前端 API 错误处理规范：必须统一使用 `err?.data?.message` 获取后端返回的错误信息（因为 `api.ts` 已封装响应），禁止使用 `err.response?.data?.message`，并应优先使用 Toast 通知而非 Modal 弹窗展示错误。
 - 后端批量操作 API 规范：应使用 POST /resource/batch 接口，请求体结构统一为 `{ ids: [], action: 'string', payload: {} }`，并必须包含权限校验与自操作防护。
+- 列表空状态（Empty State）布局规范：必须使用 Flex 布局垂直居中（`flex flex-col items-center justify-center`），并设置最小高度（如 `min-h-[50vh]`）以防止内容塌陷，同时配备图标与引导文字。
+- 前端操作（如AI分析、上传）失败时，必须在界面显著位置（如警告框或Toast）展示具体错误信息，禁止仅在控制台输出错误。

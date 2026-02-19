@@ -659,7 +659,7 @@ export const Home: React.FC = () => {
             )}
 
             {/* Filter Bar - Desktop Only */}
-            <section className="hidden md:block glass-nav transition-colors duration-300 relative z-40">
+            <section className={`hidden md:block glass-nav transition-colors duration-300 relative z-40 ${!featuredPhoto && !urlSearchQuery ? 'mt-16' : ''}`}>
                 <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 py-4">
                     <div className="flex flex-col md:flex-row items-center justify-between gap-4">
                         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar w-full md:w-auto pb-2 md:pb-0">
@@ -745,16 +745,16 @@ export const Home: React.FC = () => {
                     }))}
                 />
                 {!isLoading && sortedPhotos.length === 0 && (
-                     <div className="text-center py-20">
-                        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 dark:bg-surface-dark mb-4">
-                            <ImageIcon className="w-8 h-8 text-gray-400 dark:text-gray-500" />
+                     <div className="flex flex-col items-center justify-center min-h-[50vh] py-12">
+                        <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gray-100 dark:bg-surface-dark mb-6 p-4">
+                            <ImageIcon className="w-10 h-10 text-gray-400 dark:text-gray-500" />
                         </div>
-                        <h3 className="text-lg font-medium text-gray-900 dark:text-white">暂无照片</h3>
-                        <p className="text-gray-500 dark:text-gray-400 mt-2">
+                        <h3 className="text-xl font-medium text-gray-900 dark:text-white mb-2">暂无照片</h3>
+                        <p className="text-gray-500 dark:text-gray-400 text-center max-w-md mb-6">
                             {urlSearchQuery ? `未找到与 "${urlSearchQuery}" 相关的结果。` : '该分类下还没有上传照片。'}
                         </p>
                         {urlSearchQuery && (
-                            <button onClick={clearSearch} className="mt-4 text-primary hover:underline text-sm">
+                            <button onClick={clearSearch} className="px-4 py-2 bg-primary/10 text-primary rounded-full hover:bg-primary/20 transition-colors">
                                 返回查看全部
                             </button>
                         )}

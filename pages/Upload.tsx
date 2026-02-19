@@ -6,7 +6,7 @@ import {
     Image as ImageIcon, Check, Loader2, ArrowLeft,
     Maximize2, Sliders, Save, Send, Sparkles, Tag,
     Map as MapIcon, Trash2, RefreshCw, Eye, EyeOff,
-    HelpCircle, Mountain, User, Building, Plane, Film, FileText
+    HelpCircle, Mountain, User, Building, Plane, Film, FileText, AlertCircle, RotateCcw, ScanLine
 } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
@@ -16,7 +16,7 @@ import exifr from 'exifr';
 import DatePicker from '../components/DatePicker';
 import { getPhotoUrl } from '../utils/helpers';
 import { FormSelect } from '../components/admin/FormSelect';
-import { LocationPicker } from '../components/LocationPicker'; // Import LocationPicker
+import { LocationPicker } from '../components/LocationPicker';
 
 // Interface for Technical Details
 interface ExifData {
@@ -29,6 +29,17 @@ interface ExifData {
     lat: number | null;
     lng: number | null;
 }
+
+type SupplementalItem = {
+    field: 'location' | 'date';
+    value: string;
+    source: 'filename' | 'watermark';
+    prevValue: string;
+    lat?: number | null;
+    lng?: number | null;
+    prevLat?: number | null;
+    prevLng?: number | null;
+};
 
 export const Upload = () => {
     const { user } = useAuth();
@@ -54,8 +65,10 @@ export const Upload = () => {
     const [isUploading, setIsUploading] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const [aiError, setAiError] = useState<string | null>(null);
     const [showMap, setShowMap] = useState(false);
     const [fileMeta, setFileMeta] = useState<{ width: number | null, height: number | null, bytes: number }>({ width: null, height: null, bytes: 0 });
+    const [supplementalInfo, setSupplementalInfo] = useState<SupplementalItem[]>([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const toDateOnly = (value: any) => {
@@ -237,6 +250,7 @@ export const Upload = () => {
     const handleFile = async (file: File) => {
         setSelectedFile(file);
         setFileMeta({ width: null, height: null, bytes: file.size });
+        setSupplementalInfo([]);
         
         // Auto set title
         const base = String(file.name || '').split('/').pop() || '';
@@ -302,6 +316,7 @@ export const Upload = () => {
         setLocation('');
         setDate('');
         setExif({ camera: '', lens: '', aperture: '', shutterSpeed: '', iso: '', focalLength: '', lat: null, lng: null });
+        setSupplementalInfo([]);
     };
 
     // Tag Handlers
@@ -317,9 +332,48 @@ export const Upload = () => {
     };
     const removeTag = (tagToRemove: string) => setTags(tags.filter(t => t !== tagToRemove));
 
-    // Handle AI Analysis
+    const resizeImage = (file: File, maxDim: number = 1024): Promise<string> => {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => {
+                    let width = img.width;
+                    let height = img.height;
+                    
+                    if (width > maxDim || height > maxDim) {
+                        if (width > height) {
+                            height = Math.round((height * maxDim) / width);
+                            width = maxDim;
+                        } else {
+                            width = Math.round((width * maxDim) / height);
+                            height = maxDim;
+                        }
+                    }
+
+                    const canvas = document.createElement('canvas');
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    if (!ctx) {
+                        reject(new Error('Failed to get canvas context'));
+                        return;
+                    }
+                    ctx.drawImage(img, 0, 0, width, height);
+                    resolve(canvas.toDataURL('image/jpeg', 0.8).split(',')[1]);
+                };
+                img.onerror = reject;
+                img.src = event.target?.result as string;
+            };
+            reader.onerror = reject;
+        });
+    };
+
     const handleAIAnalysis = async () => {
         if (isAnalyzing) return;
+        setAiError(null);
+        setSupplementalInfo([]);
         if (!user || user.role !== 'admin') {
             toast.error('AI 功能仅管理员可用');
             return;
@@ -331,13 +385,26 @@ export const Upload = () => {
 
         setIsAnalyzing(true);
         try {
+            let imageBase64 = '';
+            let mimeType = 'image/jpeg';
+            let filename = '';
+            const tzOffsetMinutes = new Date().getTimezoneOffset();
+
+            if (selectedFile) {
+                imageBase64 = await resizeImage(selectedFile, 1024);
+                mimeType = 'image/jpeg';
+                filename = selectedFile.name;
+            }
+
             const res = selectedFile
                 ? await api.post('/ai/fill', {
-                    imageBase64: await fileToBase64(selectedFile),
-                    mimeType: selectedFile.type,
-                    locationHint: location
+                    imageBase64,
+                    mimeType,
+                    locationHint: location,
+                    filename,
+                    tzOffsetMinutes
                 })
-                : await api.post(`/photos/${id}/ai-fill`);
+                : await api.post(`/photos/${id}/ai-fill`, { tzOffsetMinutes });
 
             const data = res.data as any;
             if (data) {
@@ -351,14 +418,78 @@ export const Upload = () => {
                     const match = categories.find(c => c.label === data.category || c.value === data.category);
                     if (match) setCategory(match.value ? match.value : 'uncategorized');
                 }
+                const supplementalItems: SupplementalItem[] = [];
+                const supplemental = data?.supplemental || {};
+                if (!location && supplemental?.location?.value) {
+                    const nextLocation = String(supplemental.location.value || '').trim();
+                    if (nextLocation) {
+                        const prevLat = exif.lat;
+                        const prevLng = exif.lng;
+                        setLocation(nextLocation);
+                        const lat = supplemental.location.lat;
+                        const lng = supplemental.location.lng;
+                        if (typeof lat === 'number' && typeof lng === 'number' && exif.lat == null && exif.lng == null) {
+                            setExif(prev => ({ ...prev, lat, lng }));
+                        }
+                        supplementalItems.push({
+                            field: 'location',
+                            value: nextLocation,
+                            source: supplemental.location.source === 'watermark' ? 'watermark' : 'filename',
+                            prevValue: location,
+                            lat: typeof lat === 'number' ? lat : null,
+                            lng: typeof lng === 'number' ? lng : null,
+                            prevLat,
+                            prevLng
+                        });
+                    }
+                }
+                if (!date && supplemental?.dateTime?.dateOnly) {
+                    const nextDate = String(supplemental.dateTime.dateOnly || '').trim();
+                    if (nextDate) {
+                        setDate(nextDate);
+                        supplementalItems.push({
+                            field: 'date',
+                            value: nextDate,
+                            source: supplemental.dateTime.source === 'watermark' ? 'watermark' : 'filename',
+                            prevValue: date
+                        });
+                    }
+                }
+                if (supplementalItems.length > 0) setSupplementalInfo(supplementalItems);
                 toast.success('AI 分析完成');
             }
         } catch (err: any) {
             console.error('AI Analysis failed', err);
-            toast.error(String(err?.data?.message || err?.message || 'AI 分析失败'));
+            const status = Number(err?.status);
+            const code = typeof err?.data?.code === 'string' ? String(err.data.code) : '';
+            const requestId = typeof err?.data?.requestId === 'string' ? String(err.data.requestId) : '';
+            const detail = String(err?.data?.message || err?.serverMessage || err?.message || '未知错误');
+            const parts: string[] = [];
+            if (Number.isFinite(status) && status > 0) parts.push(`[${status}]`);
+            if (code) parts.push(code);
+            if (detail) parts.push(detail);
+            if (requestId) parts.push(`requestId: ${requestId}`);
+            
+            const errorMsg = parts.join(' ');
+            setAiError(errorMsg);
+            toast.error(`AI 分析失败：${errorMsg}`);
         } finally {
             setIsAnalyzing(false);
         }
+    };
+
+    const handleUndoSupplemental = (item: SupplementalItem) => {
+        if (item.field === 'location') {
+            setLocation(item.prevValue);
+            setExif(prev => ({
+                ...prev,
+                lat: item.prevLat ?? null,
+                lng: item.prevLng ?? null
+            }));
+        } else {
+            setDate(item.prevValue);
+        }
+        setSupplementalInfo(prev => prev.filter(s => s.field !== item.field));
     };
 
     // Submit Handler
@@ -455,29 +586,36 @@ export const Upload = () => {
                     {previewUrl ? (
                         <>
                             {/* Image Actions: AI, Replace, Remove */}
-                            <div className="absolute top-4 right-4 flex gap-2 z-20">
-                                <button 
-                                    onClick={handleAIAnalysis}
-                                    disabled={isAnalyzing}
-                                    className="glass-panel px-4 py-2 rounded-2xl text-sm font-bold flex items-center gap-2 hover:bg-white/80 transition-all shadow-sm text-primary disabled:opacity-70 disabled:cursor-not-allowed"
-                                >
-                                    {isAnalyzing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                                    AI 智能分析
-                                </button>
-                                <button 
-                                    onClick={() => fileInputRef.current?.click()}
-                                    className="glass-panel p-2 rounded-2xl text-gray-600 hover:text-primary hover:bg-white/80 transition-all shadow-sm"
-                                    title="更换照片"
-                                >
-                                    <RefreshCw className="w-5 h-5" />
-                                </button>
-                                <button 
-                                    onClick={handleRemovePhoto}
-                                    className="glass-panel p-2 rounded-2xl text-gray-600 hover:text-red-500 hover:bg-white/80 transition-all shadow-sm"
-                                    title="移除照片"
-                                >
-                                    <Trash2 className="w-5 h-5" />
-                                </button>
+                            <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
+                                <span className="hidden sm:inline-block text-[10px] font-medium text-gray-500 dark:text-gray-400 bg-white/80 dark:bg-black/60 backdrop-blur-md px-2 py-1 rounded-full shadow-sm border border-white/20 dark:border-white/10 animate-in fade-in slide-in-from-right-4 duration-500">
+                                    已保留 EXIF 信息，仅补全缺失字段
+                                </span>
+                                <div className="flex items-center gap-1 bg-white/50 dark:bg-black/20 backdrop-blur-sm p-1 rounded-2xl border border-white/20 dark:border-white/10 shadow-sm">
+                                    <button 
+                                        onClick={handleAIAnalysis}
+                                        disabled={isAnalyzing}
+                                        className="px-3 py-1.5 rounded-xl text-sm font-bold flex items-center gap-2 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-primary transition-all shadow-sm disabled:opacity-70 disabled:cursor-not-allowed"
+                                    >
+                                        {isAnalyzing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                                        <span className="hidden sm:inline">AI 智能分析</span>
+                                        <span className="sm:hidden">AI</span>
+                                    </button>
+                                    <div className="w-px h-4 bg-gray-300 dark:bg-gray-700 mx-1" />
+                                    <button 
+                                        onClick={() => fileInputRef.current?.click()}
+                                        className="p-1.5 rounded-xl text-gray-600 dark:text-gray-300 hover:text-primary hover:bg-white dark:hover:bg-gray-700 transition-all"
+                                        title="更换照片"
+                                    >
+                                        <RefreshCw className="w-4 h-4" />
+                                    </button>
+                                    <button 
+                                        onClick={handleRemovePhoto}
+                                        className="p-1.5 rounded-xl text-gray-600 dark:text-gray-300 hover:text-red-500 hover:bg-white dark:hover:bg-gray-700 transition-all"
+                                        title="移除照片"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
+                                </div>
                             </div>
 
                             <img 
@@ -525,6 +663,22 @@ export const Upload = () => {
                             {isEditMode ? '更新照片信息' : '分享你的摄影作品'}
                         </p>
                     </div>
+
+                    {aiError && (
+                        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl p-4 flex items-start gap-3 animate-in fade-in slide-in-from-top-2">
+                            <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
+                            <div className="flex-1">
+                                <h3 className="text-sm font-bold text-red-800 dark:text-red-300">AI 分析遇到问题</h3>
+                                <p className="text-sm text-red-600 dark:text-red-400 mt-1 break-all">{aiError}</p>
+                            </div>
+                            <button 
+                                onClick={() => setAiError(null)}
+                                className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-200 transition-colors"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+                    )}
                     
                     {/* General Information */}
                     <section className="space-y-6">
@@ -613,6 +767,40 @@ export const Upload = () => {
                             </div>
                         </div>
                     </section>
+
+                    {supplementalInfo.length > 0 && (
+                        <section className="space-y-4">
+                            <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                                <Sparkles className="w-5 h-5 text-blue-500" />
+                                补充信息
+                            </h2>
+                            <div className="space-y-3 bg-blue-50/30 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30 rounded-2xl p-4">
+                                {supplementalInfo.map((item) => (
+                                    <div key={item.field} className="group flex items-center justify-between gap-4 p-2 hover:bg-white/50 dark:hover:bg-white/5 rounded-xl transition-all">
+                                        <div className="space-y-1 flex-1">
+                                            <div className="flex items-center gap-2 text-sm font-bold text-blue-900 dark:text-blue-100">
+                                                {item.field === 'location' ? <MapPin className="w-4 h-4 text-blue-500" /> : <Calendar className="w-4 h-4 text-blue-500" />}
+                                                {item.field === 'location' ? 'AI 补全地点' : 'AI 补全日期'}
+                                            </div>
+                                            <div className="text-sm text-gray-700 dark:text-gray-300 break-all pl-6 font-medium">{item.value}</div>
+                                            <div className="flex items-center gap-1.5 text-xs text-blue-600/70 dark:text-blue-400/70 pl-6">
+                                                {item.source === 'filename' ? <FileText className="w-3 h-3" /> : <ScanLine className="w-3 h-3" />}
+                                                {item.source === 'filename' ? '来自文件名解析' : '来自水印识别'}
+                                            </div>
+                                        </div>
+                                        <button
+                                            onClick={() => handleUndoSupplemental(item)}
+                                            className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-blue-600 hover:text-red-600 hover:bg-red-50 dark:text-blue-400 dark:hover:text-red-300 dark:hover:bg-red-900/20 transition-all opacity-70 group-hover:opacity-100 bg-white/50 dark:bg-white/5 border border-transparent hover:border-red-200 dark:hover:border-red-800"
+                                            title="撤销此更改"
+                                        >
+                                            <RotateCcw className="w-3.5 h-3.5" />
+                                            撤销
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        </section>
+                    )}
 
                     {/* EXIF Data */}
                     <section className="space-y-6">

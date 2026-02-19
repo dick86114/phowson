@@ -75,6 +75,37 @@ const request = async <T,>(method: HttpMethod, url: string, body?: unknown): Pro
     const err = new Error(`请求失败: ${method} ${url}`) as any;
     err.status = res.status;
     err.data = data;
+
+    if (typeof data === 'object' && data !== null) {
+      const code = typeof (data as any).code === 'string' ? String((data as any).code) : '';
+      const message = typeof (data as any).message === 'string' ? String((data as any).message) : '';
+      const requestId = typeof (data as any).requestId === 'string' ? String((data as any).requestId) : '';
+      const upstreamStatus = Number((data as any).upstreamStatus);
+
+      if (code) err.code = code;
+      if (requestId) err.requestId = requestId;
+      if (Number.isFinite(upstreamStatus) && upstreamStatus >= 100) err.upstreamStatus = upstreamStatus;
+
+      const parts: string[] = [];
+      parts.push(`[${res.status}]`);
+      if (code) parts.push(code);
+      if (message) parts.push(message);
+      if (!message) parts.push('请求失败');
+      if (Number.isFinite(upstreamStatus) && upstreamStatus >= 100) parts.push(`upstreamStatus: ${upstreamStatus}`);
+      if (requestId) parts.push(`requestId: ${requestId}`);
+      err.serverMessage = parts.join(' ');
+    } else if (typeof data === 'string') {
+      const s = data.trim();
+      const looksLikeHtml = /^<!doctype html/i.test(s) || /^<html/i.test(s);
+      err.serverMessage = looksLikeHtml ? `[${res.status}] 网关返回了非 JSON 错误页面` : `[${res.status}] ${s.slice(0, 200)}`;
+    } else {
+      err.serverMessage = `[${res.status}] 请求失败`;
+    }
+
+    if (typeof err.serverMessage === 'string' && err.serverMessage) {
+      err.message = err.serverMessage;
+    }
+
     throw err;
   }
 

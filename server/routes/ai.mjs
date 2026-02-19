@@ -1,6 +1,6 @@
 import { badRequest } from '../lib/http_errors.mjs';
 import { requireAdmin } from '../plugins/rbac.mjs';
-import { fillFromImage, resolveAiConfig, fetchRemoteModels } from '../lib/ai_provider.mjs';
+import { fillFromImage, resolveAiConfig, fetchRemoteModels, inferSupplementalFromImage } from '../lib/ai_provider.mjs';
 import exifr from 'exifr';
 import { reverseGeocode } from '../lib/geocoding.mjs';
 
@@ -39,15 +39,19 @@ export const registerAiRoutes = (app) => {
           imageBase64: { type: 'string', minLength: 10 },
           mimeType: { type: 'string' },
           locationHint: { type: 'string' },
+          filename: { type: 'string' },
+          tzOffsetMinutes: { type: 'number' },
         },
       },
     },
     handler: async (req) => {
-      const { imageBase64, mimeType, locationHint } = req.body;
+      const { imageBase64, mimeType, locationHint, filename, tzOffsetMinutes } = req.body;
       const base64 = String(imageBase64 || '').trim();
       if (!base64) throw badRequest('AI_IMAGE_REQUIRED', '缺少图片数据');
 
       let finalHint = locationHint;
+      let hasLocation = !!locationHint;
+      let hasDate = false;
       if (!finalHint) {
         try {
            const buf = Buffer.from(base64, 'base64');
@@ -55,13 +59,24 @@ export const registerAiRoutes = (app) => {
            if (exif && typeof exif.latitude === 'number' && typeof exif.longitude === 'number') {
               const loc = await reverseGeocode(exif.latitude, exif.longitude);
               if (loc) finalHint = loc;
+              if (loc) hasLocation = true;
            }
+           if (exif?.DateTimeOriginal) hasDate = true;
         } catch (e) {
            req.log.warn({ err: e }, 'Failed to extract/geocode gps from AI image');
         }
       }
 
-      return fillFromImage({ imageBase64: base64, mimeType: String(mimeType || 'image/jpeg'), locationHint: finalHint });
+      const data = await fillFromImage({ imageBase64: base64, mimeType: String(mimeType || 'image/jpeg'), locationHint: finalHint, filename });
+      const { supplemental } = await inferSupplementalFromImage({
+        imageBase64: base64,
+        mimeType: String(mimeType || 'image/jpeg'),
+        filename,
+        tzOffsetMinutes,
+        hasLocation,
+        hasDate,
+      });
+      return { ...data, supplemental };
     },
   });
 

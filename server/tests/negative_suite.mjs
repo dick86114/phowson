@@ -204,10 +204,18 @@ const testAiFillEditMode = async () => {
 
   {
     const res = await fetch(`${baseUrl}/photos/${id}/ai-fill`, { method: 'POST', headers: baseHeadersAdminFetch });
-    assert.ok([200, 501].includes(res.status));
+    assert.ok([200, 400, 501, 502].includes(res.status));
     const body = await res.json();
     if (res.status === 501) {
       assert.equal(body.code, 'AI_NOT_CONFIGURED');
+    } else if (res.status === 400) {
+      assert.equal(body.code, 'AI_MODEL_UNSUPPORTED');
+      assert.equal(typeof body.message, 'string');
+      assert.ok(body.message.length > 0);
+    } else if (res.status === 502) {
+      assert.equal(body.code, 'AI_UPSTREAM_ERROR');
+      assert.equal(typeof body.message, 'string');
+      assert.ok(body.message.length > 0);
     } else {
       assert.ok(body && typeof body === 'object');
     }

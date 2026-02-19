@@ -1,0 +1,10 @@
+node_modules
+dist
+dist-oss
+.git
+.env
+.env.local
+backend.log
+frontend.log
+npm-debug.log
+pnpm-debug.log

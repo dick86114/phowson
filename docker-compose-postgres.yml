@@ -1,10 +1,31 @@
 services:
+  phowson-db:
+    container_name: phowson-db
+    image: postgres:16-alpine
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB} || exit 1"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-phowson}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - phowson_db:/var/lib/postgresql/data
+    restart: unless-stopped
+
   phowson-api:
     container_name: phowson-api
     image: ${DOCKER_IMAGE_API:-phowson-api}:${DOCKER_TAG:-latest}
     build:
       context: .
       dockerfile: Dockerfile.api
+    depends_on:
+      phowson-db:
+        condition: service_healthy
     restart: unless-stopped
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-change-me}@${DB_HOST:-phowson-db}:${DB_PORT:-5432}/${POSTGRES_DB:-phowson}}

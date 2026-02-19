@@ -1,6 +1,8 @@
 import { GoogleGenAI } from '@google/genai';
+import crypto from 'node:crypto';
 import { HttpError } from './http_errors.mjs';
 import { pool } from '../db.mjs';
+import { geocodeByName } from './geocoding.mjs';
 
 const pick = (...values) => {
   for (const v of values) {
@@ -8,6 +10,12 @@ const pick = (...values) => {
     if (s) return s;
   }
   return '';
+};
+
+const isGlmVisionModel = (model) => {
+  const m = String(model || '').trim().toLowerCase();
+  if (!m) return false;
+  return m.includes('v') || m.includes('vision');
 };
 
 export const fetchRemoteModels = async ({ provider, apiKey, baseUrl }) => {
@@ -110,15 +118,44 @@ const extractJson = (text) => {
   return null;
 };
 
-const postJson = async (url, { headers, body }) => {
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      ...(headers || {}),
-    },
-    body: JSON.stringify(body ?? {}),
-  });
+const sha256Hex = (buffer) => crypto.createHash('sha256').update(buffer).digest('hex');
+
+const withTimeout = async (promise, timeoutMs) => {
+  const ms = Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : 5000;
+  let timer;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new HttpError(502, 'AI_UPSTREAM_ERROR', `请求超时(${ms}ms)`)), ms);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+};
+
+const postJsonWithTimeout = async (url, { headers, body, timeoutMs }) => {
+  const ms = Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : 5000;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  let res;
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        ...(headers || {}),
+      },
+      body: JSON.stringify(body ?? {}),
+      signal: controller.signal,
+    });
+  } catch (e) {
+    const message = e?.name === 'AbortError' ? `请求超时(${ms}ms)` : String(e?.message || e);
+    throw new HttpError(502, 'AI_UPSTREAM_ERROR', message.slice(0, 400));
+  } finally {
+    clearTimeout(timer);
+  }
 
   const text = await res.text();
   const json = (() => {
@@ -130,7 +167,8 @@ const postJson = async (url, { headers, body }) => {
   })();
 
   if (!res.ok) {
-    const msg = String(json?.error?.message || json?.message || text || 'LLM 请求失败').slice(0, 400);
+    let msg = String(json?.error?.message || json?.message || text || 'LLM 请求失败').slice(0, 400);
+    msg = `[${res.status}] ${msg}`;
     const err = new HttpError(502, 'AI_UPSTREAM_ERROR', msg);
     err.upstreamStatus = res.status;
     throw err;
@@ -139,10 +177,421 @@ const postJson = async (url, { headers, body }) => {
   return json;
 };
 
-const makePrompt = (locationHint) => {
+const formatIsoWithOffset = ({ year, month, day, hour, minute, second }, offsetMinutes) => {
+  const pad = (n) => String(n).padStart(2, '0');
+  const sign = offsetMinutes <= 0 ? '+' : '-';
+  const abs = Math.abs(offsetMinutes);
+  const offH = pad(Math.floor(abs / 60));
+  const offM = pad(abs % 60);
+  return `${year}-${pad(month)}-${pad(day)}T${pad(hour)}:${pad(minute)}:${pad(second)}${sign}${offH}:${offM}`;
+};
+
+export const parseFilenameDate = (filename, offsetMinutes = 0) => {
+  const raw = String(filename || '').trim();
+  if (!raw) return null;
+  const base = raw.replace(/\.[^.]+$/, '');
+  const m = /(\d{4})[-_./ ]?(\d{2})[-_./ ]?(\d{2})(?:[ T_-]?(\d{2})[-_: ]?(\d{2})[-_: ]?(\d{2}))?/.exec(base);
+  if (!m) return null;
+  const year = Number.parseInt(m[1], 10);
+  const month = Number.parseInt(m[2], 10);
+  const day = Number.parseInt(m[3], 10);
+  const hour = Number.parseInt(m[4] || '0', 10);
+  const minute = Number.parseInt(m[5] || '0', 10);
+  const second = Number.parseInt(m[6] || '0', 10);
+  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) return null;
+  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+  if (hour < 0 || hour > 23 || minute < 0 || minute > 59 || second < 0 || second > 59) return null;
+  const iso = formatIsoWithOffset({ year, month, day, hour, minute, second }, offsetMinutes);
+  const dateOnly = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  return { iso, dateOnly };
+};
+
+export const extractFilenameLocationCandidate = (filename) => {
+  const raw = String(filename || '').trim();
+  if (!raw) return '';
+  const base = raw.replace(/\.[^.]+$/, '');
+  
+  // Skip common camera file prefixes/patterns that are definitely not locations
+  const ignorePatterns = [
+    /^IMG_?\d+$/i,
+    /^DSC_?\d+$/i,
+    /^PXL_?\d+$/i,
+    /^Screenshot_?\d+$/i,
+    /^DJI_?\d+$/i,
+    /^VID_?\d+$/i,
+    /^MOV_?\d+$/i,
+    /^SAM_?\d+$/i,
+    /^HUAWEI_?\d+$/i,
+    /^MMExport_?\d+$/i,
+    /^WX_?\d+$/i,
+    /^O1CN01/i, // Taobao/Alibaba images
+    /^TB2/i,
+    /^\d+$/, // Pure numbers
+    /^image[-_]\d+$/i,
+    /^photo[-_]\d+$/i
+  ];
+
+  if (ignorePatterns.some(p => p.test(base))) return '';
+
+  const withoutDate = base.replace(/(\d{4})[-_./ ]?(\d{2})[-_./ ]?(\d{2})(?:[ T_-]?(\d{2})[-_: ]?(\d{2})[-_: ]?(\d{2}))?/g, ' ');
+  const stripped = withoutDate.replace(/[0-9]/g, ' ').replace(/[_\-]+/g, ' ').replace(/\s+/g, ' ').trim();
+  
+  // Skip if the result is just common generic words after stripping
+  const genericWords = ['copy', 'edit', 'filtered', 'restored', 'enhanced', 'original', 'highres'];
+  if (genericWords.includes(stripped.toLowerCase())) return '';
+
+  return stripped.length >= 2 ? stripped : '';
+};
+
+const getAiParseCache = async (hash, parseType) => {
+  const key = `${hash}:${parseType}`;
+  const res = await pool.query('select result, expires_at from ai_parse_cache where cache_key = $1', [key]);
+  const row = res.rows?.[0];
+  if (!row) return null;
+  const expiresAt = row.expires_at ? new Date(row.expires_at).getTime() : 0;
+  if (!expiresAt || expiresAt <= Date.now()) {
+    await pool.query('delete from ai_parse_cache where cache_key = $1', [key]);
+    return null;
+  }
+  return row.result || null;
+};
+
+const setAiParseCache = async (hash, parseType, result) => {
+  const key = `${hash}:${parseType}`;
+  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+  await pool.query(
+    `
+      insert into ai_parse_cache (cache_key, parse_type, result, expires_at)
+      values ($1, $2, $3, $4)
+      on conflict (cache_key)
+      do update set result = excluded.result, expires_at = excluded.expires_at, parse_type = excluded.parse_type
+    `,
+    [key, parseType, result, expiresAt],
+  );
+};
+
+const runTextPrompt = async ({ prompt, timeoutMs }) => {
+  const cfg = await resolveAiConfig();
+  const provider = String(cfg.provider || '').toLowerCase();
+
+  if (provider === 'gemini') {
+    if (!cfg.gemini.apiKey) throw new HttpError(501, 'AI_NOT_CONFIGURED', '未配置 GEMINI_API_KEY/GOOGLE_API_KEY');
+    const ai = new GoogleGenAI({ apiKey: cfg.gemini.apiKey });
+    const m = ai.getGenerativeModel({ model: cfg.gemini.model });
+    const result = await withTimeout(
+      m.generateContent({ contents: [{ role: 'user', parts: [{ text: prompt }] }] }),
+      timeoutMs,
+    );
+    return extractText(result?.response?.text?.());
+  }
+
+  if (['openai', 'openai_compatible', 'openrouter', 'kimi', 'minimax', 'glm', 'nvidia'].includes(provider)) {
+    let apiKey, baseUrl, model;
+    if (provider === 'openai') {
+      ({ apiKey, baseUrl, model } = cfg.openai);
+    } else if (provider === 'openai_compatible') {
+      ({ apiKey, baseUrl, model } = cfg.openai_compatible);
+    } else if (provider === 'openrouter') {
+      ({ apiKey, baseUrl, model } = cfg.openrouter);
+    } else if (provider === 'kimi') {
+      ({ apiKey, baseUrl, model } = cfg.kimi);
+    } else if (provider === 'minimax') {
+      ({ apiKey, baseUrl, model } = cfg.minimax);
+    } else if (provider === 'glm') {
+      ({ apiKey, baseUrl, model } = cfg.glm);
+    } else if (provider === 'nvidia') {
+      ({ apiKey, baseUrl, model } = cfg.nvidia);
+    }
+    if (!apiKey) throw new HttpError(501, 'AI_NOT_CONFIGURED', `未配置 API Key for ${provider}`);
+    const url = `${String(baseUrl).replace(/\/+$/, '')}/chat/completions`;
+    const headers = { authorization: `Bearer ${apiKey}` };
+    if (provider === 'openrouter') {
+      headers['http-referer'] = pick(process.env.OPENROUTER_SITE_URL);
+      headers['x-title'] = pick(process.env.OPENROUTER_APP_NAME);
+    }
+    const json = await postJsonWithTimeout(url, {
+      headers,
+      body: { model, messages: [{ role: 'user', content: prompt }] },
+      timeoutMs,
+    });
+    return extractText(json?.choices?.[0]?.message?.content);
+  }
+
+  if (provider === 'anthropic') {
+    if (!cfg.anthropic.apiKey) throw new HttpError(501, 'AI_NOT_CONFIGURED', '未配置 ANTHROPIC_API_KEY');
+    const url = 'https://api.anthropic.com/v1/messages';
+    const json = await postJsonWithTimeout(url, {
+      headers: { 'x-api-key': cfg.anthropic.apiKey, 'anthropic-version': '2023-06-01' },
+      body: { model: cfg.anthropic.model, max_tokens: 1000, messages: [{ role: 'user', content: prompt }] },
+      timeoutMs,
+    });
+    const content = Array.isArray(json?.content) ? json.content.map((p) => (p?.type === 'text' ? String(p.text || '') : '')).join('\n') : '';
+    return extractText(content);
+  }
+
+  throw new HttpError(501, 'AI_NOT_CONFIGURED', '未配置 AI_PROVIDER 或任一大模型 Key');
+};
+
+const runVisionPrompt = async ({ prompt, imageBase64, mimeType, timeoutMs }) => {
+  const cfg = await resolveAiConfig();
+  const provider = String(cfg.provider || '').toLowerCase();
+
+  if (provider === 'gemini') {
+    if (!cfg.gemini.apiKey) throw new HttpError(501, 'AI_NOT_CONFIGURED', '未配置 GEMINI_API_KEY/GOOGLE_API_KEY');
+    const ai = new GoogleGenAI({ apiKey: cfg.gemini.apiKey });
+    const m = ai.getGenerativeModel({ model: cfg.gemini.model });
+    const result = await withTimeout(
+      m.generateContent({
+        contents: [{ role: 'user', parts: [{ text: prompt }, { inlineData: { mimeType: String(mimeType || 'image/jpeg'), data: imageBase64 } }] }],
+      }),
+      timeoutMs,
+    );
+    return extractText(result?.response?.text?.());
+  }
+
+  if (provider === 'openai') {
+    if (!cfg.openai.apiKey) throw new HttpError(501, 'AI_NOT_CONFIGURED', '未配置 OPENAI_API_KEY');
+    if (!cfg.openai.model) throw new HttpError(501, 'AI_NOT_CONFIGURED', '未配置 OPENAI_MODEL 或 AI_MODEL');
+    const url = `${String(cfg.openai.baseUrl).replace(/\/+$/, '')}/chat/completions`;
+    const dataUrl = `data:${String(mimeType || 'image/jpeg')};base64,${imageBase64}`;
+    const json = await postJsonWithTimeout(url, {
+      headers: { authorization: `Bearer ${cfg.openai.apiKey}` },
+      body: { model: cfg.openai.model, messages: [{ role: 'user', content: [{ type: 'text', text: prompt }, { type: 'image_url', image_url: { url: dataUrl } }] }] },
+      timeoutMs,
+    });
+    return extractText(json?.choices?.[0]?.message?.content);
+  }
+
+  if (provider === 'openai_compatible') {
+    if (!cfg.openai_compatible.apiKey) throw new HttpError(501, 'AI_NOT_CONFIGURED', '未配置 AI_COMPATIBLE_API_KEY 或 AI_API_KEY');
+    if (!cfg.openai_compatible.baseUrl) throw new HttpError(501, 'AI_NOT_CONFIGURED', '未配置 AI_COMPATIBLE_BASE_URL 或 AI_BASE_URL');
+    if (!cfg.openai_compatible.model) throw new HttpError(501, 'AI_NOT_CONFIGURED', '未配置 AI_COMPATIBLE_MODEL 或 AI_MODEL');
+    const url = `${String(cfg.openai_compatible.baseUrl).replace(/\/+$/, '')}/chat/completions`;
+    const dataUrl = `data:${String(mimeType || 'image/jpeg')};base64,${imageBase64}`;
+    const json = await postJsonWithTimeout(url, {
+      headers: { authorization: `Bearer ${cfg.openai_compatible.apiKey}` },
+      body: { model: cfg.openai_compatible.model, messages: [{ role: 'user', content: [{ type: 'text', text: prompt }, { type: 'image_url', image_url: { url: dataUrl } }] }] },
+      timeoutMs,
+    });
+    return extractText(json?.choices?.[0]?.message?.content);
+  }
+
+  if (provider === 'openrouter') {
+    if (!cfg.openrouter.apiKey) throw new HttpError(501, 'AI_NOT_CONFIGURED', '未配置 OPEN_ROUTER_API_KEY');
+    if (!cfg.openrouter.model) throw new HttpError(501, 'AI_NOT_CONFIGURED', '未配置 OPEN_ROUTER_MODEL 或 AI_MODEL');
+    const url = `${String(cfg.openrouter.baseUrl).replace(/\/+$/, '')}/chat/completions`;
+    const dataUrl = `data:${String(mimeType || 'image/jpeg')};base64,${imageBase64}`;
+    const json = await postJsonWithTimeout(url, {
+      headers: {
+        authorization: `Bearer ${cfg.openrouter.apiKey}`,
+        'http-referer': pick(process.env.OPENROUTER_SITE_URL),
+        'x-title': pick(process.env.OPENROUTER_APP_NAME),
+      },
+      body: { model: cfg.openrouter.model, messages: [{ role: 'user', content: [{ type: 'text', text: prompt }, { type: 'image_url', image_url: { url: dataUrl } }] }] },
+      timeoutMs,
+    });
+    return extractText(json?.choices?.[0]?.message?.content);
+  }
+
+  if (['kimi', 'minimax', 'glm', 'nvidia'].includes(provider)) {
+    let apiKey, baseUrl, model;
+    if (provider === 'kimi') ({ apiKey, baseUrl, model } = cfg.kimi);
+    else if (provider === 'minimax') ({ apiKey, baseUrl, model } = cfg.minimax);
+    else if (provider === 'glm') ({ apiKey, baseUrl, model } = cfg.glm);
+    else ({ apiKey, baseUrl, model } = cfg.nvidia);
+    if (!apiKey) throw new HttpError(501, 'AI_NOT_CONFIGURED', `未配置 ${provider} API Key`);
+    if (provider === 'glm' && !isGlmVisionModel(model)) {
+      throw new HttpError(400, 'AI_MODEL_UNSUPPORTED', 'GLM 当前模型不支持图像');
+    }
+    const url = `${String(baseUrl).replace(/\/+$/, '')}/chat/completions`;
+    const dataUrl = `data:${String(mimeType || 'image/jpeg')};base64,${imageBase64}`;
+    const json = await postJsonWithTimeout(url, {
+      headers: { authorization: `Bearer ${apiKey}` },
+      body: { model, messages: [{ role: 'user', content: [{ type: 'text', text: prompt }, { type: 'image_url', image_url: { url: dataUrl } }] }] },
+      timeoutMs,
+    });
+    return extractText(json?.choices?.[0]?.message?.content);
+  }
+
+  if (provider === 'anthropic') {
+    if (!cfg.anthropic.apiKey) throw new HttpError(501, 'AI_NOT_CONFIGURED', '未配置 ANTHROPIC_API_KEY');
+    if (!cfg.anthropic.model) throw new HttpError(501, 'AI_NOT_CONFIGURED', '未配置 ANTHROPIC_MODEL 或 AI_MODEL');
+    const url = 'https://api.anthropic.com/v1/messages';
+    const json = await postJsonWithTimeout(url, {
+      headers: { 'x-api-key': cfg.anthropic.apiKey, 'anthropic-version': '2023-06-01' },
+      body: { model: cfg.anthropic.model, max_tokens: 700, messages: [{ role: 'user', content: [{ type: 'image', source: { type: 'base64', media_type: String(mimeType || 'image/jpeg'), data: imageBase64 } }, { type: 'text', text: prompt }] }] },
+      timeoutMs,
+    });
+    const text = Array.isArray(json?.content) ? json.content.map((p) => (p?.type === 'text' ? String(p.text || '') : '')).join('\n') : '';
+    return extractText(text);
+  }
+
+  throw new HttpError(501, 'AI_NOT_CONFIGURED', '未配置 AI_PROVIDER 或任一大模型 Key');
+};
+
+export const inferSupplementalFromImage = async ({ imageBase64, mimeType, filename, tzOffsetMinutes, hasLocation, hasDate }) => {
+  const buffer = Buffer.from(String(imageBase64 || ''), 'base64');
+  const hash = sha256Hex(buffer);
+  const supplemental = {};
+
+  if (!hasDate && filename) {
+    const parsed = parseFilenameDate(filename, tzOffsetMinutes || 0);
+    if (parsed?.iso) {
+      supplemental.dateTime = { value: parsed.iso, dateOnly: parsed.dateOnly, source: 'filename', confidence: 1 };
+    }
+  }
+
+  if (!hasLocation && filename) {
+    const candidate = extractFilenameLocationCandidate(filename);
+    if (candidate) {
+      let result = await getAiParseCache(hash, 'filename-location');
+      if (!result) {
+        try {
+          const prompt = `
+仅输出 JSON，不要任何额外文本：
+{
+  "isLocation": boolean,
+  "confidence": number,
+  "locationName": string
+}
+请判断以下字符串是否可能是地点名称：
+"${candidate}"
+confidence 范围 0-1，locationName 在 isLocation=false 时输出空字符串。
+          `.trim();
+          const text = await runTextPrompt({ prompt, timeoutMs: 5000 });
+          result = extractJson(text);
+          if (result) await setAiParseCache(hash, 'filename-location', result);
+        } catch {
+        }
+      }
+      if (result?.isLocation && Number(result?.confidence) >= 0.8) {
+        const geo = await geocodeByName(String(result?.locationName || candidate));
+        if (geo?.location) {
+          supplemental.location = { value: geo.location, lat: geo.lat, lng: geo.lng, source: 'filename', confidence: Number(result?.confidence) || 0.8 };
+        }
+      }
+    }
+  }
+
+  const needLocation = !hasLocation && !supplemental.location;
+  const needDate = !hasDate && !supplemental.dateTime;
+
+  if (needLocation || needDate) {
+    let ocrText = (await getAiParseCache(hash, 'watermark-text'))?.text;
+    if (!ocrText) {
+      try {
+        const prompt = `
+仅输出图片中可见的文字内容，不要输出任何解释或其他文本。
+          `.trim();
+        const text = await runVisionPrompt({ prompt, imageBase64, mimeType, timeoutMs: 5000 });
+        ocrText = String(text || '').trim();
+        if (ocrText) await setAiParseCache(hash, 'watermark-text', { text: ocrText });
+      } catch (e) {
+        console.error('OCR Error:', e);
+        ocrText = '';
+      }
+    }
+
+    if (ocrText) {
+      let analyzed = await getAiParseCache(hash, 'watermark-analyze');
+      if (!analyzed) {
+        try {
+          const offsetMinutes = Number.isFinite(tzOffsetMinutes) ? tzOffsetMinutes : 0;
+          const prompt = `
+仅输出 JSON，不要任何额外文本：
+{
+  "location": { "value": string, "confidence": number },
+  "datetime": { "value": string, "confidence": number }
+}
+value 格式要求：
+- location: 标准地名（如 "Paris, France"），若无则空字符串
+- datetime: ISO 8601 格式（YYYY-MM-DDTHH:mm:ss+HH:mm），若无则空字符串
+confidence: 0-1
+
+当前时区偏移：${offsetMinutes} 分钟（请根据此偏移量校正 OCR 中的时间）
+OCR 文本内容：
+"${ocrText}"
+          `.trim();
+          const text = await runTextPrompt({ prompt, timeoutMs: 5000 });
+          analyzed = extractJson(text);
+          if (analyzed) await setAiParseCache(hash, 'watermark-analyze', analyzed);
+        } catch {
+        }
+      }
+
+      if (analyzed) {
+        if (needLocation && analyzed.location?.value && Number(analyzed.location.confidence) >= 0.8) {
+          const geo = await geocodeByName(analyzed.location.value);
+          if (geo?.location) {
+            supplemental.location = { value: geo.location, lat: geo.lat, lng: geo.lng, source: 'watermark', confidence: Number(analyzed.location.confidence) };
+          }
+        }
+        if (needDate && analyzed.datetime?.value && Number(analyzed.datetime.confidence) >= 0.8) {
+           const d = analyzed.datetime.value;
+           // Simple validation
+           if (!Number.isNaN(Date.parse(d))) {
+             supplemental.dateTime = { value: d, dateOnly: d.split('T')[0], source: 'watermark', confidence: Number(analyzed.datetime.confidence) };
+           }
+        }
+      }
+    }
+  }
+
+
+  return { supplemental };
+};
+
+const postJson = async (url, { headers, body }) => {
+  const timeoutMsRaw = Number(process.env.AI_HTTP_TIMEOUT_MS);
+  const timeoutMs = Number.isFinite(timeoutMsRaw) && timeoutMsRaw > 0 ? timeoutMsRaw : 60_000;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  let res;
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        ...(headers || {}),
+      },
+      body: JSON.stringify(body ?? {}),
+      signal: controller.signal,
+    });
+  } catch (e) {
+    const message = e?.name === 'AbortError' ? `请求超时(${timeoutMs}ms)` : String(e?.message || e);
+    throw new HttpError(502, 'AI_UPSTREAM_ERROR', message.slice(0, 400));
+  } finally {
+    clearTimeout(timer);
+  }
+
+  const text = await res.text();
+  const json = (() => {
+    try {
+      return JSON.parse(text);
+    } catch {
+      return null;
+    }
+  })();
+
+  if (!res.ok) {
+    let msg = String(json?.error?.message || json?.message || text || 'LLM 请求失败').slice(0, 400);
+    msg = `[${res.status}] ${msg}`;
+    const err = new HttpError(502, 'AI_UPSTREAM_ERROR', msg);
+    err.upstreamStatus = res.status;
+    throw err;
+  }
+
+  return json;
+};
+
+const makePrompt = (locationHint, filename) => {
   const locInstruction = locationHint 
     ? `- Photo was taken at: "${locationHint}". Use this EXACTLY for locationHint field.`
     : `- locationHint 用中文给一个“地点参考”，尽量具体但不要硬编；不确定就输出场景类型（如：城市街区/山野/海边/室内/夜景等）。`;
+
+  const filenameInstruction = filename
+    ? `- Filename is: "${filename}". You MAY use this to infer context or shooting info if relevant.`
+    : '';
 
   return `
 Analyze this photo and return STRICT JSON with these keys:
@@ -157,6 +606,8 @@ Analyze this photo and return STRICT JSON with these keys:
 Rules:
 - Output JSON only. No markdown. No extra text.
 - Use Chinese for title/description/tags.
+- If the photo's EXIF data is missing, try to extract shooting information (camera, lens, settings) from the visual watermarks (if any) or the filename.
+${filenameInstruction}
 ${locInstruction}
   `.trim();
 };
@@ -183,33 +634,45 @@ const geminiFill = async ({ apiKey, model, imageBase64, mimeType, locationHint }
   return data;
 };
 
-const openAiCompatibleFill = async ({ apiKey, baseUrl, model, imageBase64, mimeType, extraHeaders, locationHint }) => {
+const openAiCompatibleFill = async ({ apiKey, baseUrl, model, imageBase64, mimeType, extraHeaders, locationHint, filename, provider }) => {
   const url = `${String(baseUrl).replace(/\/+$/, '')}/chat/completions`;
   const dataUrl = `data:${String(mimeType || 'image/jpeg')};base64,${imageBase64}`;
+
+  const body = {
+    model,
+    stream: false,
+    messages: [
+      {
+        role: 'user',
+        content: [
+          { type: 'text', text: makePrompt(locationHint, filename) },
+          { type: 'image_url', image_url: { url: dataUrl } },
+        ],
+      },
+    ],
+    temperature: 0.7,
+  };
+
+  // 针对 GLM 模型的特殊处理
+  if (provider === 'glm') {
+     // 显式增加 max_tokens，防止截断
+     body.max_tokens = 1024;
+  }
 
   const json = await postJson(url, {
     headers: {
       authorization: `Bearer ${apiKey}`,
       ...(extraHeaders || {}),
     },
-    body: {
-      model,
-      messages: [
-        {
-          role: 'user',
-          content: [
-            { type: 'text', text: makePrompt(locationHint) },
-            { type: 'image_url', image_url: { url: dataUrl } },
-          ],
-        },
-      ],
-      temperature: 0.7,
-    },
+    body,
   });
 
   const text = json?.choices?.[0]?.message?.content || '';
   const parsed = extractJson(text);
-  if (!parsed) throw new HttpError(502, 'AI_BAD_RESPONSE', 'AI 返回格式异常');
+  if (!parsed) {
+    console.error('AI Response Parse Error:', JSON.stringify(json, null, 2));
+    throw new HttpError(502, 'AI_BAD_RESPONSE', 'AI 返回格式异常，无法解析 JSON');
+  }
   return parsed;
 };
 
@@ -438,19 +901,19 @@ export const generateEmbedding = async ({ text }) => {
   throw new HttpError(501, 'AI_NOT_CONFIGURED', '不支持的 Embedding Provider (Anthropic 不支持 Embedding)');
 };
 
-export const fillFromImage = async ({ imageBase64, mimeType, locationHint }) => {
+export const fillFromImage = async ({ imageBase64, mimeType, locationHint, filename }) => {
   const cfg = await resolveAiConfig();
   const provider = String(cfg.provider || '').toLowerCase();
 
   if (provider === 'gemini') {
     if (!cfg.gemini.apiKey) throw new HttpError(501, 'AI_NOT_CONFIGURED', '未配置 GEMINI_API_KEY/GOOGLE_API_KEY');
-    return geminiFill({ apiKey: cfg.gemini.apiKey, model: cfg.gemini.model, imageBase64, mimeType, locationHint });
+    return geminiFill({ apiKey: cfg.gemini.apiKey, model: cfg.gemini.model, imageBase64, mimeType, locationHint, filename });
   }
 
   if (provider === 'openai') {
     if (!cfg.openai.apiKey) throw new HttpError(501, 'AI_NOT_CONFIGURED', '未配置 OPENAI_API_KEY');
     if (!cfg.openai.model) throw new HttpError(501, 'AI_NOT_CONFIGURED', '未配置 OPENAI_MODEL 或 AI_MODEL');
-    return openAiCompatibleFill({ apiKey: cfg.openai.apiKey, baseUrl: cfg.openai.baseUrl, model: cfg.openai.model, imageBase64, mimeType, locationHint });
+    return openAiCompatibleFill({ apiKey: cfg.openai.apiKey, baseUrl: cfg.openai.baseUrl, model: cfg.openai.model, imageBase64, mimeType, locationHint, filename });
   }
 
   if (provider === 'openai_compatible') {
@@ -464,6 +927,7 @@ export const fillFromImage = async ({ imageBase64, mimeType, locationHint }) => 
       imageBase64,
       mimeType,
       locationHint,
+      filename,
     });
   }
 
@@ -477,6 +941,7 @@ export const fillFromImage = async ({ imageBase64, mimeType, locationHint }) => 
       imageBase64,
       mimeType,
       locationHint,
+      filename,
       extraHeaders: {
         'http-referer': pick(process.env.OPENROUTER_SITE_URL),
         'x-title': pick(process.env.OPENROUTER_APP_NAME),
@@ -493,6 +958,7 @@ export const fillFromImage = async ({ imageBase64, mimeType, locationHint }) => 
       imageBase64,
       mimeType,
       locationHint,
+      filename,
     });
   }
 
@@ -505,11 +971,15 @@ export const fillFromImage = async ({ imageBase64, mimeType, locationHint }) => 
       imageBase64,
       mimeType,
       locationHint,
+      filename,
     });
   }
 
   if (provider === 'glm') {
     if (!cfg.glm.apiKey) throw new HttpError(501, 'AI_NOT_CONFIGURED', '未配置 GLM_API_KEY');
+    if (!isGlmVisionModel(cfg.glm.model)) {
+      throw new HttpError(400, 'AI_MODEL_UNSUPPORTED', 'GLM 当前模型不支持图像，请使用 GLM-4.6V 或 GLM-4.6V-FlashX');
+    }
     return openAiCompatibleFill({
       apiKey: cfg.glm.apiKey,
       baseUrl: cfg.glm.baseUrl,
@@ -517,6 +987,8 @@ export const fillFromImage = async ({ imageBase64, mimeType, locationHint }) => 
       imageBase64,
       mimeType,
       locationHint,
+      filename,
+      provider: 'glm',
     });
   }
 
@@ -529,13 +1001,14 @@ export const fillFromImage = async ({ imageBase64, mimeType, locationHint }) => 
       imageBase64,
       mimeType,
       locationHint,
+      filename,
     });
   }
 
   if (provider === 'anthropic') {
     if (!cfg.anthropic.apiKey) throw new HttpError(501, 'AI_NOT_CONFIGURED', '未配置 ANTHROPIC_API_KEY');
     if (!cfg.anthropic.model) throw new HttpError(501, 'AI_NOT_CONFIGURED', '未配置 ANTHROPIC_MODEL 或 AI_MODEL');
-    return anthropicFill({ apiKey: cfg.anthropic.apiKey, model: cfg.anthropic.model, imageBase64, mimeType, locationHint });
+    return anthropicFill({ apiKey: cfg.anthropic.apiKey, model: cfg.anthropic.model, imageBase64, mimeType, locationHint, filename });
   }
 
   throw new HttpError(501, 'AI_NOT_CONFIGURED', '未配置 AI_PROVIDER 或任一大模型 Key');

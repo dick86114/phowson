@@ -36,6 +36,8 @@ export const registerErrorHandling = (app) => {
     const status = pickStatus(err);
     const code = pickCode(err);
     const message = pickMessage(err);
+    const upstreamStatusRaw = Number(err?.upstreamStatus);
+    const upstreamStatus = Number.isFinite(upstreamStatusRaw) && upstreamStatusRaw >= 100 ? upstreamStatusRaw : null;
 
     if (status >= 500) {
       req.log.error({ err, requestId: req.id }, 'request failed');
@@ -47,7 +49,7 @@ export const registerErrorHandling = (app) => {
       code,
       message,
       requestId: req.id,
+      ...(upstreamStatus ? { upstreamStatus } : {}),
     });
   });
 };
-

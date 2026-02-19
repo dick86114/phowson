@@ -48,3 +48,32 @@ export async function reverseGeocode(lat, lng) {
     return null;
   }
 }
+
+export async function geocodeByName(name) {
+  const q = String(name || '').trim();
+  if (!q) return null;
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(q)}`;
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'Phowson-SelfHosted/1.0',
+        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8'
+      }
+    });
+    if (!res.ok) {
+      process.stderr.write(`Geocoding by name failed for ${q}: ${res.status}\n`);
+      return null;
+    }
+    const data = await res.json();
+    const first = Array.isArray(data) ? data[0] : null;
+    if (!first) return null;
+    const lat = Number.parseFloat(first.lat);
+    const lng = Number.parseFloat(first.lon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+    const location = String(first.display_name || '').trim();
+    return { location, lat, lng };
+  } catch (err) {
+    process.stderr.write(`Geocoding by name error: ${String(err?.message || err)}\n`);
+    return null;
+  }
+}

@@ -183,6 +183,9 @@ const main = async () => {
   results.push(await runImport('私有扩展加载', './private_extensions_loader_routes_inject.test.mjs'))
   results.push(await runImport('公开照片增量分页', './photos_page_since_routes_inject.test.mjs'))
   results.push(await runImport('筛选工具', './me_photos.test.mjs'))
+  results.push(await runImport('GLM 模型校验', './ai_fill_glm_model_validation_routes_inject.test.mjs'))
+  results.push(await runImport('AI 错误透传', './ai_fill_error_routes_inject.test.mjs'))
+  results.push(await runImport('AI 文件名解析', './ai_filename_parsers.test.mjs'))
   results.push(await runImport('异常路径', './negative_suite.mjs'))
 
   const failed = results.filter((r) => !r.ok)
