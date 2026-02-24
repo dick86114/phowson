@@ -29,7 +29,6 @@ const mockFetch = async (url, options) => {
     if (urlStr.includes('/chat/completions')) {
         const body = JSON.parse(options.body);
         const prompt = body.messages[0].content[0].text || body.messages[0].content; // Handle both structure if needed
-        console.log('AI Prompt:', prompt); // Debugging
 
         // Filename Location Check
         if (prompt.includes('isLocation')) {
