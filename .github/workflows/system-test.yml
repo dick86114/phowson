@@ -26,6 +26,8 @@ jobs:
           --health-retries=10
     env:
       DATABASE_URL: postgresql://phowson:phowson@localhost:5432/phowson
+      PORT: 26215
+      API_BASE_URL: http://localhost:26215
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -43,7 +45,7 @@ jobs:
         run: |
           pnpm dev:server > backend.log 2>&1 &
           for i in {1..20}; do
-            if curl -s http://localhost:3001/health | grep -q "ok"; then
+            if curl -s http://localhost:26215/health | grep -q "ok"; then
               echo "后端已就绪"
               break
             fi
