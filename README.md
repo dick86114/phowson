@@ -1,5 +1,5 @@
 <div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+<img width="1200" height="475" alt="GHBanner" src="https://img.860114.xyz/phowson_origin.png" />
 </div>
 
 # Phowson - 浮生（PhotoLogs）
@@ -7,6 +7,13 @@
 个人摄影分享与复盘网站：支持作品上传、EXIF 解析、管理后台、点赞评论、数据统计，并已将数据从 localStorage 迁移到 Postgres。
 
 本仓库采用「开源核心 + 私有扩展」模式：核心能力开源，敏感/差异化能力通过可选的私有扩展注入。
+
+pc端
+![alt text](public/image-1.png)
+![alt text](public/image.png)
+
+移动端
+![alt text](public/image-2.png)  
 
 ## 技术栈
 
