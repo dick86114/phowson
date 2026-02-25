@@ -29,3 +29,7 @@ debug_*.mjs
 reports/
 .trae/
 photos.json
+
+# Environment Variables
+.env
+.env.local

@@ -1,6 +1,7 @@
 {
   "name": "phowson---浮生",
   "private": true,
+  "packageManager": "pnpm@9.12.1",
   "version": "0.0.0",
   "type": "module",
   "scripts": {

@@ -96,6 +96,7 @@ export const generateFallbackAvatar = (name: string) => {
         <rect width="100" height="100" fill="${color}" />
         <text x="50" y="50" dy=".35em" fill="white" font-family="Arial, sans-serif" font-size="40" text-anchor="middle" font-weight="bold">${n}</text>
     </svg>`;
-    
-    return `data:image/svg+xml;base64,${btoa(svg)}`;
+    // Fix: btoa does not support Unicode (e.g. Chinese characters).
+    // We use encodeURIComponent to handle Unicode characters correctly for data URI.
+    return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 };

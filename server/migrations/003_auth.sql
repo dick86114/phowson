@@ -1,6 +1,7 @@
 alter table users
   add column if not exists email text,
-  add column if not exists password_hash text;
+  add column if not exists password_hash text,
+  add column if not exists last_login_at timestamptz;
 
 create unique index if not exists users_email_uq on users(email) where email is not null;
 
