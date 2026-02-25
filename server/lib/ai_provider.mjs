@@ -720,18 +720,18 @@ export const resolveAiConfig = async () => {
 
   const geminiKey = pick(dbAi.gemini?.apiKey, process.env.GEMINI_API_KEY, process.env.GOOGLE_API_KEY);
   const geminiModel = pick(dbAi.gemini?.model, model, process.env.GEMINI_MODEL, 'gemini-3-flash');
-  const geminiEmbeddingModel = pick(process.env.GEMINI_EMBEDDING_MODEL, 'text-embedding-004');
+  const geminiEmbeddingModel = pick(dbAi.gemini?.embeddingModel, process.env.GEMINI_EMBEDDING_MODEL, 'text-embedding-004');
 
   const openaiKey = pick(dbAi.openai?.apiKey, process.env.OPENAI_API_KEY);
   const openaiBaseUrl = pick(dbAi.openai?.baseUrl, process.env.OPENAI_BASE_URL, 'https://api.openai.com/v1');
   const openaiModel = pick(dbAi.openai?.model, model, process.env.OPENAI_MODEL);
-  const openaiEmbeddingModel = pick(process.env.OPENAI_EMBEDDING_MODEL, 'text-embedding-3-small');
+  const openaiEmbeddingModel = pick(dbAi.openai?.embeddingModel, process.env.OPENAI_EMBEDDING_MODEL, 'text-embedding-3-small');
 
   // Generic OpenAI-compatible
   const compatibleKey = pick(dbAi.openai_compatible?.apiKey, process.env.AI_COMPATIBLE_API_KEY, process.env.AI_API_KEY);
   const compatibleBaseUrl = pick(dbAi.openai_compatible?.baseUrl, process.env.AI_COMPATIBLE_BASE_URL, process.env.AI_BASE_URL);
   const compatibleModel = pick(dbAi.openai_compatible?.model, model, process.env.AI_COMPATIBLE_MODEL);
-  const compatibleEmbeddingModel = pick(process.env.AI_COMPATIBLE_EMBEDDING_MODEL, process.env.AI_EMBEDDING_MODEL, 'text-embedding-3-small');
+  const compatibleEmbeddingModel = pick(dbAi.openai_compatible?.embeddingModel, process.env.AI_COMPATIBLE_EMBEDDING_MODEL, process.env.AI_EMBEDDING_MODEL, 'text-embedding-3-small');
 
   const anthropicKey = pick(dbAi.anthropic?.apiKey, process.env.ANTHROPIC_API_KEY);
   const anthropicModel = pick(dbAi.anthropic?.model, model, process.env.ANTHROPIC_MODEL);
@@ -739,27 +739,27 @@ export const resolveAiConfig = async () => {
   const openRouterKey = pick(dbAi.openrouter?.apiKey, process.env.OPEN_ROUTER_API_KEY);
   const openRouterBaseUrl = pick(dbAi.openrouter?.baseUrl, process.env.OPEN_ROUTER_BASE_URL, 'https://openrouter.ai/api/v1');
   const openRouterModel = pick(dbAi.openrouter?.model, model, process.env.OPEN_ROUTER_MODEL);
-  const openRouterEmbeddingModel = pick(process.env.OPEN_ROUTER_EMBEDDING_MODEL, 'text-embedding-3-small');
+  const openRouterEmbeddingModel = pick(dbAi.openrouter?.embeddingModel, process.env.OPEN_ROUTER_EMBEDDING_MODEL, 'text-embedding-3-small');
 
   const kimiKey = pick(dbAi.kimi?.apiKey, process.env.KIMI_API_KEY);
   const kimiBaseUrl = pick(dbAi.kimi?.baseUrl, process.env.KIMI_BASE_URL, 'https://api.moonshot.cn/v1');
   const kimiModel = pick(dbAi.kimi?.model, model, process.env.KIMI_MODEL, 'moonshot-v1-8k');
-  const kimiEmbeddingModel = pick(process.env.KIMI_EMBEDDING_MODEL, 'text-embedding-3-small');
+  const kimiEmbeddingModel = pick(dbAi.kimi?.embeddingModel, process.env.KIMI_EMBEDDING_MODEL, 'text-embedding-3-small');
 
   const minimaxKey = pick(dbAi.minimax?.apiKey, process.env.MINIMAX_API_KEY);
   const minimaxBaseUrl = pick(dbAi.minimax?.baseUrl, process.env.MINIMAX_BASE_URL, 'https://api.minimax.chat/v1');
   const minimaxModel = pick(dbAi.minimax?.model, model, process.env.MINIMAX_MODEL, 'abab6.5s-chat');
-  const minimaxEmbeddingModel = pick(process.env.MINIMAX_EMBEDDING_MODEL, 'embo-01');
+  const minimaxEmbeddingModel = pick(dbAi.minimax?.embeddingModel, process.env.MINIMAX_EMBEDDING_MODEL, 'embo-01');
 
   const glmKey = pick(dbAi.glm?.apiKey, process.env.GLM_API_KEY);
   const glmBaseUrl = pick(dbAi.glm?.baseUrl, process.env.GLM_BASE_URL, 'https://open.bigmodel.cn/api/paas/v4');
   const glmModel = pick(dbAi.glm?.model, model, process.env.GLM_MODEL, 'glm-4-flash');
-  const glmEmbeddingModel = pick(process.env.GLM_EMBEDDING_MODEL, 'embedding-3');
+  const glmEmbeddingModel = pick(dbAi.glm?.embeddingModel, process.env.GLM_EMBEDDING_MODEL, 'embedding-3');
 
   const nvidiaKey = pick(dbAi.nvidia?.apiKey, process.env.NVIDIA_API_KEY);
   const nvidiaBaseUrl = pick(dbAi.nvidia?.baseUrl, process.env.NVIDIA_BASE_URL, 'https://integrate.api.nvidia.com/v1');
   const nvidiaModel = pick(dbAi.nvidia?.model, model, process.env.NVIDIA_MODEL, 'meta/llama-3.1-405b-instruct');
-  const nvidiaEmbeddingModel = pick(process.env.NVIDIA_EMBEDDING_MODEL, 'nvidia/nv-embedqa-e5-v5');
+  const nvidiaEmbeddingModel = pick(dbAi.nvidia?.embeddingModel, process.env.NVIDIA_EMBEDDING_MODEL, 'nvidia/nv-embedqa-e5-v5');
 
   const inferredProvider =
     provider ||

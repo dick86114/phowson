@@ -104,10 +104,54 @@ export const registerMediaRoutes = async (app) => {
         return reply.redirect(targetUrl);
       }
 
-      // Proxy the external URL to ensure CORS headers are handled by our server
+      // 修正 MinIO 403 问题：
+      // 如果目标 URL 是私有 S3 URL (presigned)，直接 fetch 可能因为 Host 头问题失败（尤其是 minio）。
+      // 更好的方式是：如果 URL 本身可访问，直接 redirect 给前端让浏览器去下；
+      // 但这里为了解决 CORS/鉴权统一，我们继续尝试 proxy。
+      
+      // 注意：如果 targetUrl 是 S3 预签名 URL，通常不需要额外的 headers。
+      // 但如果 targetUrl 是 MinIO 的永久链接且 Bucket 是 Private，直接 fetch 会 403。
+      // 在我们的架构中，S3 上传后生成的是 "http://minio:9000/bucket/key" 这种内网 URL (S3_PUBLIC_BASE_URL)
+      // 如果配置的是内网地址，必须由后端 proxy。
+      
       try {
         const response = await fetch(targetUrl);
         if (!response.ok) {
+           // 如果是 403，可能是 MinIO 拒绝了。
+           // 尝试使用 AWS SDK 获取流（如果配置了 S3）
+           if (response.status === 403 && isObjectStorageEnabled()) {
+              const s3 = getS3Client();
+              if (s3) {
+                 // 尝试解析 key。假设 targetUrl 是 .../bucket/key 或 .../key
+                 // 这里比较 trick，因为 targetUrl 可能是任意格式。
+                 // 但我们可以尝试从 URL path 中提取 key。
+                 
+                 let key = null;
+                 let publicBase = process.env.S3_PUBLIC_BASE_URL;
+
+                 // 如果未配置 S3_PUBLIC_BASE_URL，尝试根据 S3_ENDPOINT 和 S3_BUCKET 推断 (针对 MinIO Path Style)
+                 if (!publicBase && process.env.S3_ENDPOINT && process.env.S3_BUCKET) {
+                    publicBase = String(process.env.S3_ENDPOINT).replace(/\/+$/, '') + '/' + String(process.env.S3_BUCKET);
+                 }
+
+                 if (publicBase && targetUrl.startsWith(publicBase)) {
+                    key = targetUrl.slice(publicBase.length);
+                    if (key.startsWith('/')) key = key.slice(1);
+                 }
+                 
+                 if (key) {
+                    try {
+                      const Bucket = String(process.env.S3_BUCKET);
+                      const command = new GetObjectCommand({ Bucket, Key: key });
+                      const s3Res = await s3.send(command);
+                      if (s3Res.ContentType) reply.type(s3Res.ContentType);
+                      return reply.send(s3Res.Body);
+                    } catch (ignore) {
+                       // 忽略 S3 错误，继续返回原始 403
+                    }
+                 }
+              }
+           }
            return reply.code(response.status).send();
         }
         

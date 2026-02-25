@@ -40,7 +40,17 @@ export const getS3Client = () => {
   if (!isObjectStorageEnabled()) return null;
   const region = String(process.env.S3_REGION || 'auto');
   const endpoint = String(process.env.S3_ENDPOINT || '').trim() || undefined;
-  const forcePathStyle = String(process.env.S3_FORCE_PATH_STYLE || '').toLowerCase() === 'true';
+  
+  let forcePathStyle = String(process.env.S3_FORCE_PATH_STYLE || '').toLowerCase() === 'true';
+  // Auto-detect: if endpoint is IP or localhost, force path style
+  if (!process.env.S3_FORCE_PATH_STYLE && endpoint) {
+    try {
+      const u = new URL(endpoint);
+      if (u.hostname === 'localhost' || u.hostname === '127.0.0.1' || /^\d+\.\d+\.\d+\.\d+$/.test(u.hostname)) {
+        forcePathStyle = true;
+      }
+    } catch {}
+  }
 
   return new S3Client({
     region,

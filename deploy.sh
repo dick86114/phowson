@@ -70,7 +70,15 @@ echo "前端端口: 26214"
 echo "后端端口: 26215"
 
 echo -e "\n${GREEN}1. 开始构建 Docker 镜像...${NC}"
-docker compose build
+
+# 清理旧的同名镜像（如果存在），确保重新构建
+if docker images -q "${DOCKER_IMAGE:-phowson}:${DOCKER_TAG:-latest}" &> /dev/null; then
+    echo -e "${YELLOW}正在清理旧镜像: ${DOCKER_IMAGE:-phowson}:${DOCKER_TAG:-latest}${NC}"
+    docker rmi -f "${DOCKER_IMAGE:-phowson}:${DOCKER_TAG:-latest}" || true
+fi
+
+# 使用 --no-cache 强制完全重新构建
+docker compose build --no-cache
 
 if [ $? -eq 0 ]; then
     echo -e "${GREEN}镜像构建成功！${NC}"

@@ -108,6 +108,14 @@ const AiSettings: React.FC<{
         return 'gpt-4o';
     };
 
+    const getEmbeddingModelPlaceholder = (p: string) => {
+        if (p === 'gemini') return 'text-embedding-004';
+        if (p === 'minimax') return 'embo-01';
+        if (p === 'glm') return 'embedding-3';
+        if (p === 'nvidia') return 'nvidia/nv-embedqa-e5-v5';
+        return 'text-embedding-3-small';
+    };
+
     const updateProviderConfig = (key: string, val: string) => {
         setSiteSettingsForm(prev => ({
             ...prev,
@@ -277,6 +285,33 @@ const AiSettings: React.FC<{
                             注意：必须使用支持图片识别 (Vision) 的模型，否则无法自动填写照片信息。
                         </p>
                     </div>
+
+                    {provider !== 'anthropic' && (
+                    <div>
+                        <label className="text-xs text-gray-500 dark:text-gray-400 uppercase font-medium">Embedding 模型 (可选)</label>
+                        <input
+                            type="text"
+                            value={config.embeddingModel || ''}
+                            onChange={(e) => updateProviderConfig('embeddingModel', e.target.value)}
+                            placeholder={`例如: ${getEmbeddingModelPlaceholder(provider)}`}
+                            className="w-full mt-2 bg-white dark:bg-black/40 border border-gray-200 dark:border-white/10 rounded-xl p-3 text-gray-900 dark:text-white focus:outline-none focus:border-primary"
+                        />
+                        <div className="mt-2 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                            <span>默认: </span>
+                            <code className="bg-gray-100 dark:bg-white/10 px-1.5 py-0.5 rounded text-gray-700 dark:text-gray-300 font-mono">
+                                {getEmbeddingModelPlaceholder(provider)}
+                            </code>
+                            <button 
+                                onClick={() => handleCopy(getEmbeddingModelPlaceholder(provider))}
+                                className="p-1 hover:bg-gray-200 dark:hover:bg-white/10 rounded transition-colors"
+                                title="复制默认 Embedding 模型"
+                            >
+                                <Copy className="w-3 h-3" />
+                            </button>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">用于语义搜索 (Semantic Search)，需支持 Open AI Embedding 格式。</p>
+                    </div>
+                    )}
                 </div>
 
                 <div className="pt-4 border-t border-gray-100 dark:border-white/10 flex flex-col sm:flex-row justify-end">

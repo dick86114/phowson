@@ -64,15 +64,14 @@ const ensureAdminBootstrap = async () => {
   if (!(await ensureAuthSchemaReady())) return;
 
   const passwordHash = hashPassword(password);
+  
+  // 仅当 admin 账号不存在时才插入。如果存在，不再强制覆盖。
+  // 这允许管理员在系统中修改密码而不被重置。
   await pool.query(
     `
       insert into users(id, name, role, email, password_hash)
       values ('admin', '管理员', 'admin', $1, $2)
-      on conflict (id) do update set
-        name = excluded.name,
-        role = excluded.role,
-        email = excluded.email,
-        password_hash = excluded.password_hash
+      on conflict (id) do nothing
     `,
     [email, passwordHash],
   );
