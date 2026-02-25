@@ -1,0 +1,39 @@
+import net from 'node:net';
+
+const url = process.env.DATABASE_URL || '';
+if (!url) {
+  console.error('缺少 DATABASE_URL');
+  process.exit(1);
+}
+
+const u = new URL(url);
+const host = u.hostname;
+const port = Number(u.port || 5432);
+const deadline = Date.now() + 90_000;
+
+const tryOnce = () => new Promise((resolve) => {
+  const s = net.connect({ host, port });
+  const done = (ok) => {
+    if (!s.destroyed) s.destroy();
+    resolve(ok);
+  };
+  s.on('connect', () => done(true));
+  s.on('error', () => done(false));
+  setTimeout(() => done(false), 1000);
+});
+
+(async () => {
+  while (Date.now() < deadline) {
+    if (await tryOnce()) {
+      process.stdout.write('数据库已就绪\n');
+      process.exit(0);
+    }
+    process.stdout.write('等待数据库...\n');
+    await new Promise(r => setTimeout(r, 1000));
+  }
+  console.error('等待数据库超时');
+  process.exit(1);
+})().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

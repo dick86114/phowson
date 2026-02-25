@@ -6,7 +6,7 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
-echo -e "${GREEN}=== 开始构建并部署流程 ===${NC}"
+echo -e "${GREEN}=== 开始构建并部署流程 (单镜像 All-in-One) ===${NC}"
 
 # 函数：检查并清理占用端口的进程
 check_and_kill_port() {
@@ -64,11 +64,10 @@ source .env
 set +a
 
 echo -e "${GREEN}当前配置信息:${NC}"
-echo "API 镜像: ${DOCKER_IMAGE_API:-phowson-api}"
-echo "Web 镜像: ${DOCKER_IMAGE_WEB:-phowson-web}"
+echo "镜像名称: ${DOCKER_IMAGE:-phowson}"
 echo "版本 Tag: ${DOCKER_TAG:-latest}"
-echo "API 端口: 26215"
-echo "Web 端口: 26214"
+echo "前端端口: 26214"
+echo "后端端口: 26215"
 
 echo -e "\n${GREEN}1. 开始构建 Docker 镜像...${NC}"
 docker compose build

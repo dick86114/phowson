@@ -1,10 +1,10 @@
 services:
-  phowson-api:
-    container_name: phowson-api
-    image: ${DOCKER_IMAGE_API:-phowson-api}:${DOCKER_TAG:-latest}
+  phowson:
+    container_name: phowson
+    image: ${DOCKER_IMAGE:-phowson}:${DOCKER_TAG:-latest}
     build:
       context: .
-      dockerfile: Dockerfile.api
+      dockerfile: Dockerfile.all
     restart: unless-stopped
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-change-me}@${DB_HOST:-phowson-db}:${DB_PORT:-5432}/${POSTGRES_DB:-phowson}}
@@ -12,20 +12,27 @@ services:
       PORT: 26215
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@example.com}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-change-me}
-    ports:
-      - "26215:26215"
-
-  phowson-web:
-    container_name: phowson-web
-    image: ${DOCKER_IMAGE_WEB:-phowson-web}:${DOCKER_TAG:-latest}
-    build:
-      context: .
-      dockerfile: Dockerfile.web
-    depends_on:
-      - phowson-api
-    restart: unless-stopped
+      # Email
+      EMAIL_PROVIDER: ${EMAIL_PROVIDER}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_SECURE: ${SMTP_SECURE}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      EMAIL_FROM: ${EMAIL_FROM}
+      EMAIL_FROM_NAME: ${EMAIL_FROM_NAME}
+      # S3
+      S3_ENDPOINT: ${S3_ENDPOINT}
+      S3_REGION: ${S3_REGION}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY}
+      S3_BUCKET: ${S3_BUCKET}
+      S3_PUBLIC_BASE_URL: ${S3_PUBLIC_BASE_URL}
+      S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE}
+      UPLOAD_MAX_BYTES: ${UPLOAD_MAX_BYTES}
     ports:
       - "26214:26214"
+      - "26215:26215"
 
 volumes:
   phowson_db:
