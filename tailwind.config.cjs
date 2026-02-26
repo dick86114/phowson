@@ -12,7 +12,7 @@ module.exports = {
     extend: {
       colors: {
         primary: 'var(--color-primary)',
-        'background-light': '#f6f7f8',
+        'background-light': '#fcf9f4',
         'background-dark': '#111a22',
         'surface-dark': '#1a2632',
         'surface-border': '#233648',

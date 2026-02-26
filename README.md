@@ -8,12 +8,6 @@
 
 本仓库采用「开源核心 + 私有扩展」模式：核心能力开源，敏感/差异化能力通过可选的私有扩展注入。
 
-pc端
-![alt text](public/image-1.png)
-![alt text](public/image.png)
-
-移动端
-![alt text](public/image-2.png)  
 
 ## 技术栈
 

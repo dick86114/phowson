@@ -850,6 +850,22 @@ export const Footer: React.FC = () => {
 export const MobileBottomNav: React.FC = () => {
     const location = useLocation();
     const isActive = (path: string) => location.pathname === path;
+    const [isScrolled, setIsScrolled] = useState(false);
+
+    useEffect(() => {
+        let ticking = false;
+        const handleScroll = () => {
+            if (!ticking) {
+                window.requestAnimationFrame(() => {
+                    setIsScrolled(window.scrollY > 20);
+                    ticking = false;
+                });
+                ticking = true;
+            }
+        };
+        window.addEventListener('scroll', handleScroll, { passive: true });
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
     
     const navItems = [
         { label: '画廊', path: '/', icon: ImageIcon },
@@ -859,11 +875,23 @@ export const MobileBottomNav: React.FC = () => {
     ];
     
     return (
-        <div className="md:hidden fixed bottom-6 left-6 right-6 z-50 animate-in slide-in-from-bottom-10 duration-700 fade-in-0">
-            <div className="glass-panel rounded-full ring-1 ring-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.12)]">
-                <div className="flex items-center justify-around h-16 px-2 relative overflow-hidden rounded-full">
+        <div className={`md:hidden fixed z-50 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] ${
+            isScrolled 
+                ? 'bottom-0 left-0 right-0 translate-y-0' 
+                : 'bottom-4 left-4 right-4'
+        } animate-in slide-in-from-bottom-10 duration-700 fade-in-0`}>
+            <div className={`glass-panel ring-1 ring-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.12)] transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] overflow-hidden ${
+                isScrolled 
+                    ? 'rounded-none border-x-0 border-b-0 backdrop-blur-xl bg-white/90 dark:bg-black/90' 
+                    : 'rounded-full'
+            }`}>
+                <div className={`flex items-center justify-around px-2 relative transition-all duration-500 ${
+                    isScrolled ? 'h-12' : 'h-16'
+                }`}>
                     {/* Background sheen effect */}
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent pointer-events-none" />
+                    <div className={`absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent pointer-events-none transition-opacity duration-500 ${
+                        isScrolled ? 'opacity-0' : 'opacity-100'
+                    }`} />
                     
                     {navItems.map(item => {
                         const active = isActive(item.path);
@@ -877,13 +905,27 @@ export const MobileBottomNav: React.FC = () => {
                                         : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'
                                 }`}
                             >
-                                {active && (
+                                {active && !isScrolled && (
                                     <div className="absolute inset-0 bg-primary/5 dark:bg-primary/10 blur-xl rounded-full" />
                                 )}
-                                <div className={`relative p-1.5 rounded-2xl transition-all duration-300 ${active ? '-translate-y-1 bg-primary/10 dark:bg-primary/20 shadow-sm' : ''}`}>
-                                    <item.icon className={`w-5 h-5 transition-transform duration-300 ${active ? 'scale-110' : 'group-hover:scale-110'}`} />
+                                <div className={`relative flex items-center justify-center transition-all duration-300 ${
+                                    isScrolled 
+                                        ? 'p-1' 
+                                        : 'p-1.5 rounded-2xl'
+                                } ${
+                                    active && !isScrolled ? '-translate-y-1 bg-primary/10 dark:bg-primary/20 shadow-sm' : ''
+                                }`}>
+                                    <item.icon className={`transition-transform duration-300 ${
+                                        isScrolled ? 'w-5 h-5' : 'w-5 h-5'
+                                    } ${
+                                        active ? 'scale-110' : 'group-hover:scale-110'
+                                    }`} />
                                 </div>
-                                <span className={`text-[10px] font-bold transition-all duration-300 ${active ? 'opacity-100 translate-y-0' : 'opacity-70 group-hover:opacity-100 translate-y-0.5'}`}>
+                                <span className={`text-[10px] font-bold transition-all duration-300 ${
+                                    isScrolled 
+                                        ? (active ? 'opacity-100 scale-100' : 'opacity-70 scale-90') 
+                                        : (active ? 'opacity-100 translate-y-0' : 'opacity-70 group-hover:opacity-100 translate-y-0.5')
+                                }`}>
                                     {item.label}
                                 </span>
                             </Link>
